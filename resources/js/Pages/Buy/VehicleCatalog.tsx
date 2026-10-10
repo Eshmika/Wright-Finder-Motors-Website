@@ -113,103 +113,92 @@ function VehicleCard({ car }: { car: Vehicle }) {
         ? Math.round((discountAmount / car.originalPrice) * 100)
         : 0;
 
-    const displayImage =
-        car.images.length > 0 && car.images[currentImageIndex]
-            ? car.images[currentImageIndex]
-            : "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80";
+    const [imageError, setImageError] = useState(false);
+    const hasImages = car.images && car.images.length > 0 && !imageError;
+    const currentImageUrl = hasImages ? car.images[currentImageIndex] : "";
 
     return (
         <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-300 flex flex-col group transform hover:-translate-y-1">
-            {/* Vehicle Image Slider */}
-            <div className="relative h-64 overflow-hidden bg-gray-900 select-none">
-                <img
-                    src={displayImage}
-                    alt={`${car.title} - photo ${currentImageIndex + 1}`}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    loading="lazy"
-                    onError={(e) => {
-                        // Fallback image if drive preview fails
-                        const target = e.target as HTMLImageElement;
-                        target.src =
-                            "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80";
-                    }}
-                />
+            {/* Vehicle Image Slider / Empty State Container */}
+            <div className="relative h-64 overflow-hidden bg-gray-100 select-none flex items-center justify-center">
+                {hasImages ? (
+                    <>
+                        <img
+                            src={currentImageUrl}
+                            alt={`${car.title} - photo ${currentImageIndex + 1}`}
+                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                            loading="lazy"
+                            onError={() => setImageError(true)}
+                        />
 
-                {/* Subtle top/bottom image gradient for contrast */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/25 pointer-events-none" />
+                        {/* Subtle top/bottom image gradient for contrast */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/25 pointer-events-none" />
+
+                        {/* Prev & Next Slider Arrows */}
+                        {car.images.length > 1 && (
+                            <>
+                                <button
+                                    type="button"
+                                    onClick={prevImage}
+                                    aria-label="Previous vehicle photo"
+                                    className="absolute left-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 hover:bg-vivid-red text-white flex items-center justify-center transition-all duration-200 backdrop-blur-sm opacity-80 group-hover:opacity-100 shadow-md hover:scale-110 active:scale-95"
+                                >
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                                    </svg>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={nextImage}
+                                    aria-label="Next vehicle photo"
+                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 hover:bg-vivid-red text-white flex items-center justify-center transition-all duration-200 backdrop-blur-sm opacity-80 group-hover:opacity-100 shadow-md hover:scale-110 active:scale-95"
+                                >
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </button>
+
+                                {/* Slider Dots Indicator */}
+                                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-md">
+                                    {car.images.map((_, idx) => (
+                                        <button
+                                            key={idx}
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                setCurrentImageIndex(idx);
+                                            }}
+                                            aria-label={`Go to image ${idx + 1}`}
+                                            className={`h-1.5 rounded-full transition-all duration-200 ${
+                                                currentImageIndex === idx
+                                                    ? "w-4 bg-vivid-red"
+                                                    : "w-1.5 bg-white/70 hover:bg-white"
+                                            }`}
+                                        />
+                                    ))}
+                                </div>
+                            </>
+                        )}
+                    </>
+                ) : (
+                    /* Empty Image Placeholder */
+                    <div className="flex flex-col items-center justify-center text-center p-6 w-full h-full bg-gradient-to-br from-gray-50 to-gray-100 text-gray-400">
+                        <div className="w-14 h-14 rounded-2xl bg-gray-200/70 flex items-center justify-center text-gray-400 mb-2">
+                            <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                        </div>
+                        <span className="text-xs font-semibold text-gray-500">No Image Available</span>
+                        <span className="text-[10px] text-gray-400 mt-0.5">Photos coming soon</span>
+                    </div>
+                )}
 
                 {/* Badge Tag (Status from sheet) */}
                 {car.badge && (
                     <div className="absolute top-3.5 right-3.5 bg-white/95 backdrop-blur-md px-3 py-1 rounded-full text-[11px] font-bold text-dark-blue shadow-md border border-white/60">
                         {car.badge}
                     </div>
-                )}
-
-                {/* Prev & Next Slider Arrows */}
-                {car.images.length > 1 && (
-                    <>
-                        <button
-                            type="button"
-                            onClick={prevImage}
-                            aria-label="Previous vehicle photo"
-                            className="absolute left-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 hover:bg-vivid-red text-white flex items-center justify-center transition-all duration-200 backdrop-blur-sm opacity-80 group-hover:opacity-100 shadow-md hover:scale-110 active:scale-95"
-                        >
-                            <svg
-                                className="w-4 h-4"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                                strokeWidth={2.5}
-                            >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    d="M15 19l-7-7 7-7"
-                                />
-                            </svg>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={nextImage}
-                            aria-label="Next vehicle photo"
-                            className="absolute right-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 hover:bg-vivid-red text-white flex items-center justify-center transition-all duration-200 backdrop-blur-sm opacity-80 group-hover:opacity-100 shadow-md hover:scale-110 active:scale-95"
-                        >
-                            <svg
-                                className="w-4 h-4"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                                strokeWidth={2.5}
-                            >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    d="M9 5l7 7-7 7"
-                                />
-                            </svg>
-                        </button>
-
-                        {/* Slider Dots Indicator */}
-                        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-md">
-                            {car.images.map((_, idx) => (
-                                <button
-                                    key={idx}
-                                    type="button"
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        setCurrentImageIndex(idx);
-                                    }}
-                                    aria-label={`Go to image ${idx + 1}`}
-                                    className={`h-1.5 rounded-full transition-all duration-200 ${
-                                        currentImageIndex === idx
-                                            ? "w-4 bg-vivid-red"
-                                            : "w-1.5 bg-white/70 hover:bg-white"
-                                    }`}
-                                />
-                            ))}
-                        </div>
-                    </>
                 )}
             </div>
 
@@ -332,10 +321,10 @@ function VehicleCard({ car }: { car: Vehicle }) {
                             <span
                                 className="font-semibold text-gray-800 text-[11px] truncate"
                                 title={
-                                    car.mileage ? `${car.mileage} mi` : "N/A"
+                                    car.mileage ? `${car.mileage} km` : "N/A"
                                 }
                             >
-                                {car.mileage ? `${car.mileage} mi` : "N/A"}
+                                {car.mileage ? `${car.mileage} km` : "N/A"}
                             </span>
                         </div>
 
