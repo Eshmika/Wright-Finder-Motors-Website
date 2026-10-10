@@ -1,13 +1,10 @@
-import Header from '@/Components/Header';
-import Footer from '@/Components/Footer';
-import HeroSection from './Home/HeroSection';
-import FeaturedCategories from './Home/FeaturedCategories';
-import FeaturedInventory from './Home/FeaturedInventory';
-import ServicesSection from './Home/ServicesSection';
-import WhyChooseUsSection from './Home/WhyChooseUsSection';
-import CallToActionSection from './Home/CallToActionSection';
-import { PageProps } from '@/types';
-import { Head } from '@inertiajs/react';
+import Header from "@/Components/Header";
+import Footer from "@/Components/Footer";
+import HeroSection from "./Home/HeroSection";
+import ServicesSection from "./Home/ServicesSection";
+import CallToActionSection from "./Home/CallToActionSection";
+import { PageProps } from "@/types";
+import { Head } from "@inertiajs/react";
 
 export default function Home({ auth }: PageProps) {
     return (
@@ -20,10 +17,7 @@ export default function Home({ auth }: PageProps) {
             {/* Main Page Sections */}
             <main className="flex-1">
                 <HeroSection />
-                <FeaturedCategories />
-                <FeaturedInventory />
                 <ServicesSection />
-                <WhyChooseUsSection />
                 <CallToActionSection />
             </main>
 
