@@ -1,12 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
-interface Vehicle {
-    id: number;
+export interface Vehicle {
+    id: string;
     title: string;
     make: string;
     category: string;
     price: number;
-    originalPrice?: number;
+    originalPrice: number;
     fuel: string;
     powerOptions: string;
     driveline: string;
@@ -17,246 +17,74 @@ interface Vehicle {
     images: string[];
 }
 
-const vehiclesData: Vehicle[] = [
-    {
-        id: 1,
-        title: "2024 Mercedes-Benz C300 4MATIC",
-        make: "Mercedes-Benz",
-        category: "Sedan",
-        price: 48500,
-        originalPrice: 52900,
-        fuel: "Mild Hybrid / Gas",
-        powerOptions: "255 HP Turbo",
-        driveline: "AWD (4MATIC)",
-        mileage: "4,200 mi",
-        transmission: "9-Speed Auto",
-        condition: "Certified Pre-Owned",
-        badge: "Special Offer",
-        images: [
-            "https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?auto=format&fit=crop&w=800&q=80",
-            "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=800&q=80",
-            "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80",
-        ],
-    },
-    {
-        id: 2,
-        title: "2023 BMW M4 Competition Coupe",
-        make: "BMW",
-        category: "Coupe",
-        price: 76900,
-        originalPrice: 81500,
-        fuel: "Twin-Turbo 3.0L",
-        powerOptions: "503 HP S58",
-        driveline: "RWD (M Differential)",
-        mileage: "8,900 mi",
-        transmission: "8-Speed M Steptronic",
-        condition: "Clean Title",
-        badge: "Hot Deal",
-        images: [
-            "https://images.unsplash.com/photo-1580273916550-e323be2ae537?auto=format&fit=crop&w=800&q=80",
-            "https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=800&q=80",
-            "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=800&q=80",
-        ],
-    },
-    {
-        id: 3,
-        title: "2024 Porsche 911 Carrera S",
-        make: "Porsche",
-        category: "Sports",
-        price: 128500,
-        originalPrice: 134000,
-        fuel: "Twin-Turbo Boxer-6",
-        powerOptions: "443 HP @ 6500",
-        driveline: "Rear-Wheel Drive",
-        mileage: "2,100 mi",
-        transmission: "8-Speed PDK",
-        condition: "Pristine / 1-Owner",
-        badge: "Low Mileage",
-        images: [
-            "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80",
-            "https://images.unsplash.com/photo-1614162692292-7ac56d7f7f1e?auto=format&fit=crop&w=800&q=80",
-            "https://images.unsplash.com/photo-1542282088-72c9c27ed0cd?auto=format&fit=crop&w=800&q=80",
-        ],
-    },
-    {
-        id: 4,
-        title: "2023 Audi RS6 Avant Quattro",
-        make: "Audi",
-        category: "Wagon",
-        price: 114000,
-        fuel: "4.0L Twin-Turbo V8",
-        powerOptions: "591 HP / 590 lb-ft",
-        driveline: "Quattro All-Wheel",
-        mileage: "11,500 mi",
-        transmission: "8-Speed Tiptronic",
-        condition: "Clean Carfax",
-        badge: "1-Owner",
-        images: [
-            "https://images.unsplash.com/photo-1603584173870-7f23fdae1b7a?auto=format&fit=crop&w=800&q=80",
-            "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?auto=format&fit=crop&w=800&q=80",
-            "https://images.unsplash.com/photo-1541348263662-e0c86666cb66?auto=format&fit=crop&w=800&q=80",
-        ],
-    },
-    {
-        id: 5,
-        title: "2024 Range Rover Sport HSE Dynamic",
-        make: "Land Rover",
-        category: "SUV",
-        price: 93500,
-        originalPrice: 98000,
-        fuel: "Mild Hybrid 3.0L",
-        powerOptions: "395 HP Turbo i6",
-        driveline: "Intelligent AWD",
-        mileage: "6,400 mi",
-        transmission: "8-Speed Automatic",
-        condition: "Certified Pre-Owned",
-        badge: "Price Drop",
-        images: [
-            "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?auto=format&fit=crop&w=800&q=80",
-            "https://images.unsplash.com/photo-1519641471654-76ce0107ad1b?auto=format&fit=crop&w=800&q=80",
-            "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=800&q=80",
-        ],
-    },
-    {
-        id: 6,
-        title: "2024 Tesla Model S Plaid",
-        make: "Tesla",
-        category: "Electric",
-        price: 88900,
-        fuel: "Tri-Motor Electric",
-        powerOptions: "1,020 HP Peak",
-        driveline: "All-Wheel Drive",
-        mileage: "5,100 mi",
-        transmission: "Direct Drive 1-Speed",
-        condition: "Like Brand New",
-        badge: "Zero Emissions",
-        images: [
-            "https://images.unsplash.com/photo-1560958089-b8a1929cea89?auto=format&fit=crop&w=800&q=80",
-            "https://images.unsplash.com/photo-1536700503339-1e4b06520771?auto=format&fit=crop&w=800&q=80",
-            "https://images.unsplash.com/photo-1571127236794-81c1c2105151?auto=format&fit=crop&w=800&q=80",
-        ],
-    },
-    {
-        id: 7,
-        title: "2023 Ford Mustang Mach 1",
-        make: "Ford",
-        category: "Coupe",
-        price: 54900,
-        originalPrice: 58500,
-        fuel: "5.0L Coyote V8",
-        powerOptions: "470 HP Naturally Asp.",
-        driveline: "Rear-Wheel Drive",
-        mileage: "12,200 mi",
-        transmission: "TREMEC 6-Spd Manual",
-        condition: "Certified Inspected",
-        badge: "Performance Spec",
-        images: [
-            "https://images.unsplash.com/photo-1584345604476-8ec5e12e42dd?auto=format&fit=crop&w=800&q=80",
-            "https://images.unsplash.com/photo-1494976388531-d1058494cdd8?auto=format&fit=crop&w=800&q=80",
-            "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=800&q=80",
-        ],
-    },
-    {
-        id: 8,
-        title: "2024 Lexus RX 500h F SPORT Performance",
-        make: "Lexus",
-        category: "SUV",
-        price: 66500,
-        fuel: "2.4L Turbo Hybrid",
-        powerOptions: "366 HP DIRECT4",
-        driveline: "DIRECT4 AWD",
-        mileage: "3,800 mi",
-        transmission: "6-Speed Direct Shift",
-        condition: "Factory Warranty",
-        badge: "Verified History",
-        images: [
-            "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80",
-            "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=800&q=80",
-            "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80",
-        ],
-    },
-    {
-        id: 9,
-        title: "2023 Chevrolet Corvette Stingray 3LT",
-        make: "Chevrolet",
-        category: "Sports",
-        price: 79900,
-        originalPrice: 84900,
-        fuel: "6.2L LT2 V8",
-        powerOptions: "495 HP Z51 Pack",
-        driveline: "Mid-Engine RWD",
-        mileage: "7,300 mi",
-        transmission: "8-Speed Dual-Clutch",
-        condition: "100% Inspected",
-        badge: "Special Deal",
-        images: [
-            "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=800&q=80",
-            "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80",
-            "https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?auto=format&fit=crop&w=800&q=80",
-        ],
-    },
-    {
-        id: 10,
-        title: "2024 BMW X5 M60i xDrive",
-        make: "BMW",
-        category: "SUV",
-        price: 89900,
-        originalPrice: 94500,
-        fuel: "4.4L TwinPower Turbo V8",
-        powerOptions: "523 HP Mild-Hybrid",
-        driveline: "xDrive Intelligent AWD",
-        mileage: "4,600 mi",
-        transmission: "8-Speed Sport Auto",
-        condition: "Executive Demo",
-        badge: "Pre-Owned",
-        images: [
-            "https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=800&q=80",
-            "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?auto=format&fit=crop&w=800&q=80",
-            "https://images.unsplash.com/photo-1580273916550-e323be2ae537?auto=format&fit=crop&w=800&q=80",
-        ],
-    },
-    {
-        id: 11,
-        title: "2023 Mercedes-AMG GT 53 4-Door",
-        make: "Mercedes-Benz",
-        category: "Sedan",
-        price: 99800,
-        fuel: "3.0L Turbo Inline-6",
-        powerOptions: "429 HP EQ Boost",
-        driveline: "AMG Performance 4MATIC+",
-        mileage: "9,200 mi",
-        transmission: "AMG SPEEDSHIFT 9-Spd",
-        condition: "Certified Pre-Owned",
-        badge: "Rare Find",
-        images: [
-            "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=800&q=80",
-            "https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?auto=format&fit=crop&w=800&q=80",
-            "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80",
-        ],
-    },
-    {
-        id: 12,
-        title: "2024 Jaguar F-Type R 75 Coupe",
-        make: "Jaguar",
-        category: "Sports",
-        price: 104500,
-        originalPrice: 112000,
-        fuel: "5.0L Supercharged V8",
-        powerOptions: "575 HP AWD",
-        driveline: "All-Wheel Drive",
-        mileage: "1,800 mi",
-        transmission: "Quickshift 8-Speed",
-        condition: "Collector Spec",
-        badge: "Special Edition",
-        images: [
-            "https://images.unsplash.com/photo-1542282088-72c9c27ed0cd?auto=format&fit=crop&w=800&q=80",
-            "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=800&q=80",
-            "https://images.unsplash.com/photo-1584345604476-8ec5e12e42dd?auto=format&fit=crop&w=800&q=80",
-        ],
-    },
-];
-
 const CARDS_PER_PAGE = 9;
+
+// Convert Google Drive share link to direct image viewable URL
+function formatDriveImageUrl(url: string): string {
+    if (!url) return "";
+    const trimmed = url.trim();
+    if (!trimmed) return "";
+
+    // If it's a google drive link with /file/d/{id}
+    const match = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+    if (match && match[1]) {
+        return `https://lh3.googleusercontent.com/d/${match[1]}`;
+    }
+
+    // If it has id={id}
+    const matchId = trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (matchId && matchId[1]) {
+        return `https://lh3.googleusercontent.com/d/${matchId[1]}`;
+    }
+
+    return trimmed;
+}
+
+// Parse CSV text respecting quotes
+function parseCsv(text: string): string[][] {
+    const rows: string[][] = [];
+    let currentRow: string[] = [];
+    let currentCell = "";
+    let insideQuotes = false;
+
+    for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        const nextChar = text[i + 1];
+
+        if (char === '"') {
+            if (insideQuotes && nextChar === '"') {
+                currentCell += '"';
+                i++;
+            } else {
+                insideQuotes = !insideQuotes;
+            }
+        } else if (char === "," && !insideQuotes) {
+            currentRow.push(currentCell.trim());
+            currentCell = "";
+        } else if ((char === "\r" || char === "\n") && !insideQuotes) {
+            if (char === "\r" && nextChar === "\n") {
+                i++;
+            }
+            currentRow.push(currentCell.trim());
+            if (currentRow.some((c) => c !== "")) {
+                rows.push(currentRow);
+            }
+            currentRow = [];
+            currentCell = "";
+        } else {
+            currentCell += char;
+        }
+    }
+
+    if (currentCell.length > 0 || currentRow.length > 0) {
+        currentRow.push(currentCell.trim());
+        if (currentRow.some((c) => c !== "")) {
+            rows.push(currentRow);
+        }
+    }
+
+    return rows;
+}
 
 function VehicleCard({ car }: { car: Vehicle }) {
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -277,28 +105,40 @@ function VehicleCard({ car }: { car: Vehicle }) {
         );
     };
 
-    const discountAmount = car.originalPrice
-        ? car.originalPrice - car.price
-        : 0;
-    const discountPercentage = car.originalPrice
+    const hasDiscount =
+        car.originalPrice > 0 && car.price > 0 && car.originalPrice > car.price;
+
+    const discountAmount = hasDiscount ? car.originalPrice - car.price : 0;
+    const discountPercentage = hasDiscount
         ? Math.round((discountAmount / car.originalPrice) * 100)
         : 0;
+
+    const displayImage =
+        car.images.length > 0 && car.images[currentImageIndex]
+            ? car.images[currentImageIndex]
+            : "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80";
 
     return (
         <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-300 flex flex-col group transform hover:-translate-y-1">
             {/* Vehicle Image Slider */}
             <div className="relative h-64 overflow-hidden bg-gray-900 select-none">
                 <img
-                    src={car.images[currentImageIndex]}
+                    src={displayImage}
                     alt={`${car.title} - photo ${currentImageIndex + 1}`}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     loading="lazy"
+                    onError={(e) => {
+                        // Fallback image if drive preview fails
+                        const target = e.target as HTMLImageElement;
+                        target.src =
+                            "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80";
+                    }}
                 />
 
                 {/* Subtle top/bottom image gradient for contrast */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/25 pointer-events-none" />
 
-                {/* Badge Tag (top-right) */}
+                {/* Badge Tag (Status from sheet) */}
                 {car.badge && (
                     <div className="absolute top-3.5 right-3.5 bg-white/95 backdrop-blur-md px-3 py-1 rounded-full text-[11px] font-bold text-dark-blue shadow-md border border-white/60">
                         {car.badge}
@@ -405,9 +245,9 @@ function VehicleCard({ car }: { car: Vehicle }) {
                             </div>
                             <span
                                 className="font-semibold text-gray-800 text-[11px] truncate"
-                                title={car.fuel}
+                                title={car.fuel || "N/A"}
                             >
-                                {car.fuel}
+                                {car.fuel || "N/A"}
                             </span>
                         </div>
 
@@ -433,9 +273,9 @@ function VehicleCard({ car }: { car: Vehicle }) {
                             </div>
                             <span
                                 className="font-semibold text-gray-800 text-[11px] truncate"
-                                title={car.powerOptions}
+                                title={car.powerOptions || "Standard"}
                             >
-                                {car.powerOptions}
+                                {car.powerOptions || "Standard"}
                             </span>
                         </div>
 
@@ -463,9 +303,9 @@ function VehicleCard({ car }: { car: Vehicle }) {
                             </div>
                             <span
                                 className="font-semibold text-gray-800 text-[11px] truncate"
-                                title={car.driveline}
+                                title={car.driveline || "N/A"}
                             >
-                                {car.driveline}
+                                {car.driveline || "N/A"}
                             </span>
                         </div>
 
@@ -491,9 +331,11 @@ function VehicleCard({ car }: { car: Vehicle }) {
                             </div>
                             <span
                                 className="font-semibold text-gray-800 text-[11px] truncate"
-                                title={car.mileage}
+                                title={
+                                    car.mileage ? `${car.mileage} mi` : "N/A"
+                                }
                             >
-                                {car.mileage} km
+                                {car.mileage ? `${car.mileage} mi` : "N/A"}
                             </span>
                         </div>
 
@@ -520,13 +362,13 @@ function VehicleCard({ car }: { car: Vehicle }) {
                             </div>
                             <span
                                 className="font-semibold text-gray-800 text-[11px] truncate"
-                                title={car.transmission}
+                                title={car.transmission || "Automatic"}
                             >
-                                {car.transmission}
+                                {car.transmission || "Automatic"}
                             </span>
                         </div>
 
-                        {/* 6. Condition */}
+                        {/* 6. Condition (Title from Sheet) */}
                         <div className="flex flex-col bg-gray-50/90 rounded-xl p-2.5 hover:bg-red-50/50 transition-colors">
                             <div className="flex items-center space-x-1.5 text-vivid-red mb-1">
                                 <svg
@@ -543,14 +385,14 @@ function VehicleCard({ car }: { car: Vehicle }) {
                                     />
                                 </svg>
                                 <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
-                                    State
+                                    Title
                                 </span>
                             </div>
                             <span
                                 className="font-semibold text-gray-800 text-[11px] truncate"
-                                title={car.condition}
+                                title={car.condition || "Clean"}
                             >
-                                {car.condition}
+                                {car.condition || "Clean"}
                             </span>
                         </div>
                     </div>
@@ -561,13 +403,13 @@ function VehicleCard({ car }: { car: Vehicle }) {
                     <div className="flex items-baseline justify-between">
                         <div>
                             <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider block mb-0.5">
-                                Final Price
+                                Price
                             </span>
                             <div className="flex items-baseline gap-2.5">
-                                <span className="text-xl font-black text-[#170a3d] tracking-tight">
+                                <span className="text-2xl font-black text-[#170a3d] tracking-tight">
                                     ${car.price.toLocaleString()}
                                 </span>
-                                {car.originalPrice && (
+                                {hasDiscount && (
                                     <span className="text-sm font-semibold text-gray-400 line-through decoration-vivid-red/70 decoration-2">
                                         ${car.originalPrice.toLocaleString()}
                                     </span>
@@ -575,8 +417,8 @@ function VehicleCard({ car }: { car: Vehicle }) {
                             </div>
                         </div>
 
-                        {/* Creative Discount Badge if discounted */}
-                        {discountPercentage > 0 && (
+                        {/* Discount badge */}
+                        {hasDiscount && (
                             <div className="flex flex-col items-end">
                                 <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full bg-red-50 border border-red-200/80 text-vivid-red text-[11px] font-extrabold shadow-sm">
                                     <span>
@@ -590,7 +432,7 @@ function VehicleCard({ car }: { car: Vehicle }) {
                         )}
                     </div>
 
-                    {/* Action Buttons: 1 Row with "Contact agent" & "Explore more" */}
+                    {/* Action Buttons: 1 Row with "Contact Agent" & "Explore More" */}
                     <div className="grid grid-cols-2 gap-3 mt-5">
                         <a
                             href="#contact"
@@ -649,11 +491,199 @@ function VehicleCard({ car }: { car: Vehicle }) {
 }
 
 export default function VehicleCatalog() {
+    const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
 
-    const totalPages = Math.ceil(vehiclesData.length / CARDS_PER_PAGE);
+    const SHEET_CSV_URL =
+        "https://docs.google.com/spreadsheets/d/16dhtw1POBIeifrAEk0ZqmH3jV8s20quo9Si3GfebifE/gviz/tq?tqx=out:csv&sheet=Vehicle%20details";
+
+    useEffect(() => {
+        let isMounted = true;
+
+        async function fetchVehicles() {
+            try {
+                setIsLoading(true);
+                setError(null);
+                const res = await fetch(SHEET_CSV_URL);
+                if (!res.ok) {
+                    throw new Error(
+                        `Failed to fetch Google Sheet: ${res.statusText}`,
+                    );
+                }
+                const csvData = await res.text();
+                const parsedRows = parseCsv(csvData);
+
+                if (parsedRows.length < 2) {
+                    if (isMounted) {
+                        setVehicles([]);
+                        setIsLoading(false);
+                    }
+                    return;
+                }
+
+                // First row is headers
+                const headers = parsedRows[0].map((h) => h.trim());
+
+                // Find column index helper
+                const getIndex = (name: string): number => {
+                    return headers.findIndex(
+                        (h) => h.toLowerCase() === name.toLowerCase(),
+                    );
+                };
+
+                const carIdIdx = getIndex("Car ID");
+                const carNameIdx = getIndex("Car Name");
+                const modelIdx = getIndex("Model");
+                const yearIdx = getIndex("Year");
+                const bodyStyleIdx = getIndex("Body Style");
+                const priceIdx = getIndex("Price");
+                const discountIdx = getIndex("Discount");
+                const fuelTypeIdx = getIndex("Fuel Type");
+                const powerOptionsIdx = getIndex("Power Options");
+                const drivelineIdx = getIndex("Driveline");
+                const mileageIdx = getIndex("Mileage");
+                const transmissionIdx = getIndex("Transmission");
+                const titleIdx = getIndex("Title");
+                const statusIdx = getIndex("Status");
+                const mainImageIdx = getIndex("Main Image URLs");
+                const subImagesIdx = getIndex("Sub Image URLs");
+
+                const loadedVehicles: Vehicle[] = [];
+
+                for (let i = 1; i < parsedRows.length; i++) {
+                    const row = parsedRows[i];
+                    if (!row || row.length === 0) continue;
+
+                    const carId =
+                        carIdIdx !== -1
+                            ? row[carIdIdx]?.trim() || `car-${i}`
+                            : `car-${i}`;
+                    const carName =
+                        carNameIdx !== -1 ? row[carNameIdx]?.trim() || "" : "";
+                    const model =
+                        modelIdx !== -1 ? row[modelIdx]?.trim() || "" : "";
+                    const year =
+                        yearIdx !== -1 ? row[yearIdx]?.trim() || "" : "";
+
+                    // Skip empty rows where Car Name and Model are missing
+                    if (!carName && !model) continue;
+
+                    // Title: Car Name + Model + Year
+                    const titleParts = [carName, model, year].filter(Boolean);
+                    const title = titleParts.join(" ") || `Vehicle #${i}`;
+
+                    const category =
+                        bodyStyleIdx !== -1
+                            ? row[bodyStyleIdx]?.trim() || "Sedan"
+                            : "Sedan";
+
+                    // originalPrice = Price
+                    const originalPriceRaw =
+                        priceIdx !== -1
+                            ? parseFloat(
+                                  row[priceIdx]?.replace(/[^0-9.]/g, "") || "0",
+                              )
+                            : 0;
+                    const discountRaw =
+                        discountIdx !== -1
+                            ? parseFloat(
+                                  row[discountIdx]?.replace(/[^0-9.]/g, "") ||
+                                      "0",
+                              )
+                            : 0;
+
+                    // price = Discount reduced from originalPrice
+                    // i.e. if originalPrice is 7000 and discount is 2000 => price is 5000. If no discount, price = originalPrice.
+                    const finalPrice =
+                        discountRaw > 0 && originalPriceRaw >= discountRaw
+                            ? originalPriceRaw - discountRaw
+                            : originalPriceRaw;
+
+                    const fuel =
+                        fuelTypeIdx !== -1
+                            ? row[fuelTypeIdx]?.trim() || ""
+                            : "";
+                    const powerOptions =
+                        powerOptionsIdx !== -1
+                            ? row[powerOptionsIdx]?.trim() || ""
+                            : "";
+                    const driveline =
+                        drivelineIdx !== -1
+                            ? row[drivelineIdx]?.trim() || ""
+                            : "";
+                    const mileage =
+                        mileageIdx !== -1 ? row[mileageIdx]?.trim() || "" : "";
+                    const transmission =
+                        transmissionIdx !== -1
+                            ? row[transmissionIdx]?.trim() || ""
+                            : "";
+                    const condition =
+                        titleIdx !== -1 ? row[titleIdx]?.trim() || "" : "";
+                    const badge =
+                        statusIdx !== -1 ? row[statusIdx]?.trim() || "" : "";
+
+                    // Images: Main Image URLs + Sub Image URLs (comma-separated)
+                    const rawMainImage =
+                        mainImageIdx !== -1 ? row[mainImageIdx] || "" : "";
+                    const rawSubImages =
+                        subImagesIdx !== -1 ? row[subImagesIdx] || "" : "";
+
+                    const allImageStrings = `${rawMainImage},${rawSubImages}`;
+                    const imageTokens = allImageStrings
+                        .split(",")
+                        .map((s) => s.trim())
+                        .filter(Boolean);
+
+                    const formattedImages = imageTokens
+                        .map((url) => formatDriveImageUrl(url))
+                        .filter(Boolean);
+
+                    loadedVehicles.push({
+                        id: carId,
+                        title,
+                        make: carName,
+                        category,
+                        price: finalPrice,
+                        originalPrice: originalPriceRaw,
+                        fuel,
+                        powerOptions,
+                        driveline,
+                        mileage,
+                        transmission,
+                        condition,
+                        badge,
+                        images: formattedImages,
+                    });
+                }
+
+                if (isMounted) {
+                    setVehicles(loadedVehicles);
+                    setIsLoading(false);
+                }
+            } catch (err: any) {
+                console.error(
+                    "Error fetching vehicles from Google Sheet:",
+                    err,
+                );
+                if (isMounted) {
+                    setError("Failed to load vehicle data from Google Sheet.");
+                    setIsLoading(false);
+                }
+            }
+        }
+
+        fetchVehicles();
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
+
+    const totalPages = Math.ceil(vehicles.length / CARDS_PER_PAGE);
     const startIndex = (currentPage - 1) * CARDS_PER_PAGE;
-    const currentVehicles = vehiclesData.slice(
+    const currentVehicles = vehicles.slice(
         startIndex,
         startIndex + CARDS_PER_PAGE,
     );
@@ -669,7 +699,7 @@ export default function VehicleCatalog() {
     return (
         <section
             id="catalog"
-            className="py-20 bg-bggray font-poppins relative"
+            className="py-20 lg:py-24 bg-bggray font-poppins relative"
         >
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Centered Header Section */}
@@ -684,15 +714,52 @@ export default function VehicleCatalog() {
                     </p>
                 </div>
 
+                {/* Loading State */}
+                {isLoading && (
+                    <div className="py-24 flex flex-col items-center justify-center space-y-4">
+                        <div className="w-12 h-12 border-4 border-vivid-red border-t-transparent rounded-full animate-spin" />
+                        <p className="text-white text-sm font-medium">
+                            Fetching vehicles from Google Sheet...
+                        </p>
+                    </div>
+                )}
+
+                {/* Error State */}
+                {!isLoading && error && (
+                    <div className="text-center py-16 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 p-8 max-w-lg mx-auto">
+                        <p className="text-red-400 font-semibold mb-2">
+                            {error}
+                        </p>
+                        <button
+                            type="button"
+                            onClick={() => window.location.reload()}
+                            className="px-5 py-2.5 bg-vivid-red text-white text-xs font-bold rounded-xl hover:bg-red-600 transition"
+                        >
+                            Retry Loading
+                        </button>
+                    </div>
+                )}
+
+                {/* Empty State */}
+                {!isLoading && !error && vehicles.length === 0 && (
+                    <div className="text-center py-16 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 p-8 max-w-lg mx-auto">
+                        <p className="text-white font-semibold">
+                            No vehicles found in the Google Sheet.
+                        </p>
+                    </div>
+                )}
+
                 {/* Vehicle Grid (Max 9 cards shown per page) */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {currentVehicles.map((car) => (
-                        <VehicleCard key={car.id} car={car} />
-                    ))}
-                </div>
+                {!isLoading && !error && vehicles.length > 0 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        {currentVehicles.map((car) => (
+                            <VehicleCard key={car.id} car={car} />
+                        ))}
+                    </div>
+                )}
 
                 {/* Pagination Controls */}
-                {totalPages > 1 && (
+                {!isLoading && !error && totalPages > 1 && (
                     <div className="mt-16 flex flex-col sm:flex-row items-center justify-between gap-4 pt-8 border-t border-white/10 text-white">
                         <p className="text-xs text-gray-300">
                             Showing{" "}
@@ -703,12 +770,12 @@ export default function VehicleCatalog() {
                             <span className="font-bold text-white">
                                 {Math.min(
                                     startIndex + CARDS_PER_PAGE,
-                                    vehiclesData.length,
+                                    vehicles.length,
                                 )}
                             </span>{" "}
                             of{" "}
                             <span className="font-bold text-white">
-                                {vehiclesData.length}
+                                {vehicles.length}
                             </span>{" "}
                             vehicles
                         </p>
