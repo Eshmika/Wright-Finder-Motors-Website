@@ -1,4 +1,4 @@
-import { Link } from "@inertiajs/react";
+import { Link, usePage } from "@inertiajs/react";
 import { useState } from "react";
 
 import { User } from "@/types";
@@ -9,14 +9,17 @@ interface HeaderProps {
 
 export default function Header({ user }: HeaderProps = {}) {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const { url, component } = usePage();
+
+    const isHome = url === "/" || url === "" || component === "Home";
 
     const navLinks = [
-        { name: "Home", href: "/" },
-        { name: "Buy", href: "#" },
-        { name: "Rent", href: "#" },
-        { name: "Repair", href: "#" },
-        { name: "Blog", href: "#" },
-        { name: "Contact Us", href: "#" },
+        { name: "Home", href: "/", isCurrent: isHome },
+        { name: "Buy", href: "#", isCurrent: false },
+        { name: "Rent", href: "#", isCurrent: false },
+        { name: "Repair", href: "#", isCurrent: false },
+        { name: "Blog", href: "#", isCurrent: false },
+        { name: "Contact Us", href: "#", isCurrent: false },
     ];
 
     return (
@@ -43,21 +46,42 @@ export default function Header({ user }: HeaderProps = {}) {
 
                     {/* Desktop Navigation Links */}
                     <nav className="hidden md:flex items-center space-x-1 lg:space-x-2">
-                        {navLinks.map((link) => (
-                            <a
-                                key={link.name}
-                                href={link.href}
-                                className="group relative px-3.5 py-2 text-base font-semibold text-dark-blue transition-colors duration-200 hover:text-vivid-red"
-                            >
-                                <span className="relative z-10">
-                                    {link.name}
-                                </span>
-                                {/* Creative underline animated indicator */}
-                                <span className="absolute bottom-0.5 left-3.5 right-3.5 h-[2.5px] rounded-full bg-vivid-red scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
-                                {/* Soft hover background glow pill */}
-                                <span className="absolute inset-0 rounded-lg bg-red-50/0 group-hover:bg-red-50/80 transition-colors duration-200 -z-0" />
-                            </a>
-                        ))}
+                        {navLinks.map((link) => {
+                            const ComponentTag = link.href.startsWith("/")
+                                ? Link
+                                : "a";
+                            return (
+                                <ComponentTag
+                                    key={link.name}
+                                    href={link.href}
+                                    className={`group relative px-3.5 py-2 text-base font-semibold transition-colors duration-200 ${
+                                        link.isCurrent
+                                            ? "text-vivid-red"
+                                            : "text-dark-blue hover:text-vivid-red"
+                                    }`}
+                                >
+                                    <span className="relative z-10">
+                                        {link.name}
+                                    </span>
+                                    {/* Creative underline indicator: fully visible when current/active, animated on hover */}
+                                    <span
+                                        className={`absolute bottom-0.5 left-3.5 right-3.5 h-[2.5px] rounded-full bg-vivid-red transition-transform duration-300 origin-left ${
+                                            link.isCurrent
+                                                ? "scale-x-100"
+                                                : "scale-x-0 group-hover:scale-x-100"
+                                        }`}
+                                    />
+                                    {/* Soft hover/active background glow pill */}
+                                    <span
+                                        className={`absolute inset-0 rounded-lg transition-colors duration-200 -z-0 ${
+                                            link.isCurrent
+                                                ? "bg-red-50/80"
+                                                : "bg-red-50/0 group-hover:bg-red-50/80"
+                                        }`}
+                                    />
+                                </ComponentTag>
+                            );
+                        })}
                     </nav>
 
                     {/* Mobile Hamburger Button */}
@@ -104,19 +128,34 @@ export default function Header({ user }: HeaderProps = {}) {
                 }`}
             >
                 <nav className="px-4 py-4 space-y-1">
-                    {navLinks.map((link) => (
-                        <a
-                            key={link.name}
-                            href={link.href}
-                            onClick={() => setMobileMenuOpen(false)}
-                            className="group flex items-center justify-between px-4 py-3 rounded-xl text-base font-semibold text-dark-blue hover:text-vivid-red hover:bg-red-50/60 transition-all duration-200"
-                        >
-                            <span>{link.name}</span>
-                            <span className="text-gray-300 group-hover:text-vivid-red group-hover:translate-x-1 transition-all duration-200 text-sm">
-                                &rarr;
-                            </span>
-                        </a>
-                    ))}
+                    {navLinks.map((link) => {
+                        const ComponentTag = link.href.startsWith("/")
+                            ? Link
+                            : "a";
+                        return (
+                            <ComponentTag
+                                key={link.name}
+                                href={link.href}
+                                onClick={() => setMobileMenuOpen(false)}
+                                className={`group flex items-center justify-between px-4 py-3 rounded-xl text-base font-semibold transition-all duration-200 ${
+                                    link.isCurrent
+                                        ? "text-vivid-red bg-red-50/80"
+                                        : "text-dark-blue hover:text-vivid-red hover:bg-red-50/60"
+                                }`}
+                            >
+                                <span>{link.name}</span>
+                                <span
+                                    className={`transition-all duration-200 text-sm ${
+                                        link.isCurrent
+                                            ? "text-vivid-red translate-x-1"
+                                            : "text-gray-300 group-hover:text-vivid-red group-hover:translate-x-1"
+                                    }`}
+                                >
+                                    &rarr;
+                                </span>
+                            </ComponentTag>
+                        );
+                    })}
                 </nav>
             </div>
         </header>
