@@ -47,7 +47,7 @@ export default function HeroSection() {
 
                         <div className="flex flex-wrap gap-4 justify-center lg:justify-start pt-2">
                             <a
-                                href="#"
+                                href="/buy"
                                 className="px-6 py-3 rounded-full bg-vivid-red text-white font-semibold text-sm hover:bg-red-600 transition shadow-lg shadow-red-500/30 transform hover:-translate-y-0.5"
                             >
                                 Explore Inventory

@@ -12,10 +12,11 @@ export default function Header({ user }: HeaderProps = {}) {
     const { url, component } = usePage();
 
     const isHome = url === "/" || url === "" || component === "Home";
+    const isBuy = url.startsWith("/buy") || component === "Buy";
 
     const navLinks = [
         { name: "Home", href: "/", isCurrent: isHome },
-        { name: "Buy", href: "#", isCurrent: false },
+        { name: "Buy", href: "/buy", isCurrent: isBuy },
         { name: "Rent", href: "#", isCurrent: false },
         { name: "Repair", href: "#", isCurrent: false },
         { name: "Blog", href: "#", isCurrent: false },

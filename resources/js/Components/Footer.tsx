@@ -81,12 +81,12 @@ export default function Footer() {
                                 </a>
                             </li>
                             <li>
-                                <a
-                                    href="#vehicles"
+                                <Link
+                                    href="/buy"
                                     className="hover:text-vivid-red transition"
                                 >
                                     Buy
-                                </a>
+                                </Link>
                             </li>
                             <li>
                                 <a
