@@ -12,8 +12,16 @@ export default {
 
     theme: {
         extend: {
+            colors: {
+                'vivid-red': '#fd2a29',
+                'dark-blue': '#232754',
+                purple: '#3a1f62',
+                'dark-purple': '#170a3d',
+                bggray: '#475569',
+            },
             fontFamily: {
                 sans: ['Figtree', ...defaultTheme.fontFamily.sans],
+                poppins: ['Poppins', ...defaultTheme.fontFamily.sans],
             },
         },
     },
