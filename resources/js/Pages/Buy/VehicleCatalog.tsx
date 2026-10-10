@@ -143,8 +143,18 @@ function VehicleCard({ car }: { car: Vehicle }) {
                                     aria-label="Previous vehicle photo"
                                     className="absolute left-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 hover:bg-vivid-red text-white flex items-center justify-center transition-all duration-200 backdrop-blur-sm opacity-80 group-hover:opacity-100 shadow-md hover:scale-110 active:scale-95"
                                 >
-                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                                    <svg
+                                        className="w-4 h-4"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        strokeWidth={2.5}
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            d="M15 19l-7-7 7-7"
+                                        />
                                     </svg>
                                 </button>
                                 <button
@@ -153,8 +163,18 @@ function VehicleCard({ car }: { car: Vehicle }) {
                                     aria-label="Next vehicle photo"
                                     className="absolute right-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 hover:bg-vivid-red text-white flex items-center justify-center transition-all duration-200 backdrop-blur-sm opacity-80 group-hover:opacity-100 shadow-md hover:scale-110 active:scale-95"
                                 >
-                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                                    <svg
+                                        className="w-4 h-4"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        strokeWidth={2.5}
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            d="M9 5l7 7-7 7"
+                                        />
                                     </svg>
                                 </button>
 
@@ -185,12 +205,26 @@ function VehicleCard({ car }: { car: Vehicle }) {
                     /* Empty Image Placeholder */
                     <div className="flex flex-col items-center justify-center text-center p-6 w-full h-full bg-gradient-to-br from-gray-50 to-gray-100 text-gray-400">
                         <div className="w-14 h-14 rounded-2xl bg-gray-200/70 flex items-center justify-center text-gray-400 mb-2">
-                            <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            <svg
+                                className="w-7 h-7"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={1.75}
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                />
                             </svg>
                         </div>
-                        <span className="text-xs font-semibold text-gray-500">No Image Available</span>
-                        <span className="text-[10px] text-gray-400 mt-0.5">Photos coming soon</span>
+                        <span className="text-xs font-semibold text-gray-500">
+                            No Image Available
+                        </span>
+                        <span className="text-[10px] text-gray-400 mt-0.5">
+                            Photos coming soon
+                        </span>
                     </div>
                 )}
 
@@ -693,10 +727,10 @@ export default function VehicleCatalog() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Centered Header Section */}
                 <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
-                    <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight">
+                    <h2 className="text-3xl lg:text-5xl font-extrabold text-white tracking-tight">
                         Explore Vehicles For Sale
                     </h2>
-                    <p className="text-sm sm:text-base text-gray-200 max-w-2xl mx-auto leading-relaxed">
+                    <p className="text-sm lg:text-base text-gray-200 max-w-2xl mx-auto leading-relaxed">
                         Handpicked quality vehicles ready for immediate driving
                         or booking. Comprehensive specifications, certified
                         multi-point inspections, and transparent market pricing.
