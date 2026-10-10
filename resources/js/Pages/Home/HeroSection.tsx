@@ -18,8 +18,8 @@ export default function HeroSection() {
 
                 {/* Dark Overlay Gradients for readability and aesthetic */}
                 <div className="absolute inset-0 bg-[#170a3d]/15 mix-blend-multiply" />
-                <div className="absolute inset-0 bg-gradient-to-r from-[#170a3d]/35 via-[#170a3d]/20 to-transparent" />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#170a3d]/30 via-transparent to-black/10" />
+                <div className="absolute inset-0 bg-gradient-to-r from-[#170a3d]/45 via-[#170a3d]/40 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#170a3d]/40 via-transparent to-black/40" />
             </div>
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full">
