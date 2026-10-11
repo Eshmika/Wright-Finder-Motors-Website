@@ -514,6 +514,12 @@ function VehicleCard({ car }: { car: Vehicle }) {
 
                         <button
                             type="button"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                router.visit(
+                                    `/vehicles/${encodeURIComponent(car.id)}`,
+                                );
+                            }}
                             className="inline-flex items-center justify-center space-x-1.5 py-3 px-3 rounded-xl bg-vivid-red hover:bg-red-600 text-white text-xs font-bold transition-all duration-200 shadow-md hover:shadow-red-500/30 active:scale-95"
                         >
                             <span>Explore More</span>
@@ -760,7 +766,8 @@ export default function VehicleCatalog() {
     const [fromYear, setFromYear] = useState<string>("");
     const [toYear, setToYear] = useState<string>("");
     const [selectedCategory, setSelectedCategory] = useState<string>("");
-    const [selectedCondition, setSelectedCondition] = useState<string>(urlCondition);
+    const [selectedCondition, setSelectedCondition] =
+        useState<string>(urlCondition);
 
     // Applied filter state (applied when clicking "Search Vehicle")
     const [appliedFilters, setAppliedFilters] = useState({
@@ -873,7 +880,9 @@ export default function VehicleCatalog() {
         }
         if (appliedFilters.condition) {
             const condFilter = appliedFilters.condition.toLowerCase().trim();
-            const carCondition = (car.vehicleCondition || car.condition || "").toLowerCase().trim();
+            const carCondition = (car.vehicleCondition || car.condition || "")
+                .toLowerCase()
+                .trim();
             if (!carCondition.includes(condFilter)) {
                 return false;
             }
@@ -1259,15 +1268,18 @@ export default function VehicleCatalog() {
                                     </span>
                                     {appliedFilters.condition && (
                                         <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-vivid-red/20 text-vivid-red border border-vivid-red/30 text-[11px] font-semibold">
-                                            Condition: {appliedFilters.condition}
+                                            Condition:{" "}
+                                            {appliedFilters.condition}
                                             <button
                                                 type="button"
                                                 onClick={() => {
                                                     setSelectedCondition("");
-                                                    setAppliedFilters((prev) => ({
-                                                        ...prev,
-                                                        condition: "",
-                                                    }));
+                                                    setAppliedFilters(
+                                                        (prev) => ({
+                                                            ...prev,
+                                                            condition: "",
+                                                        }),
+                                                    );
                                                 }}
                                                 className="hover:text-white transition"
                                                 title="Remove condition filter"

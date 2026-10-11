@@ -21,6 +21,14 @@ Route::get('/buy', function () {
     ]);
 })->name('buy');
 
+Route::get('/vehicles/{id}', function ($id) {
+    return Inertia::render('VehicleDetail', [
+        'id' => $id,
+        'canLogin' => Route::has('login'),
+        'canRegister' => Route::has('register'),
+    ]);
+})->name('vehicles.show');
+
 Route::get('/contact', function () {
     return Inertia::render('Contact', [
         'canLogin' => Route::has('login'),
@@ -38,4 +46,4 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-require __DIR__.'/auth.php';
+require __DIR__ . '/auth.php';
