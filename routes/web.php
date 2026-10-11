@@ -41,6 +41,14 @@ Route::get('/dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
+    Route::get('/admin/cars', function () {
+        return Inertia::render('Admin/Cars/Index');
+    })->name('admin.cars.index');
+
+    Route::get('/admin/cars/create', function () {
+        return Inertia::render('Admin/Cars/Create');
+    })->name('admin.cars.create');
+
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
