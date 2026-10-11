@@ -91,6 +91,28 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
             {/* Main Content Area with bggray theme */}
             <main className="flex-1 py-8 md:py-12">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+                    {/* Bottom Navigation Buttons */}
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6">
+                        <Link
+                            href="/buy"
+                            className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-6 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs uppercase tracking-wider transition border border-slate-700"
+                        >
+                            <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2.5}
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                                />
+                            </svg>
+                            <span>Back to Vehicle Catalog</span>
+                        </Link>
+                    </div>
                     {/* Breadcrumbs Navigation */}
                     <nav className="flex items-center space-x-2 text-xs md:text-sm text-slate-300">
                         <Link
@@ -226,7 +248,7 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                                         d="M12 7v5l3 3"
                                                     />
                                                 </svg>
-                                                {vehicle.mileage} miles
+                                                {vehicle.mileage} km
                                             </span>
                                         )}
                                         {vehicle.transmission && (
@@ -528,24 +550,18 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                         <SpecItem
                                             label="Year"
                                             value={
-                                                vehicle.year > 0
+                                                vehicle.year && vehicle.year > 0
                                                     ? vehicle.year
-                                                    : "N/A"
+                                                    : ""
                                             }
                                         />
                                         <SpecItem
                                             label="VIN"
-                                            value={
-                                                vehicle.vin ||
-                                                "Available on request"
-                                            }
+                                            value={vehicle.vin}
                                         />
                                         <SpecItem
                                             label="Availabilities"
-                                            value={
-                                                vehicle.availabilities ||
-                                                "Available"
-                                            }
+                                            value={vehicle.availabilities}
                                             highlight={
                                                 vehicle.availabilities?.toLowerCase() ===
                                                 "available"
@@ -553,43 +569,32 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                         />
                                         <SpecItem
                                             label="Title"
-                                            value={
-                                                vehicle.titleStatus || "Clean"
-                                            }
+                                            value={vehicle.titleStatus}
                                         />
                                         <SpecItem
                                             label="Trim"
-                                            value={vehicle.trim || "Standard"}
+                                            value={vehicle.trim}
                                         />
                                         <SpecItem
                                             label="Body Style"
-                                            value={vehicle.bodyStyle || "Sedan"}
+                                            value={vehicle.bodyStyle}
                                         />
                                         <SpecItem
                                             label="Mileage"
-                                            value={
-                                                vehicle.mileage
-                                                    ? `${vehicle.mileage} miles`
-                                                    : "N/A"
-                                            }
+                                            value={vehicle.mileage}
+                                            suffix=" miles"
                                         />
                                         <SpecItem
                                             label="Exterior Color"
-                                            value={
-                                                vehicle.exteriorColor || "N/A"
-                                            }
+                                            value={vehicle.exteriorColor}
                                         />
                                         <SpecItem
                                             label="Interior Color"
-                                            value={
-                                                vehicle.interiorColor || "N/A"
-                                            }
+                                            value={vehicle.interiorColor}
                                         />
                                         <SpecItem
                                             label="Seat Material"
-                                            value={
-                                                vehicle.seatMaterial || "N/A"
-                                            }
+                                            value={vehicle.seatMaterial}
                                         />
                                     </div>
                                 </div>
@@ -626,49 +631,35 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <SpecItem
                                             label="Engine"
-                                            value={vehicle.engine || "Standard"}
+                                            value={vehicle.engine}
                                         />
                                         <SpecItem
                                             label="Engine Type/Size"
-                                            value={
-                                                vehicle.engineTypeSize || "N/A"
-                                            }
+                                            value={vehicle.engineTypeSize}
                                         />
                                         <SpecItem
                                             label="Transmission"
-                                            value={
-                                                vehicle.transmission ||
-                                                "Automatic"
-                                            }
+                                            value={vehicle.transmission}
                                         />
                                         <SpecItem
                                             label="Driveline"
-                                            value={
-                                                vehicle.driveline || "FWD / AWD"
-                                            }
+                                            value={vehicle.driveline}
                                         />
                                         <SpecItem
                                             label="Fuel Type"
-                                            value={
-                                                vehicle.fuelType || "Gasoline"
-                                            }
+                                            value={vehicle.fuelType}
                                         />
                                         <SpecItem
                                             label="Power Options"
-                                            value={
-                                                vehicle.powerOptions || "N/A"
-                                            }
+                                            value={vehicle.powerOptions}
                                         />
                                         <SpecItem
                                             label="Condition"
-                                            value={vehicle.condition || "Used"}
+                                            value={vehicle.condition}
                                         />
                                         <SpecItem
                                             label="Drive Condition"
-                                            value={
-                                                vehicle.driveCondition ||
-                                                "Runs / Drives"
-                                            }
+                                            value={vehicle.driveCondition}
                                         />
                                     </div>
                                 </div>
@@ -703,7 +694,8 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                     </div>
                                 </div>
 
-                                {vehicle.interiorFeatures.length > 0 ? (
+                                {vehicle.interiorFeatures &&
+                                vehicle.interiorFeatures.length > 0 ? (
                                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                                         {vehicle.interiorFeatures.map(
                                             (feat, idx) => (
@@ -723,11 +715,9 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                         )}
                                     </div>
                                 ) : (
-                                    <p className="text-xs text-slate-400 italic">
-                                        Standard interior package included.
-                                        Inquire for customized feature
-                                        confirmations.
-                                    </p>
+                                    <div className="p-4 rounded-2xl bg-slate-800/60 border border-slate-700/60 text-slate-400 text-sm font-semibold">
+                                        N/A
+                                    </div>
                                 )}
                             </div>
 
@@ -763,84 +753,23 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                                     <SpecItem
                                         label="CLIENT NAME"
-                                        value={
-                                            vehicle.clientName ||
-                                            "Wright Finder Motors Agent"
-                                        }
+                                        value={vehicle.clientName}
                                     />
                                     <SpecItem
                                         label="Client Phone"
-                                        value={
-                                            vehicle.clientPhone ||
-                                            "+1 (937) 838-8616"
-                                        }
+                                        value={vehicle.clientPhone}
                                         isPhone
                                     />
                                     <SpecItem
                                         label="Client Email"
-                                        value={
-                                            vehicle.clientEmail ||
-                                            "info@wrightfindermotors.com"
-                                        }
+                                        value={vehicle.clientEmail}
                                         isEmail
                                     />
                                     <SpecItem
                                         label="PURCHASE DATE"
-                                        value={
-                                            vehicle.purchaseDate ||
-                                            "Verified Active"
-                                        }
+                                        value={vehicle.purchaseDate}
                                     />
                                 </div>
-                            </div>
-
-                            {/* Bottom Navigation Buttons */}
-                            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6">
-                                <Link
-                                    href="/buy"
-                                    className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-6 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs uppercase tracking-wider transition border border-slate-700"
-                                >
-                                    <svg
-                                        className="w-4 h-4"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                        strokeWidth={2.5}
-                                    >
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            d="M10 19l-7-7m0 0l7-7m-7 7h18"
-                                        />
-                                    </svg>
-                                    <span>Back to Vehicle Catalog</span>
-                                </Link>
-
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        window.scrollTo({
-                                            top: 0,
-                                            behavior: "smooth",
-                                        });
-                                    }}
-                                    className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-6 py-3.5 rounded-xl bg-vivid-red hover:bg-red-600 text-white font-bold text-xs uppercase tracking-wider transition shadow-lg shadow-red-500/20"
-                                >
-                                    <span>Back to Top</span>
-                                    <svg
-                                        className="w-4 h-4"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                        strokeWidth={2.5}
-                                    >
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            d="M5 10l7-7m0 0l7 7m-7-7v18"
-                                        />
-                                    </svg>
-                                </button>
                             </div>
                         </div>
                     )}
@@ -859,45 +788,54 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
 function SpecItem({
     label,
     value,
+    suffix = "",
     highlight = false,
     isPhone = false,
     isEmail = false,
 }: {
     label: string;
-    value: string | number;
+    value?: string | number | null;
+    suffix?: string;
     highlight?: boolean;
     isPhone?: boolean;
     isEmail?: boolean;
 }) {
-    const stringVal = String(value || "N/A");
+    const rawStr =
+        value !== undefined && value !== null ? String(value).trim() : "";
+    const isMissing = !rawStr || (label === "Year" && rawStr === "0");
+    const displayText = isMissing ? "N/A" : `${rawStr}${suffix}`;
 
     return (
         <div className="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-4 flex flex-col justify-between hover:bg-slate-800/90 transition">
             <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1">
                 {label}
             </span>
-            {isPhone && value ? (
+            {isMissing ? (
+                <span className="text-sm font-semibold text-slate-400">
+                    N/A
+                </span>
+            ) : isPhone ? (
                 <a
-                    href={`tel:${stringVal}`}
+                    href={`tel:${rawStr}`}
                     className="text-sm font-semibold text-white hover:text-vivid-red transition truncate"
                 >
-                    {stringVal}
+                    {displayText}
                 </a>
-            ) : isEmail && value ? (
+            ) : isEmail ? (
                 <a
-                    href={`mailto:${stringVal}`}
+                    href={`mailto:${rawStr}`}
                     className="text-sm font-semibold text-white hover:text-vivid-red transition truncate"
                 >
-                    {stringVal}
+                    {displayText}
                 </a>
             ) : (
                 <span
                     className={`text-sm font-semibold truncate ${
                         highlight ? "text-emerald-400 font-bold" : "text-white"
                     }`}
-                    title={stringVal}
+                    title={displayText}
                 >
-                    {stringVal}
+                    {displayText}
                 </span>
             )}
         </div>

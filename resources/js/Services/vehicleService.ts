@@ -119,7 +119,7 @@ export async function fetchAllVehicles(): Promise<DetailedVehicle[]> {
     const mileageIdx = getIndex("Mileage");
     const priceIdx = getIndex("Price");
     const discountIdx = getIndex("Discount");
-    const vinIdx = getIndex("VIN");
+    const vinIdx = getIndex("VIN") !== -1 ? getIndex("VIN") : 8; // Column I is index 8 (0-indexed: A=0, B=1, ... I=8)
     const statusIdx = getIndex("Status");
     const titleIdx = getIndex("Title");
     const trimIdx = getIndex("Trim");
