@@ -16,6 +16,7 @@ export interface Vehicle {
     mileage: string;
     transmission: string;
     condition: string;
+    vehicleCondition?: string;
     badge: string;
     images: string[];
     clientEmail?: string;
@@ -593,6 +594,7 @@ export default function VehicleCatalog() {
                 const mileageIdx = getIndex("Mileage");
                 const transmissionIdx = getIndex("Transmission");
                 const titleIdx = getIndex("Title");
+                const conditionColIdx = getIndex("Condition");
                 const statusIdx = getIndex("Status");
                 const mainImageIdx = getIndex("Main Image URLs");
                 const subImagesIdx = getIndex("Sub Image URLs");
@@ -669,6 +671,10 @@ export default function VehicleCatalog() {
                             : "";
                     const condition =
                         titleIdx !== -1 ? row[titleIdx]?.trim() || "" : "";
+                    const vehicleCondition =
+                        conditionColIdx !== -1
+                            ? row[conditionColIdx]?.trim() || ""
+                            : "";
                     const badge =
                         statusIdx !== -1 ? row[statusIdx]?.trim() || "" : "";
                     const clientEmail =
@@ -710,6 +716,7 @@ export default function VehicleCatalog() {
                         mileage,
                         transmission,
                         condition,
+                        vehicleCondition,
                         badge,
                         images: formattedImages,
                         clientEmail,
@@ -739,6 +746,12 @@ export default function VehicleCatalog() {
         };
     }, []);
 
+    // Read condition from URL if present (e.g., from ServicesSection condition cards)
+    const urlCondition =
+        typeof window !== "undefined"
+            ? new URLSearchParams(window.location.search).get("condition") || ""
+            : "";
+
     // Filter state
     const [selectedMake, setSelectedMake] = useState<string>("");
     const [selectedModel, setSelectedModel] = useState<string>("");
@@ -747,6 +760,7 @@ export default function VehicleCatalog() {
     const [fromYear, setFromYear] = useState<string>("");
     const [toYear, setToYear] = useState<string>("");
     const [selectedCategory, setSelectedCategory] = useState<string>("");
+    const [selectedCondition, setSelectedCondition] = useState<string>(urlCondition);
 
     // Applied filter state (applied when clicking "Search Vehicle")
     const [appliedFilters, setAppliedFilters] = useState({
@@ -757,7 +771,19 @@ export default function VehicleCatalog() {
         fromYear: "",
         toYear: "",
         category: "",
+        condition: urlCondition,
     });
+
+    // Sync if URL search changes
+    useEffect(() => {
+        if (urlCondition) {
+            setSelectedCondition(urlCondition);
+            setAppliedFilters((prev) => ({
+                ...prev,
+                condition: urlCondition,
+            }));
+        }
+    }, [urlCondition]);
 
     // Unique options derived from vehicles data
     const makeOptions = Array.from(
@@ -798,6 +824,7 @@ export default function VehicleCatalog() {
             fromYear,
             toYear,
             category: selectedCategory,
+            condition: selectedCondition,
         });
         setCurrentPage(1);
     };
@@ -810,6 +837,7 @@ export default function VehicleCatalog() {
         setFromYear("");
         setToYear("");
         setSelectedCategory("");
+        setSelectedCondition("");
         setAppliedFilters({
             make: "",
             model: "",
@@ -818,6 +846,7 @@ export default function VehicleCatalog() {
             fromYear: "",
             toYear: "",
             category: "",
+            condition: "",
         });
         setCurrentPage(1);
     };
@@ -841,6 +870,13 @@ export default function VehicleCatalog() {
             car.category.toLowerCase() !== appliedFilters.category.toLowerCase()
         ) {
             return false;
+        }
+        if (appliedFilters.condition) {
+            const condFilter = appliedFilters.condition.toLowerCase().trim();
+            const carCondition = (car.vehicleCondition || car.condition || "").toLowerCase().trim();
+            if (!carCondition.includes(condFilter)) {
+                return false;
+            }
         }
         if (appliedFilters.minPrice) {
             const minP = parseFloat(appliedFilters.minPrice);
@@ -1212,14 +1248,35 @@ export default function VehicleCatalog() {
                         {/* RIGHT: Vehicle Grid & Pagination (9 of 12 columns, 3 cards per row on desktop) */}
                         <div className="lg:col-span-9 xl:col-span-9 space-y-8">
                             {/* Filter Summary & Total Count */}
-                            <div className="flex items-center justify-between text-xs text-slate-300 pb-2 border-b border-slate-700/60">
-                                <span>
-                                    Found{" "}
-                                    <strong className="text-white text-sm">
-                                        {filteredVehicles.length}
-                                    </strong>{" "}
-                                    vehicles matching your criteria
-                                </span>
+                            <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-300 pb-2 border-b border-slate-700/60">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <span>
+                                        Found{" "}
+                                        <strong className="text-white text-sm">
+                                            {filteredVehicles.length}
+                                        </strong>{" "}
+                                        vehicles matching your criteria
+                                    </span>
+                                    {appliedFilters.condition && (
+                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-vivid-red/20 text-vivid-red border border-vivid-red/30 text-[11px] font-semibold">
+                                            Condition: {appliedFilters.condition}
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setSelectedCondition("");
+                                                    setAppliedFilters((prev) => ({
+                                                        ...prev,
+                                                        condition: "",
+                                                    }));
+                                                }}
+                                                className="hover:text-white transition"
+                                                title="Remove condition filter"
+                                            >
+                                                ✕
+                                            </button>
+                                        </span>
+                                    )}
+                                </div>
                                 {filteredVehicles.length > 0 && (
                                     <span>
                                         Page {currentPage} of {totalPages || 1}
