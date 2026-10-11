@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { router } from "@inertiajs/react";
 
 export interface Vehicle {
     id: string;
@@ -15,6 +16,7 @@ export interface Vehicle {
     condition: string;
     badge: string;
     images: string[];
+    clientEmail?: string;
 }
 
 const CARDS_PER_PAGE = 9;
@@ -457,17 +459,37 @@ function VehicleCard({ car }: { car: Vehicle }) {
 
                     {/* Action Buttons: 1 Row with "Contact Agent" & "Explore More" */}
                     <div className="grid grid-cols-2 gap-3 mt-5">
-                        <a
-                            href="#contact"
+                        <button
+                            type="button"
                             onClick={(e) => {
                                 e.preventDefault();
-                                const contactSection =
-                                    document.getElementById("contact");
-                                if (contactSection) {
-                                    contactSection.scrollIntoView({
-                                        behavior: "smooth",
-                                    });
+                                const email = car.clientEmail?.trim();
+
+                                if (!email) {
+                                    // Redirect to Contact Us page when Client Email is empty
+                                    router.visit("/contact");
+                                    return;
                                 }
+
+                                // Open mail client with prefilled car details and problem input area
+                                const subject = encodeURIComponent(
+                                    `Inquiry / Problem Report: ${car.title} (ID: ${car.id})`,
+                                );
+                                const body = encodeURIComponent(
+                                    `Hello,\n\nI am contacting regarding the following vehicle:\n` +
+                                        `----------------------------------------\n` +
+                                        `Vehicle: ${car.title}\n` +
+                                        `Car ID: ${car.id}\n` +
+                                        `Price: $${car.price.toLocaleString()}\n` +
+                                        `Mileage: ${car.mileage ? car.mileage + " km" : "N/A"}\n` +
+                                        `Transmission: ${car.transmission || "N/A"}\n` +
+                                        `Fuel Type: ${car.fuel || "N/A"}\n` +
+                                        `Title Condition: ${car.condition || "N/A"}\n` +
+                                        `----------------------------------------\n\n` +
+                                        `[Please describe your inquiry, question, or problem below]:\n\n`,
+                                );
+
+                                window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
                             }}
                             className="inline-flex items-center justify-center space-x-1.5 py-3 px-3 rounded-xl border-2 border-dark-blue text-dark-blue hover:bg-dark-blue hover:text-white text-xs font-bold transition-all duration-200 shadow-sm active:scale-95"
                         >
@@ -485,7 +507,7 @@ function VehicleCard({ car }: { car: Vehicle }) {
                                 />
                             </svg>
                             <span className="truncate">Contact Agent</span>
-                        </a>
+                        </button>
 
                         <button
                             type="button"
@@ -572,6 +594,7 @@ export default function VehicleCatalog() {
                 const statusIdx = getIndex("Status");
                 const mainImageIdx = getIndex("Main Image URLs");
                 const subImagesIdx = getIndex("Sub Image URLs");
+                const clientEmailIdx = getIndex("Client Email");
 
                 const loadedVehicles: Vehicle[] = [];
 
@@ -646,6 +669,10 @@ export default function VehicleCatalog() {
                         titleIdx !== -1 ? row[titleIdx]?.trim() || "" : "";
                     const badge =
                         statusIdx !== -1 ? row[statusIdx]?.trim() || "" : "";
+                    const clientEmail =
+                        clientEmailIdx !== -1
+                            ? row[clientEmailIdx]?.trim() || ""
+                            : "";
 
                     // Images: Main Image URLs + Sub Image URLs (comma-separated)
                     const rawMainImage =
@@ -678,6 +705,7 @@ export default function VehicleCatalog() {
                         condition,
                         badge,
                         images: formattedImages,
+                        clientEmail,
                     });
                 }
 
@@ -720,10 +748,7 @@ export default function VehicleCatalog() {
     };
 
     return (
-        <section
-            id="catalog"
-            className="py-20 bg-bggray font-poppins relative"
-        >
+        <section id="catalog" className="py-20 bg-bggray font-poppins relative">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Centered Header Section */}
                 <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
