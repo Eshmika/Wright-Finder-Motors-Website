@@ -77,7 +77,7 @@ export default function AuthenticatedLayout({
                     </div>
 
                     {/* Middle: Headline Banner */}
-                    <div className="flex-1 max-w-2xl mx-4 sm:mx-8 hidden md:block">
+                    <div className="flex-1 max-w-2xl mx-4 sm:mx-8 hidden lg:block">
                         <div className="bg-black/15 backdrop-blur-sm border border-white/15 rounded-2xl px-5 py-2">
                             <div className="flex items-center space-x-2">
                                 <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -147,7 +147,7 @@ export default function AuthenticatedLayout({
                 </div>
 
                 {/* Mobile Welcome Headline Strip */}
-                <div className="md:hidden px-4 py-1.5 bg-black/15 border-t border-white/10 text-center">
+                <div className="lg:hidden px-4 py-1.5 bg-black/15 border-t border-white/10 text-center">
                     <p className="text-xs font-bold text-white">
                         Welcome back, WFM |{" "}
                         <span className="text-amber-200">{user.name}</span>
