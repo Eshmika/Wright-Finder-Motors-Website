@@ -25,9 +25,9 @@ export default function Header({ user }: HeaderProps = {}) {
     ];
 
     return (
-        <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] font-poppins transition-all duration-300">
+        <header className="relative w-full z-40 bg-white border-b border-gray-200 shadow-sm font-poppins transition-colors duration-200">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex items-center justify-between h-24">
+                <div className="flex items-center justify-between h-20 md:h-24">
                     {/* Brand / Logo */}
                     <Link
                         href="/"
