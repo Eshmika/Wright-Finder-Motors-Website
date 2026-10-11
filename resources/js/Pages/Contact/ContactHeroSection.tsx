@@ -1,6 +1,6 @@
 export default function ContactHeroSection() {
     return (
-        <section className="relative text-white py-16 sm:py-20 lg:py-0 overflow-hidden font-poppins h-auto lg:h-[calc(100vh-6rem)] lg:min-h-[600px] flex items-center bg-[#0d0524]">
+        <section className="relative text-white py-20 overflow-hidden font-poppins h-auto lg:h-[75vh] flex items-center bg-[#0d0524]">
             {/* Background Gradient & Geometric Glows matching Buy page */}
             <div className="absolute inset-0 bg-gradient-to-br from-[#170a3d] via-[#1a1145] to-[#0a0319]" />
 

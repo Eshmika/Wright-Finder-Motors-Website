@@ -1,9 +1,12 @@
 import { useState, useEffect } from "react";
+import { router } from "@inertiajs/react";
 
 export interface Vehicle {
     id: string;
     title: string;
     make: string;
+    model: string;
+    year: number;
     category: string;
     price: number;
     originalPrice: number;
@@ -13,8 +16,10 @@ export interface Vehicle {
     mileage: string;
     transmission: string;
     condition: string;
+    vehicleCondition?: string;
     badge: string;
     images: string[];
+    clientEmail?: string;
 }
 
 const CARDS_PER_PAGE = 9;
@@ -457,17 +462,37 @@ function VehicleCard({ car }: { car: Vehicle }) {
 
                     {/* Action Buttons: 1 Row with "Contact Agent" & "Explore More" */}
                     <div className="grid grid-cols-2 gap-3 mt-5">
-                        <a
-                            href="#contact"
+                        <button
+                            type="button"
                             onClick={(e) => {
                                 e.preventDefault();
-                                const contactSection =
-                                    document.getElementById("contact");
-                                if (contactSection) {
-                                    contactSection.scrollIntoView({
-                                        behavior: "smooth",
-                                    });
+                                const email = car.clientEmail?.trim();
+
+                                if (!email) {
+                                    // Redirect to Contact Us page when Client Email is empty
+                                    router.visit("/contact#contact-form");
+                                    return;
                                 }
+
+                                // Open mail client with prefilled car details and problem input area
+                                const subject = encodeURIComponent(
+                                    `Inquiry / Problem Report: ${car.title} (ID: ${car.id})`,
+                                );
+                                const body = encodeURIComponent(
+                                    `Hello,\n\nI am contacting regarding the following vehicle:\n` +
+                                        `----------------------------------------\n` +
+                                        `Vehicle: ${car.title}\n` +
+                                        `Car ID: ${car.id}\n` +
+                                        `Price: $${car.price.toLocaleString()}\n` +
+                                        `Mileage: ${car.mileage ? car.mileage + " km" : "N/A"}\n` +
+                                        `Transmission: ${car.transmission || "N/A"}\n` +
+                                        `Fuel Type: ${car.fuel || "N/A"}\n` +
+                                        `Title Condition: ${car.condition || "N/A"}\n` +
+                                        `----------------------------------------\n\n` +
+                                        `[Please describe your inquiry, question, or problem below]:\n\n`,
+                                );
+
+                                window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
                             }}
                             className="inline-flex items-center justify-center space-x-1.5 py-3 px-3 rounded-xl border-2 border-dark-blue text-dark-blue hover:bg-dark-blue hover:text-white text-xs font-bold transition-all duration-200 shadow-sm active:scale-95"
                         >
@@ -485,10 +510,16 @@ function VehicleCard({ car }: { car: Vehicle }) {
                                 />
                             </svg>
                             <span className="truncate">Contact Agent</span>
-                        </a>
+                        </button>
 
                         <button
                             type="button"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                router.visit(
+                                    `/vehicles/${encodeURIComponent(car.id)}`,
+                                );
+                            }}
                             className="inline-flex items-center justify-center space-x-1.5 py-3 px-3 rounded-xl bg-vivid-red hover:bg-red-600 text-white text-xs font-bold transition-all duration-200 shadow-md hover:shadow-red-500/30 active:scale-95"
                         >
                             <span>Explore More</span>
@@ -569,9 +600,11 @@ export default function VehicleCatalog() {
                 const mileageIdx = getIndex("Mileage");
                 const transmissionIdx = getIndex("Transmission");
                 const titleIdx = getIndex("Title");
+                const conditionColIdx = getIndex("Condition");
                 const statusIdx = getIndex("Status");
                 const mainImageIdx = getIndex("Main Image URLs");
                 const subImagesIdx = getIndex("Sub Image URLs");
+                const clientEmailIdx = getIndex("Client Email");
 
                 const loadedVehicles: Vehicle[] = [];
 
@@ -644,8 +677,16 @@ export default function VehicleCatalog() {
                             : "";
                     const condition =
                         titleIdx !== -1 ? row[titleIdx]?.trim() || "" : "";
+                    const vehicleCondition =
+                        conditionColIdx !== -1
+                            ? row[conditionColIdx]?.trim() || ""
+                            : "";
                     const badge =
                         statusIdx !== -1 ? row[statusIdx]?.trim() || "" : "";
+                    const clientEmail =
+                        clientEmailIdx !== -1
+                            ? row[clientEmailIdx]?.trim() || ""
+                            : "";
 
                     // Images: Main Image URLs + Sub Image URLs (comma-separated)
                     const rawMainImage =
@@ -663,10 +704,15 @@ export default function VehicleCatalog() {
                         .map((url) => formatDriveImageUrl(url))
                         .filter(Boolean);
 
+                    const yearNum =
+                        parseInt(year.replace(/[^0-9]/g, ""), 10) || 0;
+
                     loadedVehicles.push({
                         id: carId,
                         title,
                         make: carName,
+                        model,
+                        year: yearNum,
                         category,
                         price: finalPrice,
                         originalPrice: originalPriceRaw,
@@ -676,8 +722,10 @@ export default function VehicleCatalog() {
                         mileage,
                         transmission,
                         condition,
+                        vehicleCondition,
                         badge,
                         images: formattedImages,
+                        clientEmail,
                     });
                 }
 
@@ -704,9 +752,163 @@ export default function VehicleCatalog() {
         };
     }, []);
 
-    const totalPages = Math.ceil(vehicles.length / CARDS_PER_PAGE);
+    // Read condition from URL if present (e.g., from ServicesSection condition cards)
+    const urlCondition =
+        typeof window !== "undefined"
+            ? new URLSearchParams(window.location.search).get("condition") || ""
+            : "";
+
+    // Filter state
+    const [selectedMake, setSelectedMake] = useState<string>("");
+    const [selectedModel, setSelectedModel] = useState<string>("");
+    const [minPrice, setMinPrice] = useState<string>("");
+    const [maxPrice, setMaxPrice] = useState<string>("");
+    const [fromYear, setFromYear] = useState<string>("");
+    const [toYear, setToYear] = useState<string>("");
+    const [selectedCategory, setSelectedCategory] = useState<string>("");
+    const [selectedCondition, setSelectedCondition] =
+        useState<string>(urlCondition);
+
+    // Applied filter state (applied when clicking "Search Vehicle")
+    const [appliedFilters, setAppliedFilters] = useState({
+        make: "",
+        model: "",
+        minPrice: "",
+        maxPrice: "",
+        fromYear: "",
+        toYear: "",
+        category: "",
+        condition: urlCondition,
+    });
+
+    // Sync if URL search changes
+    useEffect(() => {
+        if (urlCondition) {
+            setSelectedCondition(urlCondition);
+            setAppliedFilters((prev) => ({
+                ...prev,
+                condition: urlCondition,
+            }));
+        }
+    }, [urlCondition]);
+
+    // Unique options derived from vehicles data
+    const makeOptions = Array.from(
+        new Set(vehicles.map((v) => v.make).filter(Boolean)),
+    ).sort();
+
+    // Models relevant to selected car name (make)
+    const modelOptions = Array.from(
+        new Set(
+            vehicles
+                .filter(
+                    (v) =>
+                        !selectedMake ||
+                        v.make.toLowerCase() === selectedMake.toLowerCase(),
+                )
+                .map((v) => v.model)
+                .filter(Boolean),
+        ),
+    ).sort();
+
+    const categoryOptions = Array.from(
+        new Set(vehicles.map((v) => v.category).filter(Boolean)),
+    ).sort();
+
+    // Reset model if selected make changes and model is no longer valid
+    const handleMakeChange = (makeVal: string) => {
+        setSelectedMake(makeVal);
+        setSelectedModel("");
+    };
+
+    const handleApplyFilters = (e: React.FormEvent) => {
+        e.preventDefault();
+        setAppliedFilters({
+            make: selectedMake,
+            model: selectedModel,
+            minPrice,
+            maxPrice,
+            fromYear,
+            toYear,
+            category: selectedCategory,
+            condition: selectedCondition,
+        });
+        setCurrentPage(1);
+    };
+
+    const handleResetFilters = () => {
+        setSelectedMake("");
+        setSelectedModel("");
+        setMinPrice("");
+        setMaxPrice("");
+        setFromYear("");
+        setToYear("");
+        setSelectedCategory("");
+        setSelectedCondition("");
+        setAppliedFilters({
+            make: "",
+            model: "",
+            minPrice: "",
+            maxPrice: "",
+            fromYear: "",
+            toYear: "",
+            category: "",
+            condition: "",
+        });
+        setCurrentPage(1);
+    };
+
+    // Filter vehicles by applied filters
+    const filteredVehicles = vehicles.filter((car) => {
+        if (
+            appliedFilters.make &&
+            car.make.toLowerCase() !== appliedFilters.make.toLowerCase()
+        ) {
+            return false;
+        }
+        if (
+            appliedFilters.model &&
+            car.model.toLowerCase() !== appliedFilters.model.toLowerCase()
+        ) {
+            return false;
+        }
+        if (
+            appliedFilters.category &&
+            car.category.toLowerCase() !== appliedFilters.category.toLowerCase()
+        ) {
+            return false;
+        }
+        if (appliedFilters.condition) {
+            const condFilter = appliedFilters.condition.toLowerCase().trim();
+            const carCondition = (car.vehicleCondition || car.condition || "")
+                .toLowerCase()
+                .trim();
+            if (!carCondition.includes(condFilter)) {
+                return false;
+            }
+        }
+        if (appliedFilters.minPrice) {
+            const minP = parseFloat(appliedFilters.minPrice);
+            if (!isNaN(minP) && car.price < minP) return false;
+        }
+        if (appliedFilters.maxPrice) {
+            const maxP = parseFloat(appliedFilters.maxPrice);
+            if (!isNaN(maxP) && car.price > maxP) return false;
+        }
+        if (appliedFilters.fromYear) {
+            const fromY = parseInt(appliedFilters.fromYear, 10);
+            if (!isNaN(fromY) && car.year > 0 && car.year < fromY) return false;
+        }
+        if (appliedFilters.toYear) {
+            const toY = parseInt(appliedFilters.toYear, 10);
+            if (!isNaN(toY) && car.year > 0 && car.year > toY) return false;
+        }
+        return true;
+    });
+
+    const totalPages = Math.ceil(filteredVehicles.length / CARDS_PER_PAGE);
     const startIndex = (currentPage - 1) * CARDS_PER_PAGE;
-    const currentVehicles = vehicles.slice(
+    const currentVehicles = filteredVehicles.slice(
         startIndex,
         startIndex + CARDS_PER_PAGE,
     );
@@ -719,12 +921,20 @@ export default function VehicleCatalog() {
         }
     };
 
+    const priceStepOptions = [
+        3000, 5000, 7000, 10000, 15000, 20000, 25000, 30000, 40000, 50000,
+        75000, 100000,
+    ];
+
+    const currentYear = new Date().getFullYear();
+    const yearOptions = Array.from(
+        { length: 20 },
+        (_, idx) => currentYear - idx,
+    );
+
     return (
-        <section
-            id="catalog"
-            className="py-20 lg:py-24 bg-bggray font-poppins relative"
-        >
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <section id="catalog" className="py-20 bg-bggray font-poppins relative">
+            <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Centered Header Section */}
                 <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
                     <h2 className="text-3xl lg:text-5xl font-extrabold text-white tracking-tight">
@@ -763,101 +973,444 @@ export default function VehicleCatalog() {
                     </div>
                 )}
 
-                {/* Empty State */}
-                {!isLoading && !error && vehicles.length === 0 && (
-                    <div className="text-center py-16 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 p-8 max-w-lg mx-auto">
-                        <p className="text-white font-semibold">
-                            No vehicles found in the Google Sheet.
-                        </p>
-                    </div>
-                )}
+                {/* Main 2-Column Section: Left Filter Sidebar, Right Vehicle Grid */}
+                {!isLoading && !error && (
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                        {/* LEFT: Filter Vehicles Sidebar (Compact Width: 3 of 12 columns) */}
+                        <div className="lg:col-span-3 xl:col-span-3">
+                            <div className="bg-slate-800/95 border border-slate-700/80 rounded-3xl p-5 sm:p-6 shadow-xl backdrop-blur-sm sticky top-28 space-y-5">
+                                {/* Filter Card Header */}
+                                <div className="flex items-center justify-between pb-4 border-b border-slate-700">
+                                    <div className="flex items-center space-x-2.5">
+                                        <div className="w-8 h-8 rounded-lg bg-vivid-red/15 text-vivid-red flex items-center justify-center">
+                                            <svg
+                                                className="w-4 h-4"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                                strokeWidth={2.2}
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                                                />
+                                            </svg>
+                                        </div>
+                                        <h3 className="text-lg font-bold text-white tracking-tight">
+                                            Filter Vehicles
+                                        </h3>
+                                    </div>
 
-                {/* Vehicle Grid (Max 9 cards shown per page) */}
-                {!isLoading && !error && vehicles.length > 0 && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                        {currentVehicles.map((car) => (
-                            <VehicleCard key={car.id} car={car} />
-                        ))}
-                    </div>
-                )}
+                                    {(selectedMake ||
+                                        selectedModel ||
+                                        minPrice ||
+                                        maxPrice ||
+                                        fromYear ||
+                                        toYear ||
+                                        selectedCategory) && (
+                                        <span className="text-[10px] font-bold uppercase tracking-wider text-vivid-red bg-vivid-red/10 px-2 py-0.5 rounded-full">
+                                            Active
+                                        </span>
+                                    )}
+                                </div>
 
-                {/* Pagination Controls */}
-                {!isLoading && !error && totalPages > 1 && (
-                    <div className="mt-16 flex flex-col sm:flex-row items-center justify-between gap-4 pt-8 border-t border-white/10 text-white">
-                        <p className="text-xs text-gray-300">
-                            Showing{" "}
-                            <span className="font-bold text-white">
-                                {startIndex + 1}
-                            </span>{" "}
-                            to{" "}
-                            <span className="font-bold text-white">
-                                {Math.min(
-                                    startIndex + CARDS_PER_PAGE,
-                                    vehicles.length,
-                                )}
-                            </span>{" "}
-                            of{" "}
-                            <span className="font-bold text-white">
-                                {vehicles.length}
-                            </span>{" "}
-                            vehicles
-                        </p>
-
-                        <div className="flex items-center space-x-2">
-                            {/* Prev Page Button */}
-                            <button
-                                type="button"
-                                disabled={currentPage === 1}
-                                onClick={() =>
-                                    handlePageChange(currentPage - 1)
-                                }
-                                aria-label="Previous page"
-                                className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-1 ${
-                                    currentPage === 1
-                                        ? "bg-white/10 text-gray-400 cursor-not-allowed"
-                                        : "bg-white/20 hover:bg-vivid-red text-white shadow"
-                                }`}
-                            >
-                                <span>&larr;</span>
-                                <span>Prev</span>
-                            </button>
-
-                            {/* Page Numbers */}
-                            {Array.from(
-                                { length: totalPages },
-                                (_, idx) => idx + 1,
-                            ).map((pageNum) => (
-                                <button
-                                    key={pageNum}
-                                    type="button"
-                                    onClick={() => handlePageChange(pageNum)}
-                                    className={`w-9 h-9 rounded-xl text-xs font-bold transition-all shadow-sm ${
-                                        currentPage === pageNum
-                                            ? "bg-vivid-red text-white scale-105 shadow-red-500/30"
-                                            : "bg-white/15 hover:bg-white/30 text-white"
-                                    }`}
+                                <form
+                                    onSubmit={handleApplyFilters}
+                                    className="space-y-4"
                                 >
-                                    {pageNum}
-                                </button>
-                            ))}
+                                    {/* 1. Car Name Dropdown */}
+                                    <div className="space-y-1.5">
+                                        <label className="block text-xs font-semibold text-slate-300">
+                                            Car Name / Make
+                                        </label>
+                                        <select
+                                            value={selectedMake}
+                                            onChange={(e) =>
+                                                handleMakeChange(e.target.value)
+                                            }
+                                            className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700 text-sm text-white focus:outline-none focus:border-vivid-red focus:ring-1 focus:ring-vivid-red transition cursor-pointer"
+                                        >
+                                            <option value="">All Makes</option>
+                                            {makeOptions.map((make) => (
+                                                <option key={make} value={make}>
+                                                    {make}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
 
-                            {/* Next Page Button */}
-                            <button
-                                type="button"
-                                disabled={currentPage === totalPages}
-                                onClick={() =>
-                                    handlePageChange(currentPage + 1)
-                                }
-                                aria-label="Next page"
-                                className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-1 ${
-                                    currentPage === totalPages
-                                        ? "bg-white/10 text-gray-400 cursor-not-allowed"
-                                        : "bg-white/20 hover:bg-vivid-red text-white shadow"
-                                }`}
-                            >
-                                <span>Next</span>
-                                <span>&rarr;</span>
-                            </button>
+                                    {/* 2. Model Dropdown (Works when car name selected) */}
+                                    <div className="space-y-1.5">
+                                        <div className="flex items-center justify-between">
+                                            <label className="block text-xs font-semibold text-slate-300">
+                                                Model
+                                            </label>
+                                            {!selectedMake && (
+                                                <span className="text-[10px] text-slate-400">
+                                                    (Select make first)
+                                                </span>
+                                            )}
+                                        </div>
+                                        <select
+                                            value={selectedModel}
+                                            disabled={!selectedMake}
+                                            onChange={(e) =>
+                                                setSelectedModel(e.target.value)
+                                            }
+                                            className={`w-full px-3.5 py-2.5 rounded-xl border text-sm transition cursor-pointer ${
+                                                !selectedMake
+                                                    ? "bg-slate-900/50 border-slate-800 text-slate-500 cursor-not-allowed"
+                                                    : "bg-slate-900/90 border-slate-700 text-white focus:outline-none focus:border-vivid-red focus:ring-1 focus:ring-vivid-red"
+                                            }`}
+                                        >
+                                            <option value="">
+                                                {selectedMake
+                                                    ? "All Models"
+                                                    : "Choose Car Name First"}
+                                            </option>
+                                            {modelOptions.map((model) => (
+                                                <option
+                                                    key={model}
+                                                    value={model}
+                                                >
+                                                    {model}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {/* 3. Price Range (Min Price & Max Price in same line) */}
+                                    <div className="space-y-1.5">
+                                        <label className="block text-xs font-semibold text-slate-300">
+                                            Price Range ($)
+                                        </label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <select
+                                                value={minPrice}
+                                                onChange={(e) =>
+                                                    setMinPrice(e.target.value)
+                                                }
+                                                className="w-full px-3 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700 text-xs text-white focus:outline-none focus:border-vivid-red transition cursor-pointer"
+                                            >
+                                                <option value="">
+                                                    Min Price
+                                                </option>
+                                                {priceStepOptions.map(
+                                                    (price) => (
+                                                        <option
+                                                            key={`min-${price}`}
+                                                            value={price}
+                                                        >
+                                                            $
+                                                            {price.toLocaleString()}
+                                                        </option>
+                                                    ),
+                                                )}
+                                            </select>
+
+                                            <select
+                                                value={maxPrice}
+                                                onChange={(e) =>
+                                                    setMaxPrice(e.target.value)
+                                                }
+                                                className="w-full px-3 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700 text-xs text-white focus:outline-none focus:border-vivid-red transition cursor-pointer"
+                                            >
+                                                <option value="">
+                                                    Max Price
+                                                </option>
+                                                {priceStepOptions.map(
+                                                    (price) => (
+                                                        <option
+                                                            key={`max-${price}`}
+                                                            value={price}
+                                                        >
+                                                            $
+                                                            {price.toLocaleString()}
+                                                        </option>
+                                                    ),
+                                                )}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    {/* 4. Year Range (From Year & To Year in same line) */}
+                                    <div className="space-y-1.5">
+                                        <label className="block text-xs font-semibold text-slate-300">
+                                            Year Range
+                                        </label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <select
+                                                value={fromYear}
+                                                onChange={(e) =>
+                                                    setFromYear(e.target.value)
+                                                }
+                                                className="w-full px-3 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700 text-xs text-white focus:outline-none focus:border-vivid-red transition cursor-pointer"
+                                            >
+                                                <option value="">
+                                                    From Year
+                                                </option>
+                                                {yearOptions.map((yr) => (
+                                                    <option
+                                                        key={`from-${yr}`}
+                                                        value={yr}
+                                                    >
+                                                        {yr}
+                                                    </option>
+                                                ))}
+                                            </select>
+
+                                            <select
+                                                value={toYear}
+                                                onChange={(e) =>
+                                                    setToYear(e.target.value)
+                                                }
+                                                className="w-full px-3 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700 text-xs text-white focus:outline-none focus:border-vivid-red transition cursor-pointer"
+                                            >
+                                                <option value="">
+                                                    To Year
+                                                </option>
+                                                {yearOptions.map((yr) => (
+                                                    <option
+                                                        key={`to-${yr}`}
+                                                        value={yr}
+                                                    >
+                                                        {yr}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    {/* 5. Body Style Dropdown */}
+                                    <div className="space-y-1.5">
+                                        <label className="block text-xs font-semibold text-slate-300">
+                                            Body Style
+                                        </label>
+                                        <select
+                                            value={selectedCategory}
+                                            onChange={(e) =>
+                                                setSelectedCategory(
+                                                    e.target.value,
+                                                )
+                                            }
+                                            className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700 text-sm text-white focus:outline-none focus:border-vivid-red focus:ring-1 focus:ring-vivid-red transition cursor-pointer"
+                                        >
+                                            <option value="">
+                                                All Body Styles
+                                            </option>
+                                            {categoryOptions.map((cat) => (
+                                                <option key={cat} value={cat}>
+                                                    {cat}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {/* Action Buttons: Search Vehicle & Reset Filters */}
+                                    <div className="pt-3 space-y-2.5">
+                                        <button
+                                            type="submit"
+                                            className="w-full py-3 px-4 rounded-xl bg-vivid-red hover:bg-red-600 text-white font-bold text-xs uppercase tracking-wider transition-all duration-200 shadow-lg shadow-red-500/25 flex items-center justify-center space-x-2 active:scale-95"
+                                        >
+                                            <svg
+                                                className="w-4 h-4"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                                strokeWidth={2.2}
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                                                />
+                                            </svg>
+                                            <span>Search Vehicle</span>
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={handleResetFilters}
+                                            className="w-full py-2.5 px-4 rounded-xl bg-slate-700/60 hover:bg-slate-700 text-slate-300 hover:text-white font-semibold text-xs transition-colors duration-200 flex items-center justify-center space-x-1.5 border border-slate-600/50"
+                                        >
+                                            <svg
+                                                className="w-3.5 h-3.5"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                                strokeWidth={2}
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                                                />
+                                            </svg>
+                                            <span>Reset Filters</span>
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
+                        {/* RIGHT: Vehicle Grid & Pagination (9 of 12 columns, 3 cards per row on desktop) */}
+                        <div className="lg:col-span-9 xl:col-span-9 space-y-8">
+                            {/* Filter Summary & Total Count */}
+                            <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-300 pb-2 border-b border-slate-700/60">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <span>
+                                        Found{" "}
+                                        <strong className="text-white text-sm">
+                                            {filteredVehicles.length}
+                                        </strong>{" "}
+                                        vehicles matching your criteria
+                                    </span>
+                                    {appliedFilters.condition && (
+                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-vivid-red/20 text-vivid-red border border-vivid-red/30 text-[11px] font-semibold">
+                                            Condition:{" "}
+                                            {appliedFilters.condition}
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setSelectedCondition("");
+                                                    setAppliedFilters(
+                                                        (prev) => ({
+                                                            ...prev,
+                                                            condition: "",
+                                                        }),
+                                                    );
+                                                }}
+                                                className="hover:text-white transition"
+                                                title="Remove condition filter"
+                                            >
+                                                ✕
+                                            </button>
+                                        </span>
+                                    )}
+                                </div>
+                                {filteredVehicles.length > 0 && (
+                                    <span>
+                                        Page {currentPage} of {totalPages || 1}
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* Empty Results State */}
+                            {filteredVehicles.length === 0 ? (
+                                <div className="text-center py-20 bg-slate-800/80 rounded-3xl border border-slate-700/70 p-8 shadow-sm">
+                                    <h3 className="text-lg font-bold text-white">
+                                        No Vehicles Match Your Search
+                                    </h3>
+                                    <p className="text-sm text-slate-300 mt-1 max-w-sm mx-auto">
+                                        Try adjusting your price range, year, or
+                                        model selection.
+                                    </p>
+                                    <button
+                                        type="button"
+                                        onClick={handleResetFilters}
+                                        className="mt-5 px-5 py-2.5 rounded-xl bg-vivid-red text-white text-xs font-bold hover:bg-red-600 transition shadow"
+                                    >
+                                        Clear All Filters
+                                    </button>
+                                </div>
+                            ) : (
+                                /* Vehicle Cards Grid: 3 columns on desktop */
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {currentVehicles.map((car) => (
+                                        <VehicleCard key={car.id} car={car} />
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Pagination Controls */}
+                            {totalPages > 1 && (
+                                <div className="mt-12 flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-slate-700 text-white">
+                                    <p className="text-xs text-slate-300">
+                                        Showing{" "}
+                                        <span className="font-bold text-white">
+                                            {startIndex + 1}
+                                        </span>{" "}
+                                        to{" "}
+                                        <span className="font-bold text-white">
+                                            {Math.min(
+                                                startIndex + CARDS_PER_PAGE,
+                                                filteredVehicles.length,
+                                            )}
+                                        </span>{" "}
+                                        of{" "}
+                                        <span className="font-bold text-white">
+                                            {filteredVehicles.length}
+                                        </span>{" "}
+                                        vehicles
+                                    </p>
+
+                                    <div className="flex items-center space-x-2">
+                                        {/* Prev Page Button */}
+                                        <button
+                                            type="button"
+                                            disabled={currentPage === 1}
+                                            onClick={() =>
+                                                handlePageChange(
+                                                    currentPage - 1,
+                                                )
+                                            }
+                                            aria-label="Previous page"
+                                            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-1 ${
+                                                currentPage === 1
+                                                    ? "bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700/50"
+                                                    : "bg-slate-800 hover:bg-vivid-red text-white border border-slate-700 shadow"
+                                            }`}
+                                        >
+                                            <span>&larr;</span>
+                                            <span>Prev</span>
+                                        </button>
+
+                                        {/* Page Numbers */}
+                                        {Array.from(
+                                            { length: totalPages },
+                                            (_, idx) => idx + 1,
+                                        ).map((pageNum) => (
+                                            <button
+                                                key={pageNum}
+                                                type="button"
+                                                onClick={() =>
+                                                    handlePageChange(pageNum)
+                                                }
+                                                className={`w-9 h-9 rounded-xl text-xs font-bold transition-all shadow-sm ${
+                                                    currentPage === pageNum
+                                                        ? "bg-vivid-red text-white scale-105 shadow-red-500/30"
+                                                        : "bg-slate-800 hover:bg-slate-700 text-white border border-slate-700"
+                                                }`}
+                                            >
+                                                {pageNum}
+                                            </button>
+                                        ))}
+
+                                        {/* Next Page Button */}
+                                        <button
+                                            type="button"
+                                            disabled={
+                                                currentPage === totalPages
+                                            }
+                                            onClick={() =>
+                                                handlePageChange(
+                                                    currentPage + 1,
+                                                )
+                                            }
+                                            aria-label="Next page"
+                                            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-1 ${
+                                                currentPage === totalPages
+                                                    ? "bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700/50"
+                                                    : "bg-slate-800 hover:bg-vivid-red text-white border border-slate-700 shadow"
+                                            }`}
+                                        >
+                                            <span>Next</span>
+                                            <span>&rarr;</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
