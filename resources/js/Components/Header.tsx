@@ -13,6 +13,7 @@ export default function Header({ user }: HeaderProps = {}) {
 
     const isHome = url === "/" || url === "" || component === "Home";
     const isBuy = url.startsWith("/buy") || component === "Buy";
+    const isContact = url.startsWith("/contact") || component === "Contact";
 
     const navLinks = [
         { name: "Home", href: "/", isCurrent: isHome },
@@ -20,7 +21,7 @@ export default function Header({ user }: HeaderProps = {}) {
         { name: "Rent", href: "#", isCurrent: false },
         { name: "Repair", href: "#", isCurrent: false },
         { name: "Blog", href: "#", isCurrent: false },
-        { name: "Contact Us", href: "#", isCurrent: false },
+        { name: "Contact Us", href: "/contact", isCurrent: isContact },
     ];
 
     return (
