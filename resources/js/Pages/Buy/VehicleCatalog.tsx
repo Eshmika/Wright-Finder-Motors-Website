@@ -722,7 +722,7 @@ export default function VehicleCatalog() {
     return (
         <section
             id="catalog"
-            className="py-20 lg:py-24 bg-bggray font-poppins relative"
+            className="py-20 bg-bggray font-poppins relative"
         >
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Centered Header Section */}

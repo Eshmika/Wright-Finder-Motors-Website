@@ -33,7 +33,7 @@ export default function ContactContentSection() {
     return (
         <section
             id="contact-form"
-            className="py-20 lg:py-24 bg-bggray font-poppins relative"
+            className="py-20 bg-bggray font-poppins relative"
         >
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Centered Header Section matching Buy Page VehicleCatalog Header */}
