@@ -467,7 +467,7 @@ function VehicleCard({ car }: { car: Vehicle }) {
 
                                 if (!email) {
                                     // Redirect to Contact Us page when Client Email is empty
-                                    router.visit("/contact");
+                                    router.visit("/contact#contact-form");
                                     return;
                                 }
 

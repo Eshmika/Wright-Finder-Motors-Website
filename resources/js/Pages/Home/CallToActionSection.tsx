@@ -44,7 +44,7 @@ export default function CallToActionSection() {
                         {/* Single Creative Contact Us Button */}
                         <div className="pt-4 flex justify-center">
                             <a
-                                href="#"
+                                href="/contact#contact-form"
                                 className="group relative inline-flex items-center space-x-3 px-7 lg:px-9 py-3 lg:py-4 rounded-full bg-vivid-red text-white text-sm lg:text-base font-bold shadow-xl shadow-red-500/30 hover:bg-red-600 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-red-500/50"
                             >
                                 <span>Contact Us</span>
