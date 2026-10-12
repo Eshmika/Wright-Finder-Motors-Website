@@ -730,7 +730,8 @@ export default function VehicleCatalog() {
                 }
 
                 if (isMounted) {
-                    setVehicles(loadedVehicles);
+                    // Reverse the order so newly added rows at the bottom of the Google Sheet appear first in the grid
+                    setVehicles(loadedVehicles.reverse());
                     setIsLoading(false);
                 }
             } catch (err: any) {
