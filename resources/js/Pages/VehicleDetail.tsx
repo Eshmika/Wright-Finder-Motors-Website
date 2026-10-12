@@ -254,7 +254,7 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                                 </svg>
                                                 <span>
                                                     {vehicle.mileage
-                                                        ? `${vehicle.mileage} miles`
+                                                        ? `${vehicle.mileage} km`
                                                         : "N/A"}
                                                 </span>
                                             </div>
@@ -825,7 +825,7 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                         <SpecItem
                                             label="Mileage"
                                             value={vehicle.mileage}
-                                            suffix=" miles"
+                                            suffix=" km"
                                         />
                                         <SpecItem
                                             label="Exterior Color"
