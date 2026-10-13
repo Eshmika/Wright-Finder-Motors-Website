@@ -134,6 +134,15 @@ export default function Create() {
     const [carList, setCarList] = useState<CarListRow[]>([]);
     const [isLoadingList, setIsLoadingList] = useState(true);
 
+    // Google Apps Script Webhook URL setting (stored in browser local storage for convenience)
+    const [scriptWebhookUrl, setScriptWebhookUrl] = useState<string>(() => {
+        if (typeof window !== "undefined") {
+            return localStorage.getItem("WFM_APPS_SCRIPT_URL") || "";
+        }
+        return "";
+    });
+    const [showWebhookConfig, setShowWebhookConfig] = useState(false);
+
     // Form fields
     const [carName, setCarName] = useState("");
     const [model, setModel] = useState("");
@@ -187,10 +196,28 @@ export default function Create() {
     const [subImageFiles, setSubImageFiles] = useState<File[]>([]);
     const [subImagePreviews, setSubImagePreviews] = useState<string[]>([]);
 
-    // Submission states
+    // Submission states & Creative Modal Dialog states
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
-    const [submitError, setSubmitError] = useState<string | null>(null);
+    const [popupModal, setPopupModal] = useState<{
+        isOpen: boolean;
+        type: "success" | "error" | "setup";
+        title: string;
+        message: string;
+        details?: string;
+    }>({
+        isOpen: false,
+        type: "success",
+        title: "",
+        message: "",
+    });
+
+    // Save webhook URL in localStorage
+    const handleSaveWebhookUrl = (url: string) => {
+        setScriptWebhookUrl(url);
+        if (typeof window !== "undefined") {
+            localStorage.setItem("WFM_APPS_SCRIPT_URL", url.trim());
+        }
+    };
 
     // Fetch Car List on mount
     useEffect(() => {
@@ -535,8 +562,6 @@ export default function Create() {
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
-        setSubmitSuccess(null);
-        setSubmitError(null);
 
         try {
             const timestamp = getFormattedTimestamp();
@@ -596,6 +621,7 @@ export default function Create() {
                 notes,
                 mainImage: mainImagePayload,
                 subImages: subImagesPayload,
+                scriptUrl: scriptWebhookUrl.trim(),
             };
 
             const res = await fetch("/admin/cars", {
@@ -613,25 +639,53 @@ export default function Create() {
                 body: JSON.stringify(payload),
             });
 
+            const data = await res.json().catch(() => null);
+
             if (!res.ok) {
-                const errData = await res.json().catch(() => null);
+                if (data?.status === "need_webhook") {
+                    setShowWebhookConfig(true);
+                    setPopupModal({
+                        isOpen: true,
+                        type: "setup",
+                        title: "Google Apps Script Webhook Required",
+                        message:
+                            "To save data directly into your Google Sheet and upload photos to Google Drive, the Google Apps Script Web App URL must be configured.",
+                        details:
+                            "Follow the quick 2-minute steps shown below to paste your Web App URL.",
+                    });
+                    return;
+                }
                 throw new Error(
-                    errData?.message || `Error saving vehicle (${res.status})`,
+                    data?.message || `Server error (${res.status})`,
                 );
             }
 
-            setSubmitSuccess(
-                `Vehicle ${generatedCarId} registered successfully! Added with timestamp: ${timestamp}`,
-            );
+            if (data?.status === "success") {
+                setPopupModal({
+                    isOpen: true,
+                    type: "success",
+                    title: "Vehicle Saved to Google Sheet!",
+                    message: `Vehicle ${generatedCarId} (${carName} ${model} ${year}) was saved directly to the last row of the "Vehicle details" tab.`,
+                    details: `Timestamp: ${timestamp} | Price: $${finalCalculatedPrice.toLocaleString()}`,
+                });
 
-            setRandomSuffix(Math.floor(Math.random() * 100));
-            window.scrollTo({ top: 0, behavior: "smooth" });
+                // Regenerate suffix for the next entry
+                setRandomSuffix(Math.floor(Math.random() * 100));
+            } else {
+                throw new Error(
+                    data?.message || "Unexpected response from server.",
+                );
+            }
         } catch (err: any) {
             console.error("Save error:", err);
-            setSubmitError(
-                err.message ||
-                    "Failed to save vehicle. Please check your connection and try again.",
-            );
+            setPopupModal({
+                isOpen: true,
+                type: "error",
+                title: "Failed to Save Vehicle",
+                message:
+                    err.message ||
+                    "Could not write vehicle data to the Google Sheet. Please check the Webhook URL and try again.",
+            });
         } finally {
             setIsSubmitting(false);
         }
@@ -654,112 +708,269 @@ export default function Create() {
                         </p>
                     </div>
 
-                    {/* Auto-generated Car ID Banner */}
-                    <div className="flex items-center space-x-2 bg-white border border-gray-200 px-3.5 py-2 rounded-2xl shadow-sm">
-                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                            Car ID:
-                        </span>
-                        <span className="text-sm font-black text-vivid-red tracking-wider">
-                            {generatedCarId}
-                        </span>
+                    <div className="flex items-center space-x-3">
+                        {/* Webhook Sync status pill */}
                         <button
                             type="button"
-                            onClick={handleRegenerateId}
-                            title="Regenerate Random Suffix"
-                            className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-700 transition"
+                            onClick={() =>
+                                setShowWebhookConfig(!showWebhookConfig)
+                            }
+                            className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition shadow-sm bg-white hover:bg-slate-50 border-gray-200 text-slate-700"
                         >
-                            <svg
-                                className="w-3.5 h-3.5"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                            >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                                />
-                            </svg>
+                            <span
+                                className={`w-2 h-2 rounded-full ${
+                                    scriptWebhookUrl
+                                        ? "bg-emerald-500 animate-pulse"
+                                        : "bg-amber-400"
+                                }`}
+                            />
+                            <span>
+                                {scriptWebhookUrl
+                                    ? "Google Sync Configured"
+                                    : "Setup Google Sync"}
+                            </span>
                         </button>
+
+                        {/* Auto-generated Car ID Banner */}
+                        <div className="flex items-center space-x-2 bg-white border border-gray-200 px-3.5 py-1.5 rounded-2xl shadow-sm">
+                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                                Car ID:
+                            </span>
+                            <span className="text-sm font-black text-vivid-red tracking-wider">
+                                {generatedCarId}
+                            </span>
+                            <button
+                                type="button"
+                                onClick={handleRegenerateId}
+                                title="Regenerate Random Suffix"
+                                className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-700 transition"
+                            >
+                                <svg
+                                    className="w-3.5 h-3.5"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                                    />
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                 </div>
             }
         >
             <Head title="Add New Car - Wright Finder Motors Admin" />
 
-            {/* Notification messages */}
-            {submitSuccess && (
-                <div className="mb-6 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm flex items-center justify-between shadow-sm">
-                    <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
-                            <svg
-                                className="w-5 h-5"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                            >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2.5}
-                                    d="M5 13l4 4L19 7"
-                                />
-                            </svg>
+            {/* CREATIVE MODAL POPUP ALERT BOX */}
+            {popupModal.isOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+                    <div
+                        className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-gray-100 transform transition-all animate-scale-up relative overflow-hidden"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Top Accent Gradient Bar */}
+                        <div
+                            className={`absolute top-0 left-0 right-0 h-2 ${
+                                popupModal.type === "success"
+                                    ? "bg-gradient-to-r from-emerald-400 to-teal-500"
+                                    : popupModal.type === "setup"
+                                      ? "bg-gradient-to-r from-amber-400 to-orange-500"
+                                      : "bg-gradient-to-r from-vivid-red to-rose-600"
+                            }`}
+                        />
+
+                        {/* Modal Icon Badge */}
+                        <div className="flex items-center justify-center mb-5">
+                            {popupModal.type === "success" && (
+                                <div className="w-16 h-16 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-500 flex items-center justify-center shadow-inner">
+                                    <svg
+                                        className="w-8 h-8"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2.5}
+                                            d="M5 13l4 4L19 7"
+                                        />
+                                    </svg>
+                                </div>
+                            )}
+
+                            {popupModal.type === "error" && (
+                                <div className="w-16 h-16 rounded-2xl bg-rose-50 border border-rose-100 text-vivid-red flex items-center justify-center shadow-inner">
+                                    <svg
+                                        className="w-8 h-8"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2.5}
+                                            d="M6 18L18 6M6 6l12 12"
+                                        />
+                                    </svg>
+                                </div>
+                            )}
+
+                            {popupModal.type === "setup" && (
+                                <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-100 text-amber-500 flex items-center justify-center shadow-inner">
+                                    <svg
+                                        className="w-8 h-8"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                                        />
+                                    </svg>
+                                </div>
+                            )}
                         </div>
-                        <div>
-                            <span className="font-bold block">
-                                Vehicle Saved Successfully!
-                            </span>
-                            <span className="text-xs text-emerald-700">
-                                {submitSuccess}
-                            </span>
+
+                        {/* Modal Text Content */}
+                        <div className="text-center space-y-2">
+                            <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">
+                                {popupModal.title}
+                            </h3>
+                            <p className="text-sm text-slate-600 leading-relaxed">
+                                {popupModal.message}
+                            </p>
+                            {popupModal.details && (
+                                <p className="text-xs text-slate-500 bg-slate-50 border border-slate-200/80 rounded-xl p-2.5 mt-2 font-mono">
+                                    {popupModal.details}
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Modal Actions */}
+                        <div className="mt-6 flex flex-col sm:flex-row gap-2.5 justify-center">
+                            {popupModal.type === "setup" && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setPopupModal({
+                                            ...popupModal,
+                                            isOpen: false,
+                                        });
+                                        setShowWebhookConfig(true);
+                                    }}
+                                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold shadow-md transition"
+                                >
+                                    Open Webhook Setup
+                                </button>
+                            )}
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    setPopupModal({
+                                        ...popupModal,
+                                        isOpen: false,
+                                    })
+                                }
+                                className={`w-full sm:w-auto px-6 py-2.5 rounded-xl text-xs font-bold transition shadow-sm ${
+                                    popupModal.type === "success"
+                                        ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                                        : popupModal.type === "error"
+                                          ? "bg-vivid-red hover:bg-red-700 text-white"
+                                          : "bg-slate-100 hover:bg-slate-200 text-slate-700"
+                                }`}
+                            >
+                                {popupModal.type === "success"
+                                    ? "Done & Continue"
+                                    : "Close"}
+                            </button>
                         </div>
                     </div>
-                    <button
-                        type="button"
-                        onClick={() => setSubmitSuccess(null)}
-                        className="p-1.5 hover:bg-emerald-100 rounded-lg text-emerald-600 transition"
-                    >
-                        ✕
-                    </button>
                 </div>
             )}
 
-            {submitError && (
-                <div className="mb-6 p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-sm flex items-center justify-between shadow-sm">
-                    <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 rounded-xl bg-rose-100 flex items-center justify-center text-rose-600 shrink-0">
-                            <svg
-                                className="w-5 h-5"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                            >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2.5}
-                                    d="M6 18L18 6M6 6l12 12"
-                                />
-                            </svg>
+            {/* QUICK WEBHOOK SETUP BANNER / DRAWER */}
+            {showWebhookConfig && (
+                <div className="mb-6 p-6 rounded-3xl bg-amber-50/70 border border-amber-200 shadow-sm animate-fade-in">
+                    <div className="flex items-start justify-between">
+                        <div className="space-y-1">
+                            <div className="flex items-center space-x-2">
+                                <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
+                                <h4 className="text-sm font-bold text-slate-900">
+                                    Google Apps Script Web App Deployment URL
+                                </h4>
+                            </div>
+                            <p className="text-xs text-slate-600 leading-relaxed max-w-3xl">
+                                Paste your deployed Google Apps Script Web App
+                                URL below. When you click{" "}
+                                <strong>Save Vehicle</strong>, data is forwarded
+                                directly to your Google Sheet "Vehicle details"
+                                tab and photos are uploaded to your shared
+                                Google Drive folder.
+                            </p>
                         </div>
-                        <div>
-                            <span className="font-bold block">
-                                Submission Error
-                            </span>
-                            <span className="text-xs text-rose-700">
-                                {submitError}
-                            </span>
-                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setShowWebhookConfig(false)}
+                            className="p-1 hover:bg-amber-100 rounded-lg text-slate-500 hover:text-slate-800"
+                        >
+                            ✕
+                        </button>
                     </div>
-                    <button
-                        type="button"
-                        onClick={() => setSubmitError(null)}
-                        className="p-1.5 hover:bg-rose-100 rounded-lg text-rose-600 transition"
-                    >
-                        ✕
-                    </button>
+
+                    <div className="mt-4 flex flex-col sm:flex-row gap-3">
+                        <input
+                            type="url"
+                            value={scriptWebhookUrl}
+                            onChange={(e) =>
+                                handleSaveWebhookUrl(e.target.value)
+                            }
+                            placeholder="https://script.google.com/macros/s/AKfycb.../exec"
+                            className="flex-1 bg-white border border-gray-300 rounded-xl px-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-vivid-red shadow-sm"
+                        />
+                        <button
+                            type="button"
+                            onClick={() => {
+                                handleSaveWebhookUrl(scriptWebhookUrl);
+                                setPopupModal({
+                                    isOpen: true,
+                                    type: "success",
+                                    title: "Webhook URL Saved",
+                                    message:
+                                        "Google Apps Script connection URL updated in your system.",
+                                });
+                            }}
+                            className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition shadow-sm shrink-0"
+                        >
+                            Save URL
+                        </button>
+                    </div>
+
+                    <div className="mt-3.5 pt-3 border-t border-amber-200/60 flex items-center justify-between text-[11px] text-slate-500">
+                        <span>
+                            Ready code available in:{" "}
+                            <code className="bg-white/80 px-1.5 py-0.5 rounded border border-amber-200 font-mono text-[10px]">
+                                google-apps-script.js
+                            </code>
+                        </span>
+                        <a
+                            href="https://docs.google.com/spreadsheets/d/16dhtw1POBIeifrAEk0ZqmH3jV8s20quo9Si3GfebifE/edit"
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-vivid-red hover:underline font-semibold"
+                        >
+                            Open Google Sheet ↗
+                        </a>
+                    </div>
                 </div>
             )}
 

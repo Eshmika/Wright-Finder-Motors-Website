@@ -43,64 +43,67 @@ class AdminVehicleController extends Controller
             'timestamp' => 'nullable|string',
             'mainImage' => 'nullable',
             'subImages' => 'nullable|array',
+            'scriptUrl' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Validation error',
+                'message' => 'Validation failed: ' . implode(', ', $validator->errors()->all()),
                 'errors' => $validator->errors(),
             ], 422);
         }
 
-        // If local file uploads were passed, store them locally as fallback
-        $mainImageUrl = $request->input('mainImageUrl', '');
-        if ($request->hasFile('mainImageFile')) {
-            $path = $request->file('mainImageFile')->store('vehicles', 'public');
-            $mainImageUrl = asset('storage/' . $path);
+        // Webhook / Google Apps Script endpoint URL: check request first, then .env
+        $scriptUrl = $request->input('scriptUrl') ?: env('GOOGLE_APPS_SCRIPT_URL');
+
+        if (!$scriptUrl) {
+            return response()->json([
+                'status' => 'need_webhook',
+                'message' => 'Google Apps Script Webhook URL is not configured. Please paste your deployed Web App URL in the setup banner above or in the .env file.',
+                'carId' => $request->input('carId'),
+            ], 400);
         }
 
-        $subImageUrls = [];
-        if ($request->hasFile('subImageFiles')) {
-            foreach ($request->file('subImageFiles') as $file) {
-                $p = $file->store('vehicles', 'public');
-                $subImageUrls[] = asset('storage/' . $p);
-            }
-        }
+        try {
+            // Forward payload to Google Apps Script Web App
+            $payload = $request->except(['_token', 'scriptUrl']);
 
-        // Webhook / Google Apps Script endpoint URL if configured in .env
-        $scriptUrl = env('GOOGLE_APPS_SCRIPT_URL');
+            // Apps Script requires following redirects (302)
+            $response = Http::withoutVerifying()
+                ->timeout(45)
+                ->withOptions(['allow_redirects' => true])
+                ->post($scriptUrl, $payload);
 
-        if ($scriptUrl) {
-            try {
-                $payload = $request->all();
-                if ($mainImageUrl) {
-                    $payload['mainImageUrl'] = $mainImageUrl;
-                }
-                if (!empty($subImageUrls)) {
-                    $payload['subImageUrls'] = implode(', ', $subImageUrls);
-                }
+            if ($response->successful()) {
+                $responseData = $response->json();
 
-                $response = Http::timeout(30)->post($scriptUrl, $payload);
-
-                if ($response->successful()) {
+                // If Google Apps Script returned status: error
+                if (is_array($responseData) && isset($responseData['status']) && $responseData['status'] === 'error') {
                     return response()->json([
-                        'status' => 'success',
-                        'message' => 'Vehicle successfully saved to Google Sheet!',
-                        'data' => $response->json(),
-                    ]);
+                        'status' => 'error',
+                        'message' => 'Google Sheet Error: ' . ($responseData['message'] ?? 'Could not write row.'),
+                        'data' => $responseData,
+                    ], 500);
                 }
-            } catch (\Exception $e) {
-                Log::warning('Google Apps Script request error: ' . $e->getMessage());
-            }
-        }
 
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Vehicle data saved locally',
-            'carId' => $request->input('carId'),
-            'mainImageUrl' => $mainImageUrl,
-            'subImageUrls' => implode(', ', $subImageUrls),
-        ]);
+                return response()->json([
+                    'status' => 'success',
+                    'message' => 'Vehicle successfully saved to Google Sheet!',
+                    'data' => $responseData ?: ['raw' => $response->body()],
+                ]);
+            }
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Google Apps Script returned HTTP ' . $response->status() . ': ' . $response->body(),
+            ], 500);
+        } catch (\Exception $e) {
+            Log::error('Google Apps Script request exception: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to reach Google Apps Script: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 }
