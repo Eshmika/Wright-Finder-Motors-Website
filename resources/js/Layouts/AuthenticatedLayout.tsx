@@ -367,10 +367,10 @@ export default function AuthenticatedLayout({
                 </aside>
 
                 {/* Right Panel Area (Independent scroll container with screen-fit parent) */}
-                <div className="flex-1 flex flex-col min-w-0 h-full overflow-y-auto bg-white">
+                <div className="flex-1 flex flex-col min-w-0 h-full overflow-y-auto bg-slate-50">
                     {/* Header bar within panel if passed */}
                     {header && (
-                        <div className="shrink-0 bg-gray-300 backdrop-blur border-b border-slate-700/50 px-6 py-4 shadow-sm">
+                        <div className="shrink-0 bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
                             <div className="max-w-7xl mx-auto flex items-center justify-between">
                                 {header}
                             </div>

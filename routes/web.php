@@ -49,6 +49,8 @@ Route::middleware('auth')->group(function () {
         return Inertia::render('Admin/Cars/Create');
     })->name('admin.cars.create');
 
+    Route::post('/admin/cars', [\App\Http\Controllers\AdminVehicleController::class, 'store'])->name('admin.cars.store');
+
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
