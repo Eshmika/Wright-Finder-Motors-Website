@@ -110,19 +110,26 @@ function parseCsv(text: string): string[][] {
 }
 
 // Convert File to base64
-function fileToBase64(
-    file: File,
-): Promise<{ name: string; type: string; base64: string }> {
+function fileToBase64(file: File): Promise<{
+    name: string;
+    type: string;
+    mimeType: string;
+    base64: string;
+    data: string;
+}> {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.readAsDataURL(file);
         reader.onload = () => {
             const result = reader.result as string;
             const base64 = result.split(",")[1];
+            const mimeType = file.type || "image/jpeg";
             resolve({
                 name: file.name,
-                type: file.type || "image/jpeg",
+                type: mimeType,
+                mimeType: mimeType,
                 base64,
+                data: base64,
             });
         };
         reader.onerror = (err) => reject(err);
@@ -618,8 +625,10 @@ export default function Create() {
                 interiorColor: resolvedInteriorColor,
                 exteriorColor: resolvedExteriorColor,
                 interiorFeatures: resolvedFeatures,
+                interiorFeaturesStr: resolvedFeatures,
                 notes,
                 mainImage: mainImagePayload,
+                mainImages: mainImagePayload ? [mainImagePayload] : [],
                 subImages: subImagesPayload,
                 scriptUrl: scriptWebhookUrl.trim(),
             };
@@ -646,7 +655,7 @@ export default function Create() {
             } catch (pErr) {
                 console.error("Non-JSON server response:", rawText);
                 throw new Error(
-                    `Server returned invalid JSON (${res.status}): ${rawText.slice(0, 150)}`
+                    `Server returned invalid JSON (${res.status}): ${rawText.slice(0, 150)}`,
                 );
             }
 
@@ -665,7 +674,7 @@ export default function Create() {
                     return;
                 }
                 throw new Error(
-                    data?.message || `Server error (${res.status})`
+                    data?.message || `Server error (${res.status})`,
                 );
             }
 
@@ -684,8 +693,10 @@ export default function Create() {
                 console.error("Unexpected response payload:", data);
                 throw new Error(
                     data?.message ||
-                        (typeof data === "string" ? data : JSON.stringify(data)) ||
-                        "Unexpected response from server."
+                        (typeof data === "string"
+                            ? data
+                            : JSON.stringify(data)) ||
+                        "Unexpected response from server.",
                 );
             }
         } catch (err: any) {

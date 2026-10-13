@@ -51,54 +51,75 @@ function doPost(e) {
 
         // Helper to upload Base64 images to Google Drive
         function uploadBase64Image(fileObj, defaultPrefix) {
-            if (!fileObj || !fileObj.base64 || !folder) return "";
+            if (!fileObj) return "";
+            var b64 = fileObj.base64 || fileObj.data;
+            if (!b64) return "";
+
             try {
-                var contentType = fileObj.type || "image/jpeg";
+                var contentType = fileObj.type || fileObj.mimeType || "image/jpeg";
                 var fileName =
                     fileObj.name ||
                     defaultPrefix + "_" + new Date().getTime() + ".jpg";
-                var decodedData = Utilities.base64Decode(fileObj.base64);
+                var decodedData = Utilities.base64Decode(b64);
                 var blob = Utilities.newBlob(
                     decodedData,
                     contentType,
                     fileName,
                 );
-                var file = folder.createFile(blob);
-                file.setSharing(
-                    DriveApp.Access.ANYONE_WITH_LINK,
-                    DriveApp.Permission.VIEW,
-                );
-                return file.getUrl();
+
+                var file = null;
+                // Method 1: Create directly in target folder
+                if (folder && folder.createFile) {
+                    try {
+                        file = folder.createFile(blob);
+                    } catch (createInFolderErr) {
+                        file = null;
+                    }
+                }
+
+                // Method 2: Fallback to DriveApp root and move to folder
+                if (!file) {
+                    file = DriveApp.createFile(blob);
+                    if (folder) {
+                        try {
+                            file.moveTo(folder);
+                        } catch (moveErr) {
+                            // Leave in Drive if moveTo fails
+                        }
+                    }
+                }
+
+                // Try to make file viewable via link (ignore if account permissions restrict it)
+                try {
+                    file.setSharing(
+                        DriveApp.Access.ANYONE_WITH_LINK,
+                        DriveApp.Permission.VIEW,
+                    );
+                } catch (shareErr) {
+                    // Non-fatal if domain/workspace restricts public links
+                }
+
+                var fileId = file.getId();
+                return "https://drive.google.com/file/d/" + fileId + "/view?usp=drivesdk";
             } catch (err) {
+                console.error("Upload failed for " + defaultPrefix + ": " + err.toString());
                 return "";
             }
         }
 
         // 1. Process Main Image
         var mainImageUrl = "";
-        if (data.mainImage && data.mainImage.base64) {
+        if (data.mainImage && (data.mainImage.base64 || data.mainImage.data)) {
             mainImageUrl = uploadBase64Image(data.mainImage, "main");
-        } else if (typeof data.mainImageUrl === "string") {
-            mainImageUrl = data.mainImageUrl;
         } else if (
             data.mainImages &&
             Array.isArray(data.mainImages) &&
             data.mainImages.length > 0
         ) {
-            // Support for existing Code.gs format if passed as data.mainImages
             var firstMain = data.mainImages[0];
-            if (firstMain && firstMain.base64) {
-                mainImageUrl = uploadBase64Image(firstMain, "main");
-            } else if (firstMain && firstMain.data) {
-                mainImageUrl = uploadBase64Image(
-                    {
-                        base64: firstMain.data,
-                        type: firstMain.mimeType,
-                        name: firstMain.name,
-                    },
-                    "main",
-                );
-            }
+            mainImageUrl = uploadBase64Image(firstMain, "main");
+        } else if (typeof data.mainImageUrl === "string" && data.mainImageUrl) {
+            mainImageUrl = data.mainImageUrl;
         }
 
         // 2. Process Sub Images
@@ -106,19 +127,9 @@ function doPost(e) {
         if (data.subImages && Array.isArray(data.subImages)) {
             for (var i = 0; i < data.subImages.length; i++) {
                 var sub = data.subImages[i];
-                if (sub && sub.base64) {
+                if (sub && (sub.base64 || sub.data)) {
                     var uploaded = uploadBase64Image(sub, "sub_" + (i + 1));
                     if (uploaded) subImageUrls.push(uploaded);
-                } else if (sub && sub.data) {
-                    var uploadedOld = uploadBase64Image(
-                        {
-                            base64: sub.data,
-                            type: sub.mimeType,
-                            name: sub.name,
-                        },
-                        "sub_" + (i + 1),
-                    );
-                    if (uploadedOld) subImageUrls.push(uploadedOld);
                 } else if (typeof sub === "string" && sub) {
                     subImageUrls.push(sub);
                 }
