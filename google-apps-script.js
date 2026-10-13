@@ -56,10 +56,17 @@ function doPost(e) {
             if (!b64) return "";
 
             try {
-                var contentType = fileObj.type || fileObj.mimeType || "image/jpeg";
+                var contentType =
+                    fileObj.type || fileObj.mimeType || "image/webp";
+                var ext =
+                    contentType.indexOf("webp") !== -1
+                        ? ".webp"
+                        : contentType.indexOf("png") !== -1
+                          ? ".png"
+                          : ".jpg";
                 var fileName =
                     fileObj.name ||
-                    defaultPrefix + "_" + new Date().getTime() + ".jpg";
+                    defaultPrefix + "_" + new Date().getTime() + ext;
                 var decodedData = Utilities.base64Decode(b64);
                 var blob = Utilities.newBlob(
                     decodedData,
@@ -100,9 +107,18 @@ function doPost(e) {
                 }
 
                 var fileId = file.getId();
-                return "https://drive.google.com/file/d/" + fileId + "/view?usp=drivesdk";
+                return (
+                    "https://drive.google.com/file/d/" +
+                    fileId +
+                    "/view?usp=drivesdk"
+                );
             } catch (err) {
-                console.error("Upload failed for " + defaultPrefix + ": " + err.toString());
+                console.error(
+                    "Upload failed for " +
+                        defaultPrefix +
+                        ": " +
+                        err.toString(),
+                );
                 return "";
             }
         }

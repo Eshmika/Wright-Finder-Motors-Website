@@ -1,4 +1,11 @@
-import { useState, useEffect, useMemo, ChangeEvent, FormEvent } from "react";
+import {
+    useState,
+    useEffect,
+    useMemo,
+    useRef,
+    ChangeEvent,
+    FormEvent,
+} from "react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import { Head } from "@inertiajs/react";
 
@@ -109,31 +116,119 @@ function parseCsv(text: string): string[][] {
     return rows;
 }
 
-// Convert File to base64
-function fileToBase64(file: File): Promise<{
+// Compress and convert any image file to WebP format (< 100 KB)
+async function compressAndConvertToWebp(
+    file: File,
+    maxSizeBytes = 100 * 1024,
+): Promise<{
     name: string;
     type: string;
     mimeType: string;
     base64: string;
     data: string;
 }> {
-    return new Promise((resolve, reject) => {
+    // 1. Load image into HTMLImageElement
+    const imgBitmap = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        const objectUrl = URL.createObjectURL(file);
+        img.onload = () => {
+            URL.revokeObjectURL(objectUrl);
+            resolve(img);
+        };
+        img.onerror = (err) => {
+            URL.revokeObjectURL(objectUrl);
+            reject(err);
+        };
+        img.src = objectUrl;
+    });
+
+    // 2. Prepare canvas with initial dimensions (cap max resolution at 1920 to keep sharpness high)
+    const maxDimension = 1920;
+    let width = imgBitmap.naturalWidth || imgBitmap.width;
+    let height = imgBitmap.naturalHeight || imgBitmap.height;
+
+    if (width > maxDimension || height > maxDimension) {
+        if (width >= height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+        } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+        }
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+        throw new Error(
+            "Could not initialize 2D canvas context for image compression",
+        );
+    }
+    ctx.drawImage(imgBitmap, 0, 0, width, height);
+
+    // 3. Iterative compression loop to ensure file is under 100KB while preserving visual clarity
+    let quality = 0.85;
+    let blob: Blob | null = null;
+
+    // Helper to get Blob from canvas
+    const getCanvasBlob = (q: number): Promise<Blob | null> => {
+        return new Promise((res) => {
+            canvas.toBlob((b) => res(b), "image/webp", q);
+        });
+    };
+
+    blob = await getCanvasBlob(quality);
+
+    // If still larger than 100KB, iteratively lower quality and/or scale down dimensions
+    let attempts = 0;
+    while (blob && blob.size > maxSizeBytes && attempts < 10) {
+        attempts++;
+        if (quality > 0.4) {
+            quality -= 0.12;
+            blob = await getCanvasBlob(quality);
+        } else {
+            // Scale dimensions down by 15%
+            width = Math.round(width * 0.85);
+            height = Math.round(height * 0.85);
+            canvas.width = Math.max(320, width);
+            canvas.height = Math.max(240, height);
+            ctx.drawImage(imgBitmap, 0, 0, canvas.width, canvas.height);
+            blob = await getCanvasBlob(quality);
+        }
+    }
+
+    // Fallback: if browser doesn't support webp canvas export, use whatever blob was generated
+    if (!blob) {
+        blob = await new Promise<Blob>((resolve) =>
+            canvas.toBlob((b) => resolve(b || file)),
+        );
+    }
+
+    // 4. Convert resulting WebP blob to Base64
+    const base64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
-        reader.readAsDataURL(file);
         reader.onload = () => {
-            const result = reader.result as string;
-            const base64 = result.split(",")[1];
-            const mimeType = file.type || "image/jpeg";
-            resolve({
-                name: file.name,
-                type: mimeType,
-                mimeType: mimeType,
-                base64,
-                data: base64,
-            });
+            const res = reader.result as string;
+            resolve(res.split(",")[1]);
         };
         reader.onerror = (err) => reject(err);
+        reader.readAsDataURL(blob!);
     });
+
+    // 5. Generate WebP filename
+    const originalNameWithoutExt =
+        file.name.substring(0, file.name.lastIndexOf(".")) || file.name;
+    const webpFileName = `${originalNameWithoutExt}.webp`;
+
+    return {
+        name: webpFileName,
+        type: "image/webp",
+        mimeType: "image/webp",
+        base64,
+        data: base64,
+    };
 }
 
 export default function Create() {
@@ -202,6 +297,8 @@ export default function Create() {
     const [mainImagePreview, setMainImagePreview] = useState<string>("");
     const [subImageFiles, setSubImageFiles] = useState<File[]>([]);
     const [subImagePreviews, setSubImagePreviews] = useState<string[]>([]);
+    const mainFileInputRef = useRef<HTMLInputElement | null>(null);
+    const subFileInputRef = useRef<HTMLInputElement | null>(null);
 
     // Submission states & Creative Modal Dialog states
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -565,6 +662,50 @@ export default function Create() {
         return `${month}/${day}/${yr} ${hrs}:${mins}:${secs}`;
     };
 
+    // Reset and clear all form inputs back to clean state
+    const handleResetForm = () => {
+        // Clear text & numeric inputs
+        setMileage("");
+        setVin("");
+        setPrice("");
+        setDiscount("");
+        setNotes("");
+        setCustomTitle("");
+        setCustomExteriorColor("");
+        setCustomInteriorColor("");
+        setInteriorFeatureInput("");
+        setInteriorFeatures(["Bluetooth", "Backup Camera"]);
+
+        // Reset dropdowns to standard defaults
+        setStatus("Available");
+        setTitle("Clean");
+        setExteriorColor("White");
+        setInteriorColor("Black");
+        setSeatMaterial("Leather");
+        setEngine("Standard");
+        setEngineTypeSize("1.5L l4 Turbo");
+        setTransmission("Automatic");
+        setDriveline("FWD");
+        setPowerOptions("Keyless");
+        setCondition("Pre-owned");
+        setDriveCondition("Runs/drives");
+
+        // Clear files and previews
+        setMainImageFile(null);
+        setMainImagePreview("");
+        setSubImageFiles([]);
+        setSubImagePreviews([]);
+        if (mainFileInputRef.current) {
+            mainFileInputRef.current.value = "";
+        }
+        if (subFileInputRef.current) {
+            subFileInputRef.current.value = "";
+        }
+
+        // Auto-regenerate car ID suffix for a fresh new vehicle
+        setRandomSuffix(Math.floor(Math.random() * 100));
+    };
+
     // Form Submission
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
@@ -589,12 +730,13 @@ export default function Create() {
 
             let mainImagePayload: any = null;
             if (mainImageFile) {
-                mainImagePayload = await fileToBase64(mainImageFile);
+                mainImagePayload =
+                    await compressAndConvertToWebp(mainImageFile);
             }
 
             const subImagesPayload: any[] = [];
             for (const file of subImageFiles) {
-                const subObj = await fileToBase64(file);
+                const subObj = await compressAndConvertToWebp(file);
                 subImagesPayload.push(subObj);
             }
 
@@ -679,16 +821,22 @@ export default function Create() {
             }
 
             if (data?.status === "success") {
+                const savedCarId = generatedCarId;
+                const savedCarName = carName;
+                const savedModel = model;
+                const savedYear = year;
+                const savedPrice = finalCalculatedPrice;
+
+                // Clear all form inputs after successful save
+                handleResetForm();
+
                 setPopupModal({
                     isOpen: true,
                     type: "success",
                     title: "Vehicle Saved to Google Sheet!",
-                    message: `Vehicle ${generatedCarId} (${carName} ${model} ${year}) was saved directly to the last row of the "Vehicle details" tab.`,
-                    details: `Timestamp: ${timestamp} | Price: $${finalCalculatedPrice.toLocaleString()}`,
+                    message: `Vehicle ${savedCarId} (${savedCarName} ${savedModel} ${savedYear}) was saved directly to the last row of the "Vehicle details" tab.`,
+                    details: `Timestamp: ${timestamp} | Price: $${savedPrice.toLocaleString()}`,
                 });
-
-                // Regenerate suffix for the next entry
-                setRandomSuffix(Math.floor(Math.random() * 100));
             } else {
                 console.error("Unexpected response payload:", data);
                 throw new Error(
@@ -1721,13 +1869,19 @@ export default function Create() {
                             </svg>
                         </div>
                         <div>
-                            <h3 className="text-base font-bold text-slate-900">
-                                Google Drive Photo Gallery
-                            </h3>
+                            <div className="flex items-center gap-2">
+                                <h3 className="text-base font-bold text-slate-900">
+                                    Google Drive Photo Gallery
+                                </h3>
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                    Auto-WebP &lt;100KB
+                                </span>
+                            </div>
                             <p className="text-xs text-slate-500">
-                                Uploaded directly to Wright Finder Motors Drive
-                                and stored in "Main Image URLs" & "Sub Image
-                                URLs".
+                                Images are automatically converted to
+                                lightweight WebP (&lt;100KB) before uploading to
+                                Google Drive. Links are saved directly to Google
+                                Sheet.
                             </p>
                         </div>
                     </div>
@@ -1744,6 +1898,7 @@ export default function Create() {
                             </p>
 
                             <input
+                                ref={mainFileInputRef}
                                 type="file"
                                 accept="image/*"
                                 onChange={handleMainImageChange}
@@ -1762,6 +1917,10 @@ export default function Create() {
                                         onClick={() => {
                                             setMainImageFile(null);
                                             setMainImagePreview("");
+                                            if (mainFileInputRef.current) {
+                                                mainFileInputRef.current.value =
+                                                    "";
+                                            }
                                         }}
                                         className="absolute top-2 right-2 bg-black/70 hover:bg-rose-600 text-white p-1 rounded-lg text-xs"
                                         title="Remove photo"
@@ -1784,6 +1943,7 @@ export default function Create() {
                             </p>
 
                             <input
+                                ref={subFileInputRef}
                                 type="file"
                                 accept="image/*"
                                 multiple
