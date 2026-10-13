@@ -639,7 +639,16 @@ export default function Create() {
                 body: JSON.stringify(payload),
             });
 
-            const data = await res.json().catch(() => null);
+            const rawText = await res.text();
+            let data: any = null;
+            try {
+                data = JSON.parse(rawText);
+            } catch (pErr) {
+                console.error("Non-JSON server response:", rawText);
+                throw new Error(
+                    `Server returned invalid JSON (${res.status}): ${rawText.slice(0, 150)}`
+                );
+            }
 
             if (!res.ok) {
                 if (data?.status === "need_webhook") {
@@ -656,7 +665,7 @@ export default function Create() {
                     return;
                 }
                 throw new Error(
-                    data?.message || `Server error (${res.status})`,
+                    data?.message || `Server error (${res.status})`
                 );
             }
 
@@ -672,12 +681,16 @@ export default function Create() {
                 // Regenerate suffix for the next entry
                 setRandomSuffix(Math.floor(Math.random() * 100));
             } else {
+                console.error("Unexpected response payload:", data);
                 throw new Error(
-                    data?.message || "Unexpected response from server.",
+                    data?.message ||
+                        (typeof data === "string" ? data : JSON.stringify(data)) ||
+                        "Unexpected response from server."
                 );
             }
         } catch (err: any) {
             console.error("Save error:", err);
+
             setPopupModal({
                 isOpen: true,
                 type: "error",
