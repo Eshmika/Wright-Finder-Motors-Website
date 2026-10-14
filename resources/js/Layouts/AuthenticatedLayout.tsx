@@ -371,7 +371,7 @@ export default function AuthenticatedLayout({
                     {/* Header bar within panel if passed */}
                     {header && (
                         <div className="shrink-0 bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
-                            <div className="max-w-7xl mx-auto flex items-center justify-between">
+                            <div className="mx-auto flex items-center justify-between">
                                 {header}
                             </div>
                         </div>
@@ -379,7 +379,7 @@ export default function AuthenticatedLayout({
 
                     {/* Scrollable content inside the panel */}
                     <main className="flex-1 p-4 sm:p-6 lg:p-8">
-                        <div className="max-w-7xl mx-auto">{children}</div>
+                        <div className="mx-auto">{children}</div>
                     </main>
                 </div>
             </div>

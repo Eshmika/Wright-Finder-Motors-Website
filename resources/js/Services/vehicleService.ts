@@ -29,6 +29,8 @@ export interface DetailedVehicle {
     price: number;
     originalPrice: number;
     discount: number;
+    rentOrSell?: string;
+    mainImageUrl?: string;
     images: string[];
 }
 
@@ -124,6 +126,7 @@ export async function fetchAllVehicles(): Promise<DetailedVehicle[]> {
     const titleIdx = getIndex("Title");
     const trimIdx = getIndex("Trim");
     const bodyStyleIdx = getIndex("Body Style");
+    const rentOrSellIdx = getIndex("Rent or Sell");
     const engineIdx = getIndex("Engine");
     const engineTypeSizeIdx = getIndex("Engine Type/Size");
     const transmissionIdx = getIndex("Transmission");
@@ -254,6 +257,9 @@ export async function fetchAllVehicles(): Promise<DetailedVehicle[]> {
             price: finalPrice,
             originalPrice,
             discount,
+            rentOrSell:
+                rentOrSellIdx !== -1 ? row[rentOrSellIdx]?.trim() || "" : "",
+            mainImageUrl: images.length > 0 ? images[0] : "",
             images,
         });
     }

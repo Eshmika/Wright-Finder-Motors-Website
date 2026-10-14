@@ -1549,7 +1549,7 @@ export default function Create() {
                 {/* SECTION 3: POWER & DRIVETRAIN */}
                 <div className="bg-white border border-gray-200 rounded-3xl p-6 sm:p-8 shadow-sm">
                     <div className="flex items-center space-x-3 mb-6 pb-4 border-b border-gray-100">
-                        <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-xl bg-violet-100 text-purple flex items-center justify-center">
                             <svg
                                 className="w-5 h-5"
                                 fill="none"
@@ -1984,7 +1984,7 @@ export default function Create() {
                 {/* SECTION 7: NOTES */}
                 <div className="bg-white border border-gray-200 rounded-3xl p-6 sm:p-8 shadow-sm">
                     <div className="flex items-center space-x-3 mb-4">
-                        <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-xl bg-violet-100 text-purple flex items-center justify-center">
                             <svg
                                 className="w-5 h-5"
                                 fill="none"
