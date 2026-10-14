@@ -247,7 +247,7 @@ export default function Index() {
         >
             <Head title="View All Cars - Wright Finder Motors" />
 
-            <div className="p-4 sm:p-6 lg:p-8 space-y-5">
+            <div className="space-y-5">
                 {/* Top Action Bar: Sort Dropdown (Left) & Print + Share Buttons (Right) */}
                 <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/80 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     {/* Left: Sort By Dropdown & Quick Search */}
