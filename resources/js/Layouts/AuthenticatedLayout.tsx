@@ -13,7 +13,9 @@ export default function AuthenticatedLayout({
     // Active route checks
     const isDashboard = url === "/dashboard" || route().current("dashboard");
     const isCarsIndex =
-        url === "/admin/cars" || route().current("admin.cars.index");
+        url === "/admin/cars" ||
+        route().current("admin.cars.index") ||
+        route().current("admin.cars.show");
     const isCarsCreate =
         url === "/admin/cars/create" || route().current("admin.cars.create");
     const isProfile =
