@@ -83,7 +83,7 @@ export default function Index() {
         // Sorting
         switch (sortBy) {
             case "recently":
-                // Keeps default order (most recent top) or preserves sheet order
+                list.reverse();
                 break;
             case "price-low":
                 list.sort((a, b) => a.price - b.price);
