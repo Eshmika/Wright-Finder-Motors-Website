@@ -285,7 +285,7 @@ export default function Index() {
         window.print();
     };
 
-    // Share handler (top bar)
+    // Share handler (top bar inventory)
     const handleShare = async () => {
         if (navigator.share) {
             try {
@@ -299,7 +299,50 @@ export default function Index() {
             }
         } else {
             navigator.clipboard.writeText(window.location.href);
-            alert("Inventory page link copied to clipboard!");
+            setAlertModal({
+                isOpen: true,
+                type: "success",
+                title: "Link Copied!",
+                message:
+                    "Inventory page link has been copied to your clipboard.",
+            });
+        }
+    };
+
+    // Share handler for an individual vehicle public page
+    const handleShareVehicle = async (car: DetailedVehicle) => {
+        const publicVehicleUrl = `${window.location.origin}/vehicles/${encodeURIComponent(car.id)}`;
+        const shareTitle = `${car.make} ${car.model} ${car.year ? `(${car.year})` : ""} - Wright Finder Motors`;
+        const shareText = `Check out this ${car.make} ${car.model} on Wright Finder Motors! Listed at ${formatCurrency(car.price)}.`;
+
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: shareTitle,
+                    text: shareText,
+                    url: publicVehicleUrl,
+                });
+                return;
+            } catch (err: any) {
+                // If user aborted/cancelled the native share sheet, do nothing
+                if (err.name === "AbortError") {
+                    return;
+                }
+            }
+        }
+
+        // Fallback: Copy to clipboard and display creative confirmation modal
+        try {
+            await navigator.clipboard.writeText(publicVehicleUrl);
+            setAlertModal({
+                isOpen: true,
+                type: "success",
+                title: "Vehicle Link Copied!",
+                message: `Public link for ${car.make} ${car.model} (#${car.id}) was copied to your clipboard:\n${publicVehicleUrl}`,
+            });
+        } catch (copyErr) {
+            // Prompt fallback for older browsers
+            window.prompt("Copy vehicle page link:", publicVehicleUrl);
         }
     };
 
@@ -1095,11 +1138,13 @@ export default function Index() {
                                                         {/* Share button */}
                                                         <button
                                                             type="button"
-                                                            onClick={
-                                                                handleShare
+                                                            onClick={() =>
+                                                                handleShareVehicle(
+                                                                    car,
+                                                                )
                                                             }
-                                                            title="Share"
-                                                            aria-label="Share"
+                                                            title="Share Public Vehicle Page"
+                                                            aria-label="Share Public Vehicle Page"
                                                             className="p-1.5 rounded-lg text-slate-600 hover:text-white hover:bg-purple bg-slate-50 border border-slate-200 transition active:scale-95 shadow-sm inline-flex items-center justify-center"
                                                         >
                                                             <svg
