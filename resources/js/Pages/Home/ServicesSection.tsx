@@ -274,21 +274,137 @@ export default function ServicesSection() {
         router.visit(`/buy?condition=${encodeURIComponent(conditionKey)}`);
     };
 
+    const [searchQuery, setSearchQuery] = useState("");
+
+    const handleSearchSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        const trimmed = searchQuery.trim();
+        if (trimmed) {
+            router.visit(`/buy?search=${encodeURIComponent(trimmed)}`);
+        } else {
+            router.visit("/buy");
+        }
+    };
+
     const currentCar = vehicles[currentIndex];
 
     return (
-        <section className="py-20 bg-bggray font-poppins relative overflow-hidden">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
-                {/* Section Header */}{" "}
-                <div className="text-center max-w-3xl mx-auto space-y-3">
-                    <h2 className="text-3xl lg:text-5xl font-extrabold text-white tracking-tight">
-                        Explore Our Best Deals
-                    </h2>
-                    <p className="text-sm lg:text-base text-gray-200 max-w-2xl mx-auto leading-relaxed">
-                        Discover top picks from our verified live inventory or
-                        jump directly into vehicles suited to your lifestyle and
-                        budget.
-                    </p>
+        <section className="py-20 font-poppins relative overflow-hidden text-white bg-gradient-to-b from-purple via-purple to-dark-purple">
+            {/* Subtle aesthetic backdrop pattern / glow */}
+            <div className="absolute inset-0 pointer-events-none">
+                <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-purple/40 rounded-full blur-3xl opacity-60"></div>
+                <div className="absolute bottom-0 right-10 w-[450px] h-[300px] bg-purple/25 rounded-full blur-2xl opacity-75"></div>
+            </div>
+
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10 relative z-10 w-full">
+                {/* Search Bar replacing the Section Header */}
+                <div className="w-full space-y-3">
+                    <form
+                        onSubmit={handleSearchSubmit}
+                        className="relative w-full"
+                    >
+                        <div className="relative flex items-center bg-white/95 backdrop-blur-xl rounded-full shadow-2xl border border-white/40 p-1.5 sm:p-2 transition-all duration-300 focus-within:ring-4 focus-within:ring-vivid-red/30 focus-within:border-vivid-red">
+                            {/* Search Icon */}
+                            <div className="pl-3 sm:pl-4 pr-1.5 text-slate-400 shrink-0">
+                                <svg
+                                    className="w-5 h-5 text-slate-400"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    strokeWidth={2.2}
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                                    />
+                                </svg>
+                            </div>
+
+                            {/* Search Input Field */}
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Search by vehicle name, make, model or year (e.g. BMW, Honda, 2023)..."
+                                className="w-full bg-transparent border-0 py-2 sm:py-2.5 px-2 text-xs sm:text-sm md:text-base text-slate-900 placeholder:text-slate-400 font-medium focus:ring-0 focus:outline-none"
+                            />
+
+                            {/* Clear button if typed */}
+                            {searchQuery && (
+                                <button
+                                    type="button"
+                                    onClick={() => setSearchQuery("")}
+                                    className="p-1 mr-1 text-slate-400 hover:text-slate-600 transition shrink-0"
+                                    title="Clear"
+                                >
+                                    <svg
+                                        className="w-4 h-4"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        strokeWidth={2}
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            d="M6 18L18 6M6 6l12 12"
+                                        />
+                                    </svg>
+                                </button>
+                            )}
+
+                            {/* Search Submit Button */}
+                            <button
+                                type="submit"
+                                className="inline-flex items-center justify-center space-x-2 px-5 sm:px-7 py-2.5 sm:py-2.5 rounded-full bg-vivid-red hover:bg-red-600 text-white font-bold text-xs sm:text-sm tracking-wide transition-all duration-200 shadow-lg shadow-red-500/30 active:scale-95 shrink-0"
+                            >
+                                <span>Search</span>
+                                <svg
+                                    className="w-3.5 h-3.5 hidden sm:inline"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    strokeWidth={2.5}
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        d="M14 5l7 7m0 0l-7 7m7-7H3"
+                                    />
+                                </svg>
+                            </button>
+                        </div>
+                    </form>
+
+                    {/* Quick suggestion tags */}
+                    <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-white/80">
+                        <span className="font-semibold text-white/60">
+                            Popular:
+                        </span>
+                        {[
+                            "Toyota",
+                            "Honda",
+                            "Mercedes",
+                            "BMW",
+                            "SUV",
+                            "Sedan",
+                        ].map((tag) => (
+                            <button
+                                key={tag}
+                                type="button"
+                                onClick={() => {
+                                    setSearchQuery(tag);
+                                    router.visit(
+                                        `/buy?search=${encodeURIComponent(tag)}`,
+                                    );
+                                }}
+                                className="px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-white/90 hover:text-white transition backdrop-blur-sm"
+                            >
+                                {tag}
+                            </button>
+                        ))}
+                    </div>
                 </div>
                 {/* ROW 1: Full-Width Card Slider (Random Cars Showcase) - 60vh Height */}
                 <div

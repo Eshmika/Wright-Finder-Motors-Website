@@ -16,7 +16,7 @@ export default function Buy({ auth }: PageProps) {
 
             {/* Main Page Sections */}
             <main className="flex-1">
-                <BuyHeroSection />
+                {/* <BuyHeroSection /> */}
                 <VehicleCatalog />
                 <CallToActionSection />
             </main>

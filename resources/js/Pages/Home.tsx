@@ -1,6 +1,5 @@
 import Header from "@/Components/Header";
 import Footer from "@/Components/Footer";
-import HeroSection from "./Home/HeroSection";
 import ServicesSection from "./Home/ServicesSection";
 import CallToActionSection from "./Home/CallToActionSection";
 import { PageProps } from "@/types";
@@ -16,7 +15,6 @@ export default function Home({ auth }: PageProps) {
 
             {/* Main Page Sections */}
             <main className="flex-1">
-                <HeroSection />
                 <ServicesSection />
                 <CallToActionSection />
             </main>

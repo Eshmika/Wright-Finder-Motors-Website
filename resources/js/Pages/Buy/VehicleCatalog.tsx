@@ -753,13 +753,17 @@ export default function VehicleCatalog() {
         };
     }, []);
 
-    // Read condition from URL if present (e.g., from ServicesSection condition cards)
-    const urlCondition =
+    // Read condition and search query from URL if present
+    const urlParams =
         typeof window !== "undefined"
-            ? new URLSearchParams(window.location.search).get("condition") || ""
-            : "";
+            ? new URLSearchParams(window.location.search)
+            : null;
+    const urlCondition = urlParams?.get("condition") || "";
+    const urlSearchQuery =
+        urlParams?.get("search") || urlParams?.get("q") || "";
 
     // Filter state
+    const [searchKeyword, setSearchKeyword] = useState<string>(urlSearchQuery);
     const [selectedMake, setSelectedMake] = useState<string>("");
     const [selectedModel, setSelectedModel] = useState<string>("");
     const [minPrice, setMinPrice] = useState<string>("");
@@ -772,6 +776,7 @@ export default function VehicleCatalog() {
 
     // Applied filter state (applied when clicking "Search Vehicle")
     const [appliedFilters, setAppliedFilters] = useState({
+        search: urlSearchQuery,
         make: "",
         model: "",
         minPrice: "",
@@ -784,14 +789,23 @@ export default function VehicleCatalog() {
 
     // Sync if URL search changes
     useEffect(() => {
-        if (urlCondition) {
-            setSelectedCondition(urlCondition);
-            setAppliedFilters((prev) => ({
-                ...prev,
-                condition: urlCondition,
-            }));
+        const params = new URLSearchParams(window.location.search);
+        const nextCondition = params.get("condition") || "";
+        const nextSearch = params.get("search") || params.get("q") || "";
+
+        if (nextCondition) {
+            setSelectedCondition(nextCondition);
         }
-    }, [urlCondition]);
+        if (nextSearch) {
+            setSearchKeyword(nextSearch);
+        }
+
+        setAppliedFilters((prev) => ({
+            ...prev,
+            condition: nextCondition,
+            search: nextSearch,
+        }));
+    }, [urlCondition, urlSearchQuery]);
 
     // Unique options derived from vehicles data
     const makeOptions = Array.from(
@@ -825,6 +839,7 @@ export default function VehicleCatalog() {
     const handleApplyFilters = (e: React.FormEvent) => {
         e.preventDefault();
         setAppliedFilters({
+            search: searchKeyword,
             make: selectedMake,
             model: selectedModel,
             minPrice,
@@ -838,6 +853,7 @@ export default function VehicleCatalog() {
     };
 
     const handleResetFilters = () => {
+        setSearchKeyword("");
         setSelectedMake("");
         setSelectedModel("");
         setMinPrice("");
@@ -847,6 +863,7 @@ export default function VehicleCatalog() {
         setSelectedCategory("");
         setSelectedCondition("");
         setAppliedFilters({
+            search: "",
             make: "",
             model: "",
             minPrice: "",
@@ -861,6 +878,14 @@ export default function VehicleCatalog() {
 
     // Filter vehicles by applied filters
     const filteredVehicles = vehicles.filter((car) => {
+        if (appliedFilters.search) {
+            const q = appliedFilters.search.toLowerCase().trim();
+            const haystack =
+                `${car.make} ${car.model} ${car.year} ${car.category} ${car.title} ${car.id}`.toLowerCase();
+            if (!haystack.includes(q)) {
+                return false;
+            }
+        }
         if (
             appliedFilters.make &&
             car.make.toLowerCase() !== appliedFilters.make.toLowerCase()
@@ -1267,6 +1292,27 @@ export default function VehicleCatalog() {
                                         </strong>{" "}
                                         vehicles matching your criteria
                                     </span>
+                                    {appliedFilters.search && (
+                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-purple/40 text-purple-200 border border-purple-400/30 text-[11px] font-semibold">
+                                            Search: "{appliedFilters.search}"
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setSearchKeyword("");
+                                                    setAppliedFilters(
+                                                        (prev) => ({
+                                                            ...prev,
+                                                            search: "",
+                                                        }),
+                                                    );
+                                                }}
+                                                className="hover:text-white transition"
+                                                title="Remove search filter"
+                                            >
+                                                ✕
+                                            </button>
+                                        </span>
+                                    )}
                                     {appliedFilters.condition && (
                                         <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-vivid-red/20 text-vivid-red border border-vivid-red/30 text-[11px] font-semibold">
                                             Condition:{" "}
