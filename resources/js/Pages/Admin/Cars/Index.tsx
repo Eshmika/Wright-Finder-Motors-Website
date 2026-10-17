@@ -59,6 +59,19 @@ export default function Index() {
         type: "success",
     });
 
+    // Top Bar Vehicle Picker Modal State for Print & Share
+    const [vehicleActionModal, setVehicleActionModal] = useState<{
+        isOpen: boolean;
+        action: "print" | "share" | null;
+        selectedCarId: string;
+        searchQuery: string;
+    }>({
+        isOpen: false,
+        action: null,
+        selectedCarId: "",
+        searchQuery: "",
+    });
+
     // Prompt delete modal for a vehicle
     const handlePromptDelete = (car: DetailedVehicle) => {
         setDeleteModal({
@@ -283,6 +296,44 @@ export default function Index() {
     // Print handler (top bar)
     const handlePrint = () => {
         window.print();
+    };
+
+    // Open vehicle picker modal for top Print / Share buttons
+    const handleOpenActionModal = (action: "print" | "share") => {
+        // Pre-select first vehicle if available
+        const defaultCarId = vehicles.length > 0 ? vehicles[0].id : "";
+        setVehicleActionModal({
+            isOpen: true,
+            action,
+            selectedCarId: defaultCarId,
+            searchQuery: "",
+        });
+    };
+
+    // Execute the selected action for the chosen car
+    const handleExecuteVehicleAction = () => {
+        if (!vehicleActionModal.selectedCarId) return;
+        const targetCar = vehicles.find(
+            (v) => v.id === vehicleActionModal.selectedCarId,
+        );
+        if (!targetCar) return;
+
+        const action = vehicleActionModal.action;
+        setVehicleActionModal({
+            isOpen: false,
+            action: null,
+            selectedCarId: "",
+            searchQuery: "",
+        });
+
+        if (action === "print") {
+            window.open(
+                `/vehicles/${encodeURIComponent(targetCar.id)}?print=1`,
+                "_blank",
+            );
+        } else if (action === "share") {
+            handleShareVehicle(targetCar);
+        }
     };
 
     // Share handler (top bar inventory)
@@ -567,9 +618,9 @@ export default function Index() {
                     <div className="flex items-center gap-2.5 self-end md:self-auto">
                         <button
                             type="button"
-                            onClick={handlePrint}
+                            onClick={() => handleOpenActionModal("print")}
                             className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300/80 shadow-sm transition active:scale-95"
-                            title="Print inventory table"
+                            title="Print Vehicle Spec Sheet"
                         >
                             <svg
                                 className="w-4 h-4 text-purple"
@@ -589,9 +640,9 @@ export default function Index() {
 
                         <button
                             type="button"
-                            onClick={handleShare}
+                            onClick={() => handleOpenActionModal("share")}
                             className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold bg-dark-purple hover:bg-purple text-white shadow-sm transition active:scale-95"
-                            title="Share inventory"
+                            title="Share Vehicle Page"
                         >
                             <svg
                                 className="w-4 h-4"
@@ -1449,6 +1500,345 @@ export default function Index() {
                                 className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition shadow-sm"
                             >
                                 Done
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* SELECT VEHICLE MODAL FOR TOP PRINT / SHARE */}
+            {vehicleActionModal.isOpen && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
+                    onClick={() =>
+                        setVehicleActionModal({
+                            isOpen: false,
+                            action: null,
+                            selectedCarId: "",
+                            searchQuery: "",
+                        })
+                    }
+                >
+                    <div
+                        className="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-gray-100 transform transition-all relative overflow-hidden"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Top Accent Bar */}
+                        <div
+                            className={`absolute top-0 left-0 right-0 h-2 ${
+                                vehicleActionModal.action === "print"
+                                    ? "bg-gradient-to-r from-purple to-indigo-600"
+                                    : "bg-gradient-to-r from-dark-purple to-purple"
+                            }`}
+                        />
+
+                        {/* Modal Header */}
+                        <div className="flex items-start justify-between gap-3 mb-5">
+                            <div className="flex items-center gap-3">
+                                <div
+                                    className={`w-11 h-11 rounded-2xl flex items-center justify-center shadow-inner ${
+                                        vehicleActionModal.action === "print"
+                                            ? "bg-purple/10 text-purple border border-purple/20"
+                                            : "bg-dark-purple/10 text-dark-purple border border-dark-purple/20"
+                                    }`}
+                                >
+                                    {vehicleActionModal.action === "print" ? (
+                                        <svg
+                                            className="w-5 h-5"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+                                            />
+                                        </svg>
+                                    ) : (
+                                        <svg
+                                            className="w-5 h-5"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+                                            />
+                                        </svg>
+                                    )}
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-black text-slate-900 tracking-tight">
+                                        {vehicleActionModal.action === "print"
+                                            ? "Select Car to Print"
+                                            : "Select Car to Share"}
+                                    </h3>
+                                    <p className="text-xs text-slate-500 mt-0.5">
+                                        {vehicleActionModal.action === "print"
+                                            ? "Choose which vehicle's public spec sheet and photo gallery to print."
+                                            : "Choose which public single vehicle page link to share."}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    setVehicleActionModal({
+                                        isOpen: false,
+                                        action: null,
+                                        selectedCarId: "",
+                                        searchQuery: "",
+                                    })
+                                }
+                                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
+                            >
+                                <svg
+                                    className="w-5 h-5"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M6 18L18 6M6 6l12 12"
+                                    />
+                                </svg>
+                            </button>
+                        </div>
+
+                        {/* Search Filter input inside modal */}
+                        <div className="relative mb-3">
+                            <svg
+                                className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                                />
+                            </svg>
+                            <input
+                                type="text"
+                                value={vehicleActionModal.searchQuery}
+                                onChange={(e) =>
+                                    setVehicleActionModal((prev) => ({
+                                        ...prev,
+                                        searchQuery: e.target.value,
+                                    }))
+                                }
+                                placeholder="Search by make, model, year, or ID..."
+                                className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 text-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple/40 focus:border-purple placeholder:text-slate-400"
+                            />
+                        </div>
+
+                        {/* Vehicle List Selection */}
+                        <div className="max-h-64 overflow-y-auto space-y-2 pr-1 scrollbar-thin">
+                            {(() => {
+                                const q = vehicleActionModal.searchQuery
+                                    .trim()
+                                    .toLowerCase();
+                                const filtered = vehicles.filter(
+                                    (v) =>
+                                        !q ||
+                                        v.id.toLowerCase().includes(q) ||
+                                        v.make.toLowerCase().includes(q) ||
+                                        v.model.toLowerCase().includes(q) ||
+                                        String(v.year || "").includes(q),
+                                );
+
+                                if (filtered.length === 0) {
+                                    return (
+                                        <div className="p-6 text-center text-xs text-slate-400">
+                                            No matching vehicles found.
+                                        </div>
+                                    );
+                                }
+
+                                return filtered.map((car) => {
+                                    const isSelected =
+                                        vehicleActionModal.selectedCarId ===
+                                        car.id;
+                                    const mainPhoto =
+                                        car.images && car.images.length > 0
+                                            ? car.images[0]
+                                            : null;
+
+                                    return (
+                                        <div
+                                            key={car.id}
+                                            onClick={() =>
+                                                setVehicleActionModal(
+                                                    (prev) => ({
+                                                        ...prev,
+                                                        selectedCarId: car.id,
+                                                    }),
+                                                )
+                                            }
+                                            className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                                                isSelected
+                                                    ? "bg-purple/5 border-purple shadow-sm ring-1 ring-purple/30"
+                                                    : "bg-white hover:bg-slate-50 border-slate-200/80"
+                                            }`}
+                                        >
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                {/* Thumbnail */}
+                                                <div className="w-12 h-10 rounded-xl bg-slate-100 overflow-hidden shrink-0 border border-slate-200/80 flex items-center justify-center">
+                                                    {mainPhoto ? (
+                                                        <img
+                                                            src={mainPhoto}
+                                                            alt={car.title}
+                                                            className="w-full h-full object-cover"
+                                                        />
+                                                    ) : (
+                                                        <span className="text-[10px] text-slate-400">
+                                                            No pic
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                {/* Vehicle Details */}
+                                                <div className="min-w-0">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-xs font-bold text-slate-900 truncate">
+                                                            {car.make}{" "}
+                                                            {car.model}{" "}
+                                                            {car.year
+                                                                ? `(${car.year})`
+                                                                : ""}
+                                                        </span>
+                                                        <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200 shrink-0">
+                                                            #{car.id}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-0.5">
+                                                        <span className="font-semibold text-slate-700">
+                                                            {formatCurrency(
+                                                                car.price,
+                                                            )}
+                                                        </span>
+                                                        <span>•</span>
+                                                        <span>
+                                                            {car.mileage ||
+                                                                "0 km"}
+                                                        </span>
+                                                        {car.availabilities && (
+                                                            <>
+                                                                <span>•</span>
+                                                                <span className="capitalize">
+                                                                    {
+                                                                        car.availabilities
+                                                                    }
+                                                                </span>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Radio Check icon */}
+                                            <div className="shrink-0">
+                                                <div
+                                                    className={`w-5 h-5 rounded-full flex items-center justify-center border transition ${
+                                                        isSelected
+                                                            ? "bg-purple border-purple text-white shadow-sm"
+                                                            : "border-slate-300 bg-white"
+                                                    }`}
+                                                >
+                                                    {isSelected && (
+                                                        <svg
+                                                            className="w-3 h-3"
+                                                            fill="none"
+                                                            viewBox="0 0 24 24"
+                                                            stroke="currentColor"
+                                                            strokeWidth={3}
+                                                        >
+                                                            <path
+                                                                strokeLinecap="round"
+                                                                strokeLinejoin="round"
+                                                                d="M5 13l4 4L19 7"
+                                                            />
+                                                        </svg>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                });
+                            })()}
+                        </div>
+
+                        {/* Modal Action Buttons */}
+                        <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    setVehicleActionModal({
+                                        isOpen: false,
+                                        action: null,
+                                        selectedCarId: "",
+                                        searchQuery: "",
+                                    })
+                                }
+                                className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50 transition"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                disabled={!vehicleActionModal.selectedCarId}
+                                onClick={handleExecuteVehicleAction}
+                                className={`px-5 py-2.5 rounded-xl text-white text-xs font-bold transition shadow-sm inline-flex items-center gap-2 ${
+                                    vehicleActionModal.action === "print"
+                                        ? "bg-purple hover:bg-dark-purple"
+                                        : "bg-dark-purple hover:bg-purple"
+                                } disabled:opacity-50 disabled:cursor-not-allowed`}
+                            >
+                                {vehicleActionModal.action === "print" ? (
+                                    <>
+                                        <svg
+                                            className="w-4 h-4"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+                                            />
+                                        </svg>
+                                        <span>Print Selected Car</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <svg
+                                            className="w-4 h-4"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+                                            />
+                                        </svg>
+                                        <span>Share Selected Car</span>
+                                    </>
+                                )}
                             </button>
                         </div>
                     </div>
