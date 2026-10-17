@@ -35,6 +35,11 @@ const Ziggy = {
             parameters: ["id"],
         },
         "admin.cars.store": { uri: "admin\/cars", methods: ["POST"] },
+        "admin.cars.destroy": {
+            uri: "admin\/cars\/{id}",
+            methods: ["DELETE"],
+            parameters: ["id"],
+        },
         "profile.edit": { uri: "profile", methods: ["GET", "HEAD"] },
         "profile.update": { uri: "profile", methods: ["PATCH"] },
         "profile.destroy": { uri: "profile", methods: ["DELETE"] },

@@ -27,6 +27,128 @@ export default function Index() {
     const [currentPage, setCurrentPage] = useState<number>(1);
     const itemsPerPage = 10;
 
+    // Delete Modal State & Google Apps Script URL
+    const [scriptWebhookUrl] = useState<string>(() => {
+        if (typeof window !== "undefined") {
+            return localStorage.getItem("WFM_APPS_SCRIPT_URL") || "";
+        }
+        return "";
+    });
+
+    const [deleteModal, setDeleteModal] = useState<{
+        isOpen: boolean;
+        vehicle: DetailedVehicle | null;
+        isDeleting: boolean;
+        error: string | null;
+    }>({
+        isOpen: false,
+        vehicle: null,
+        isDeleting: false,
+        error: null,
+    });
+
+    const [alertModal, setAlertModal] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        type: "success" | "error";
+    }>({
+        isOpen: false,
+        title: "",
+        message: "",
+        type: "success",
+    });
+
+    // Prompt delete modal for a vehicle
+    const handlePromptDelete = (car: DetailedVehicle) => {
+        setDeleteModal({
+            isOpen: true,
+            vehicle: car,
+            isDeleting: false,
+            error: null,
+        });
+    };
+
+    // Confirm and execute delete from Google Sheet
+    const handleConfirmDelete = async () => {
+        if (!deleteModal.vehicle) return;
+        const carToDelete = deleteModal.vehicle;
+
+        setDeleteModal((prev) => ({
+            ...prev,
+            isDeleting: true,
+            error: null,
+        }));
+
+        try {
+            const res = await fetch(
+                `/admin/cars/${encodeURIComponent(carToDelete.id)}`,
+                {
+                    method: "DELETE",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRF-TOKEN":
+                            (
+                                document.querySelector(
+                                    'meta[name="csrf-token"]',
+                                ) as HTMLMetaElement
+                            )?.content || "",
+                        Accept: "application/json",
+                    },
+                    body: JSON.stringify({
+                        carId: carToDelete.id,
+                        scriptUrl: scriptWebhookUrl.trim(),
+                    }),
+                },
+            );
+
+            const rawText = await res.text();
+            let data: any = null;
+            try {
+                data = JSON.parse(rawText);
+            } catch (pErr) {
+                console.error("Non-JSON server response:", rawText);
+                throw new Error(
+                    `Server returned invalid JSON (${res.status}): ${rawText.slice(0, 150)}`,
+                );
+            }
+
+            if (!res.ok || data?.status === "error") {
+                throw new Error(
+                    data?.message ||
+                        "Failed to delete vehicle from Google Sheet.",
+                );
+            }
+
+            // Successfully deleted
+            setDeleteModal({
+                isOpen: false,
+                vehicle: null,
+                isDeleting: false,
+                error: null,
+            });
+
+            // Remove from local list immediately
+            setVehicles((prev) => prev.filter((v) => v.id !== carToDelete.id));
+
+            setAlertModal({
+                isOpen: true,
+                type: "success",
+                title: "Vehicle Deleted!",
+                message: `Vehicle ${carToDelete.id} (${carToDelete.make} ${carToDelete.model}) was permanently removed from the Google Sheet "Vehicle details" tab.`,
+            });
+        } catch (err: any) {
+            console.error("Delete error:", err);
+            setDeleteModal((prev) => ({
+                ...prev,
+                isDeleting: false,
+                error:
+                    err.message ||
+                    "Failed to delete vehicle. Please check Webhook URL configuration.",
+            }));
+        }
+    };
+
     // Load vehicles
     const loadVehicles = async () => {
         setLoading(true);
@@ -914,8 +1036,13 @@ export default function Index() {
                                                         {/* Delete button */}
                                                         <button
                                                             type="button"
-                                                            title="Delete"
-                                                            aria-label="Delete"
+                                                            onClick={() =>
+                                                                handlePromptDelete(
+                                                                    car,
+                                                                )
+                                                            }
+                                                            title="Delete Car from Google Sheet"
+                                                            aria-label="Delete Car from Google Sheet"
                                                             className="p-1.5 rounded-lg text-slate-600 hover:text-white hover:bg-rose-600 bg-slate-50 border border-slate-200 transition active:scale-95 shadow-sm inline-flex items-center justify-center"
                                                         >
                                                             <svg
@@ -1069,6 +1196,216 @@ export default function Index() {
                     </div>
                 </div>
             </div>
+
+            {/* CREATIVE DELETE CONFIRMATION MODAL */}
+            {deleteModal.isOpen && deleteModal.vehicle && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+                    <div
+                        className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-gray-100 transform transition-all relative overflow-hidden"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Red Accent Top Bar */}
+                        <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-vivid-red to-rose-600" />
+
+                        {/* Trash Icon Badge */}
+                        <div className="flex items-center justify-center mb-4 mt-1">
+                            <div className="w-14 h-14 rounded-2xl bg-rose-50 border border-rose-100 text-vivid-red flex items-center justify-center shadow-inner">
+                                <svg
+                                    className="w-7 h-7"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                    />
+                                </svg>
+                            </div>
+                        </div>
+
+                        {/* Title & Warning Message */}
+                        <div className="text-center space-y-2">
+                            <h3 className="text-lg font-extrabold text-slate-900 tracking-tight">
+                                Delete Vehicle Record?
+                            </h3>
+                            <p className="text-xs text-slate-500 leading-relaxed">
+                                Are you sure you want to permanently delete this
+                                vehicle from the Google Sheet{" "}
+                                <strong className="text-slate-700">
+                                    "Vehicle details"
+                                </strong>{" "}
+                                tab?
+                            </p>
+                        </div>
+
+                        {/* Vehicle Card Preview */}
+                        <div className="mt-4 p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center gap-3">
+                            <div className="w-14 h-11 rounded-lg overflow-hidden bg-slate-200 shrink-0 border border-slate-300/80 flex items-center justify-center">
+                                {deleteModal.vehicle.mainImageUrl ||
+                                (deleteModal.vehicle.images &&
+                                    deleteModal.vehicle.images[0]) ? (
+                                    <img
+                                        src={
+                                            deleteModal.vehicle.mainImageUrl ||
+                                            deleteModal.vehicle.images[0]
+                                        }
+                                        alt={deleteModal.vehicle.title}
+                                        className="w-full h-full object-cover"
+                                    />
+                                ) : (
+                                    <svg
+                                        className="w-5 h-5 text-slate-400"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={1.5}
+                                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                        />
+                                    </svg>
+                                )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5">
+                                    <span className="text-[10px] font-mono font-bold bg-dark-purple text-white px-1.5 py-0.2 rounded">
+                                        {deleteModal.vehicle.id}
+                                    </span>
+                                    <span className="text-xs font-bold text-slate-900 truncate">
+                                        {deleteModal.vehicle.make}{" "}
+                                        {deleteModal.vehicle.model}
+                                    </span>
+                                </div>
+                                <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                                    Year: {deleteModal.vehicle.year || "N/A"}{" "}
+                                    &bull; Price: $
+                                    {deleteModal.vehicle.price?.toLocaleString() ||
+                                        "0"}
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Error Message if deletion failed */}
+                        {deleteModal.error && (
+                            <div className="mt-3 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs">
+                                {deleteModal.error}
+                            </div>
+                        )}
+
+                        {/* Action Buttons */}
+                        <div className="mt-6 flex items-center justify-end gap-3">
+                            <button
+                                type="button"
+                                disabled={deleteModal.isDeleting}
+                                onClick={() =>
+                                    setDeleteModal({
+                                        isOpen: false,
+                                        vehicle: null,
+                                        isDeleting: false,
+                                        error: null,
+                                    })
+                                }
+                                className="px-5 py-2.5 rounded-xl border border-gray-300 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                disabled={deleteModal.isDeleting}
+                                onClick={handleConfirmDelete}
+                                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-vivid-red hover:bg-red-700 text-white text-xs font-bold shadow-md shadow-rose-500/20 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {deleteModal.isDeleting ? (
+                                    <>
+                                        <svg
+                                            className="w-3.5 h-3.5 animate-spin"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                        >
+                                            <circle
+                                                className="opacity-25"
+                                                cx="12"
+                                                cy="12"
+                                                r="10"
+                                                stroke="currentColor"
+                                                strokeWidth="4"
+                                            />
+                                            <path
+                                                className="opacity-75"
+                                                fill="currentColor"
+                                                d="M4 12a8 8 0 018-8v8H4z"
+                                            />
+                                        </svg>
+                                        <span>Deleting from Sheet...</span>
+                                    </>
+                                ) : (
+                                    <span>Yes, Delete Vehicle</span>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* SUCCESS / FEEDBACK MODAL */}
+            {alertModal.isOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+                    <div
+                        className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl border border-gray-100 transform transition-all relative overflow-hidden text-center"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div
+                            className={`absolute top-0 left-0 right-0 h-2 ${
+                                alertModal.type === "success"
+                                    ? "bg-gradient-to-r from-emerald-400 to-teal-500"
+                                    : "bg-gradient-to-r from-vivid-red to-rose-600"
+                            }`}
+                        />
+                        <div className="w-14 h-14 mx-auto rounded-2xl bg-emerald-50 text-emerald-500 border border-emerald-100 flex items-center justify-center mb-3 mt-2 shadow-inner">
+                            <svg
+                                className="w-7 h-7"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2.5}
+                                    d="M5 13l4 4L19 7"
+                                />
+                            </svg>
+                        </div>
+                        <h3 className="text-base font-extrabold text-slate-900">
+                            {alertModal.title}
+                        </h3>
+                        <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
+                            {alertModal.message}
+                        </p>
+                        <div className="mt-5">
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    setAlertModal({
+                                        isOpen: false,
+                                        title: "",
+                                        message: "",
+                                        type: "success",
+                                    })
+                                }
+                                className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition shadow-sm"
+                            >
+                                Done
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </AuthenticatedLayout>
     );
 }

@@ -117,4 +117,67 @@ class AdminVehicleController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Delete vehicle row from Google Sheet
+     */
+    public function destroy(Request $request, $id = null)
+    {
+        $carId = $id ?: $request->input('carId');
+        if (!$carId) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Car ID is required to delete a vehicle.',
+            ], 422);
+        }
+
+        $scriptUrl = $request->input('scriptUrl') ?: env('GOOGLE_APPS_SCRIPT_URL');
+        if (!$scriptUrl) {
+            return response()->json([
+                'status' => 'need_webhook',
+                'message' => 'Google Apps Script Webhook URL is not configured.',
+                'carId' => $carId,
+            ], 400);
+        }
+
+        try {
+            $payload = [
+                'action' => 'delete',
+                'carId' => $carId,
+            ];
+
+            $response = Http::withoutVerifying()
+                ->timeout(45)
+                ->withOptions(['allow_redirects' => true])
+                ->post($scriptUrl, $payload);
+
+            if ($response->successful()) {
+                $responseData = $response->json();
+                if (is_array($responseData) && isset($responseData['status']) && $responseData['status'] === 'error') {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Google Sheet Error: ' . ($responseData['message'] ?? 'Could not delete row.'),
+                        'data' => $responseData,
+                    ], 500);
+                }
+
+                return response()->json([
+                    'status' => 'success',
+                    'message' => 'Vehicle ' . $carId . ' deleted successfully from Google Sheet!',
+                    'data' => $responseData ?: ['raw' => $response->body()],
+                ]);
+            }
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Google Apps Script returned HTTP ' . $response->status() . ': ' . $response->body(),
+            ], 500);
+        } catch (\Exception $e) {
+            Log::error('Google Apps Script delete exception: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to delete vehicle via Google Apps Script: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
 }
