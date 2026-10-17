@@ -49,7 +49,20 @@ Route::middleware('auth')->group(function () {
         return Inertia::render('Admin/Cars/Create');
     })->name('admin.cars.create');
 
+    Route::get('/admin/cars/{id}/edit', function ($id) {
+        return Inertia::render('Admin/Cars/Edit', [
+            'id' => $id,
+        ]);
+    })->name('admin.cars.edit');
+
+    Route::get('/admin/cars/{id}', function ($id) {
+        return Inertia::render('Admin/Cars/Show', [
+            'id' => $id,
+        ]);
+    })->name('admin.cars.show');
+
     Route::post('/admin/cars', [\App\Http\Controllers\AdminVehicleController::class, 'store'])->name('admin.cars.store');
+    Route::delete('/admin/cars/{id}', [\App\Http\Controllers\AdminVehicleController::class, 'destroy'])->name('admin.cars.destroy');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

@@ -27,6 +27,141 @@ export default function Index() {
     const [currentPage, setCurrentPage] = useState<number>(1);
     const itemsPerPage = 10;
 
+    // Delete Modal State & Google Apps Script URL
+    const [scriptWebhookUrl] = useState<string>(() => {
+        if (typeof window !== "undefined") {
+            return localStorage.getItem("WFM_APPS_SCRIPT_URL") || "";
+        }
+        return "";
+    });
+
+    const [deleteModal, setDeleteModal] = useState<{
+        isOpen: boolean;
+        vehicle: DetailedVehicle | null;
+        isDeleting: boolean;
+        error: string | null;
+    }>({
+        isOpen: false,
+        vehicle: null,
+        isDeleting: false,
+        error: null,
+    });
+
+    const [alertModal, setAlertModal] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        type: "success" | "error";
+    }>({
+        isOpen: false,
+        title: "",
+        message: "",
+        type: "success",
+    });
+
+    // Top Bar Vehicle Picker Modal State for Print & Share
+    const [vehicleActionModal, setVehicleActionModal] = useState<{
+        isOpen: boolean;
+        action: "print" | "share" | null;
+        selectedCarId: string;
+        searchQuery: string;
+    }>({
+        isOpen: false,
+        action: null,
+        selectedCarId: "",
+        searchQuery: "",
+    });
+
+    // Prompt delete modal for a vehicle
+    const handlePromptDelete = (car: DetailedVehicle) => {
+        setDeleteModal({
+            isOpen: true,
+            vehicle: car,
+            isDeleting: false,
+            error: null,
+        });
+    };
+
+    // Confirm and execute delete from Google Sheet
+    const handleConfirmDelete = async () => {
+        if (!deleteModal.vehicle) return;
+        const carToDelete = deleteModal.vehicle;
+
+        setDeleteModal((prev) => ({
+            ...prev,
+            isDeleting: true,
+            error: null,
+        }));
+
+        try {
+            const res = await fetch(
+                `/admin/cars/${encodeURIComponent(carToDelete.id)}`,
+                {
+                    method: "DELETE",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRF-TOKEN":
+                            (
+                                document.querySelector(
+                                    'meta[name="csrf-token"]',
+                                ) as HTMLMetaElement
+                            )?.content || "",
+                        Accept: "application/json",
+                    },
+                    body: JSON.stringify({
+                        carId: carToDelete.id,
+                        scriptUrl: scriptWebhookUrl.trim(),
+                    }),
+                },
+            );
+
+            const rawText = await res.text();
+            let data: any = null;
+            try {
+                data = JSON.parse(rawText);
+            } catch (pErr) {
+                console.error("Non-JSON server response:", rawText);
+                throw new Error(
+                    `Server returned invalid JSON (${res.status}): ${rawText.slice(0, 150)}`,
+                );
+            }
+
+            if (!res.ok || data?.status === "error") {
+                throw new Error(
+                    data?.message ||
+                        "Failed to delete vehicle from Google Sheet.",
+                );
+            }
+
+            // Successfully deleted
+            setDeleteModal({
+                isOpen: false,
+                vehicle: null,
+                isDeleting: false,
+                error: null,
+            });
+
+            // Remove from local list immediately
+            setVehicles((prev) => prev.filter((v) => v.id !== carToDelete.id));
+
+            setAlertModal({
+                isOpen: true,
+                type: "success",
+                title: "Vehicle Deleted!",
+                message: `Vehicle ${carToDelete.id} (${carToDelete.make} ${carToDelete.model}) was permanently removed from the Google Sheet "Vehicle details" tab.`,
+            });
+        } catch (err: any) {
+            console.error("Delete error:", err);
+            setDeleteModal((prev) => ({
+                ...prev,
+                isDeleting: false,
+                error:
+                    err.message ||
+                    "Failed to delete vehicle. Please check Webhook URL configuration.",
+            }));
+        }
+    };
+
     // Load vehicles
     const loadVehicles = async () => {
         setLoading(true);
@@ -83,6 +218,7 @@ export default function Index() {
         // Sorting
         switch (sortBy) {
             case "recently":
+                // Reverse order so most recently added vehicle is at the top
                 list.reverse();
                 break;
             case "price-low":
@@ -136,7 +272,7 @@ export default function Index() {
         setCurrentPage(1);
     }, [searchTerm, sortBy, statusFilter, categoryFilter]);
 
-    // Unique statuses and categories for filter pills/dropdowns
+    // Unique statuses and categories for filter dropdowns
     const availableStatuses = useMemo(() => {
         const set = new Set<string>();
         vehicles.forEach((v) => {
@@ -162,7 +298,45 @@ export default function Index() {
         window.print();
     };
 
-    // Share handler (top bar)
+    // Open vehicle picker modal for top Print / Share buttons
+    const handleOpenActionModal = (action: "print" | "share") => {
+        // Pre-select first vehicle if available
+        const defaultCarId = vehicles.length > 0 ? vehicles[0].id : "";
+        setVehicleActionModal({
+            isOpen: true,
+            action,
+            selectedCarId: defaultCarId,
+            searchQuery: "",
+        });
+    };
+
+    // Execute the selected action for the chosen car
+    const handleExecuteVehicleAction = () => {
+        if (!vehicleActionModal.selectedCarId) return;
+        const targetCar = vehicles.find(
+            (v) => v.id === vehicleActionModal.selectedCarId,
+        );
+        if (!targetCar) return;
+
+        const action = vehicleActionModal.action;
+        setVehicleActionModal({
+            isOpen: false,
+            action: null,
+            selectedCarId: "",
+            searchQuery: "",
+        });
+
+        if (action === "print") {
+            window.open(
+                `/vehicles/${encodeURIComponent(targetCar.id)}?print=1`,
+                "_blank",
+            );
+        } else if (action === "share") {
+            handleShareVehicle(targetCar);
+        }
+    };
+
+    // Share handler (top bar inventory)
     const handleShare = async () => {
         if (navigator.share) {
             try {
@@ -176,7 +350,50 @@ export default function Index() {
             }
         } else {
             navigator.clipboard.writeText(window.location.href);
-            alert("Inventory page link copied to clipboard!");
+            setAlertModal({
+                isOpen: true,
+                type: "success",
+                title: "Link Copied!",
+                message:
+                    "Inventory page link has been copied to your clipboard.",
+            });
+        }
+    };
+
+    // Share handler for an individual vehicle public page
+    const handleShareVehicle = async (car: DetailedVehicle) => {
+        const publicVehicleUrl = `${window.location.origin}/vehicles/${encodeURIComponent(car.id)}`;
+        const shareTitle = `${car.make} ${car.model} ${car.year ? `(${car.year})` : ""} - Wright Finder Motors`;
+        const shareText = `Check out this ${car.make} ${car.model} on Wright Finder Motors! Listed at ${formatCurrency(car.price)}.`;
+
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: shareTitle,
+                    text: shareText,
+                    url: publicVehicleUrl,
+                });
+                return;
+            } catch (err: any) {
+                // If user aborted/cancelled the native share sheet, do nothing
+                if (err.name === "AbortError") {
+                    return;
+                }
+            }
+        }
+
+        // Fallback: Copy to clipboard and display creative confirmation modal
+        try {
+            await navigator.clipboard.writeText(publicVehicleUrl);
+            setAlertModal({
+                isOpen: true,
+                type: "success",
+                title: "Vehicle Link Copied!",
+                message: `Public link for ${car.make} ${car.model} (#${car.id}) was copied to your clipboard:\n${publicVehicleUrl}`,
+            });
+        } catch (copyErr) {
+            // Prompt fallback for older browsers
+            window.prompt("Copy vehicle page link:", publicVehicleUrl);
         }
     };
 
@@ -401,9 +618,9 @@ export default function Index() {
                     <div className="flex items-center gap-2.5 self-end md:self-auto">
                         <button
                             type="button"
-                            onClick={handlePrint}
+                            onClick={() => handleOpenActionModal("print")}
                             className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300/80 shadow-sm transition active:scale-95"
-                            title="Print inventory table"
+                            title="Print Vehicle Spec Sheet"
                         >
                             <svg
                                 className="w-4 h-4 text-purple"
@@ -423,9 +640,9 @@ export default function Index() {
 
                         <button
                             type="button"
-                            onClick={handleShare}
+                            onClick={() => handleOpenActionModal("share")}
                             className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold bg-dark-purple hover:bg-purple text-white shadow-sm transition active:scale-95"
-                            title="Share inventory"
+                            title="Share Vehicle Page"
                         >
                             <svg
                                 className="w-4 h-4"
@@ -615,7 +832,16 @@ export default function Index() {
 
                                                 {/* 2. IMAGE: Main Image URLs */}
                                                 <td className="py-2 px-3 text-center">
-                                                    <div className="w-14 h-11 mx-auto rounded-lg overflow-hidden bg-slate-100 border border-slate-200 shadow-sm flex items-center justify-center relative group-hover:scale-105 transition-transform duration-200">
+                                                    <Link
+                                                        href={route(
+                                                            "admin.cars.show",
+                                                            {
+                                                                id: car.id,
+                                                            },
+                                                        )}
+                                                        className="w-14 h-11 mx-auto rounded-lg overflow-hidden bg-slate-100 border border-slate-200 shadow-sm items-center justify-center relative group-hover:scale-105 transition-transform duration-200 cursor-pointer block"
+                                                        title="Click to view details panel"
+                                                    >
                                                         {car.mainImageUrl ||
                                                         (car.images &&
                                                             car.images[0]) ? (
@@ -631,7 +857,6 @@ export default function Index() {
                                                                 onError={(
                                                                     e,
                                                                 ) => {
-                                                                    // Fallback placeholder on broken link
                                                                     (
                                                                         e.currentTarget as HTMLElement
                                                                     ).style.display =
@@ -655,7 +880,7 @@ export default function Index() {
                                                                 />
                                                             </svg>
                                                         )}
-                                                    </div>
+                                                    </Link>
                                                 </td>
 
                                                 {/* 3. MAKE/ MODEL-TRIM: Line 1: Car Name (dark), Line 2: Model (light) */}
@@ -833,15 +1058,20 @@ export default function Index() {
                                                     </span>
                                                 </td>
 
-                                                {/* 14. ACTIONS: View, Edit, Delete, Print, Share buttons (icon only, don't execute actions) */}
+                                                {/* 14. ACTIONS: View, Edit, Delete, Print, Share buttons */}
                                                 <td className="py-3 px-4 text-center">
                                                     <div className="flex items-center justify-center gap-1.5">
-                                                        {/* View button */}
-                                                        <button
-                                                            type="button"
-                                                            title="View"
-                                                            aria-label="View"
-                                                            className="p-1.5 rounded-lg text-slate-500 hover:text-dark-purple hover:bg-slate-100 transition active:scale-95"
+                                                        {/* View button - Opens vehicle details screen panel */}
+                                                        <Link
+                                                            href={route(
+                                                                "admin.cars.show",
+                                                                {
+                                                                    id: car.id,
+                                                                },
+                                                            )}
+                                                            title="View Vehicle Details Panel"
+                                                            aria-label="View Vehicle Details Panel"
+                                                            className="p-1.5 rounded-lg text-slate-600 hover:text-white hover:bg-dark-purple bg-slate-50 border border-slate-200 transition active:scale-95 shadow-sm inline-flex items-center justify-center"
                                                         >
                                                             <svg
                                                                 className="w-4 h-4"
@@ -866,14 +1096,19 @@ export default function Index() {
                                                                     d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
                                                                 />
                                                             </svg>
-                                                        </button>
+                                                        </Link>
 
-                                                        {/* Edit button */}
-                                                        <button
-                                                            type="button"
-                                                            title="Edit"
-                                                            aria-label="Edit"
-                                                            className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-slate-100 transition active:scale-95"
+                                                        {/* Edit button - Opens vehicle edit panel */}
+                                                        <Link
+                                                            href={route(
+                                                                "admin.cars.edit",
+                                                                {
+                                                                    id: car.id,
+                                                                },
+                                                            )}
+                                                            title="Edit Vehicle Details Panel"
+                                                            aria-label="Edit Vehicle Details Panel"
+                                                            className="p-1.5 rounded-lg text-slate-600 hover:text-white hover:bg-blue-600 bg-slate-50 border border-slate-200 transition active:scale-95 shadow-sm inline-flex items-center justify-center"
                                                         >
                                                             <svg
                                                                 className="w-4 h-4"
@@ -890,14 +1125,19 @@ export default function Index() {
                                                                     d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
                                                                 />
                                                             </svg>
-                                                        </button>
+                                                        </Link>
 
                                                         {/* Delete button */}
                                                         <button
                                                             type="button"
-                                                            title="Delete"
-                                                            aria-label="Delete"
-                                                            className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-slate-100 transition active:scale-95"
+                                                            onClick={() =>
+                                                                handlePromptDelete(
+                                                                    car,
+                                                                )
+                                                            }
+                                                            title="Delete Car from Google Sheet"
+                                                            aria-label="Delete Car from Google Sheet"
+                                                            className="p-1.5 rounded-lg text-slate-600 hover:text-white hover:bg-rose-600 bg-slate-50 border border-slate-200 transition active:scale-95 shadow-sm inline-flex items-center justify-center"
                                                         >
                                                             <svg
                                                                 className="w-4 h-4"
@@ -919,9 +1159,15 @@ export default function Index() {
                                                         {/* Print button */}
                                                         <button
                                                             type="button"
-                                                            title="Print"
-                                                            aria-label="Print"
-                                                            className="p-1.5 rounded-lg text-slate-500 hover:text-purple hover:bg-slate-100 transition active:scale-95"
+                                                            onClick={() =>
+                                                                window.open(
+                                                                    `/vehicles/${encodeURIComponent(car.id)}?print=1`,
+                                                                    "_blank",
+                                                                )
+                                                            }
+                                                            title="Print Vehicle Details"
+                                                            aria-label="Print Vehicle Details"
+                                                            className="p-1.5 rounded-lg text-slate-600 hover:text-white hover:bg-purple bg-slate-50 border border-slate-200 transition active:scale-95 shadow-sm inline-flex items-center justify-center"
                                                         >
                                                             <svg
                                                                 className="w-4 h-4"
@@ -943,9 +1189,14 @@ export default function Index() {
                                                         {/* Share button */}
                                                         <button
                                                             type="button"
-                                                            title="Share"
-                                                            aria-label="Share"
-                                                            className="p-1.5 rounded-lg text-slate-500 hover:text-dark-blue hover:bg-slate-100 transition active:scale-95"
+                                                            onClick={() =>
+                                                                handleShareVehicle(
+                                                                    car,
+                                                                )
+                                                            }
+                                                            title="Share Public Vehicle Page"
+                                                            aria-label="Share Public Vehicle Page"
+                                                            className="p-1.5 rounded-lg text-slate-600 hover:text-white hover:bg-purple bg-slate-50 border border-slate-200 transition active:scale-95 shadow-sm inline-flex items-center justify-center"
                                                         >
                                                             <svg
                                                                 className="w-4 h-4"
@@ -1044,6 +1295,555 @@ export default function Index() {
                     </div>
                 </div>
             </div>
+
+            {/* CREATIVE DELETE CONFIRMATION MODAL */}
+            {deleteModal.isOpen && deleteModal.vehicle && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+                    <div
+                        className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-gray-100 transform transition-all relative overflow-hidden"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Red Accent Top Bar */}
+                        <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-vivid-red to-rose-600" />
+
+                        {/* Trash Icon Badge */}
+                        <div className="flex items-center justify-center mb-4 mt-1">
+                            <div className="w-14 h-14 rounded-2xl bg-rose-50 border border-rose-100 text-vivid-red flex items-center justify-center shadow-inner">
+                                <svg
+                                    className="w-7 h-7"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                    />
+                                </svg>
+                            </div>
+                        </div>
+
+                        {/* Title & Warning Message */}
+                        <div className="text-center space-y-2">
+                            <h3 className="text-lg font-extrabold text-slate-900 tracking-tight">
+                                Delete Vehicle Record?
+                            </h3>
+                            <p className="text-xs text-slate-500 leading-relaxed">
+                                Are you sure you want to permanently delete this
+                                vehicle from the Google Sheet{" "}
+                                <strong className="text-slate-700">
+                                    "Vehicle details"
+                                </strong>{" "}
+                                tab?
+                            </p>
+                        </div>
+
+                        {/* Vehicle Card Preview */}
+                        <div className="mt-4 p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center gap-3">
+                            <div className="w-14 h-11 rounded-lg overflow-hidden bg-slate-200 shrink-0 border border-slate-300/80 flex items-center justify-center">
+                                {deleteModal.vehicle.mainImageUrl ||
+                                (deleteModal.vehicle.images &&
+                                    deleteModal.vehicle.images[0]) ? (
+                                    <img
+                                        src={
+                                            deleteModal.vehicle.mainImageUrl ||
+                                            deleteModal.vehicle.images[0]
+                                        }
+                                        alt={deleteModal.vehicle.title}
+                                        className="w-full h-full object-cover"
+                                    />
+                                ) : (
+                                    <svg
+                                        className="w-5 h-5 text-slate-400"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={1.5}
+                                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                        />
+                                    </svg>
+                                )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5">
+                                    <span className="text-[10px] font-mono font-bold bg-dark-purple text-white px-1.5 py-0.2 rounded">
+                                        {deleteModal.vehicle.id}
+                                    </span>
+                                    <span className="text-xs font-bold text-slate-900 truncate">
+                                        {deleteModal.vehicle.make}{" "}
+                                        {deleteModal.vehicle.model}
+                                    </span>
+                                </div>
+                                <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                                    Year: {deleteModal.vehicle.year || "N/A"}{" "}
+                                    &bull; Price: $
+                                    {deleteModal.vehicle.price?.toLocaleString() ||
+                                        "0"}
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Error Message if deletion failed */}
+                        {deleteModal.error && (
+                            <div className="mt-3 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs">
+                                {deleteModal.error}
+                            </div>
+                        )}
+
+                        {/* Action Buttons */}
+                        <div className="mt-6 flex items-center justify-end gap-3">
+                            <button
+                                type="button"
+                                disabled={deleteModal.isDeleting}
+                                onClick={() =>
+                                    setDeleteModal({
+                                        isOpen: false,
+                                        vehicle: null,
+                                        isDeleting: false,
+                                        error: null,
+                                    })
+                                }
+                                className="px-5 py-2.5 rounded-xl border border-gray-300 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                disabled={deleteModal.isDeleting}
+                                onClick={handleConfirmDelete}
+                                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-vivid-red hover:bg-red-700 text-white text-xs font-bold shadow-md shadow-rose-500/20 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {deleteModal.isDeleting ? (
+                                    <>
+                                        <svg
+                                            className="w-3.5 h-3.5 animate-spin"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                        >
+                                            <circle
+                                                className="opacity-25"
+                                                cx="12"
+                                                cy="12"
+                                                r="10"
+                                                stroke="currentColor"
+                                                strokeWidth="4"
+                                            />
+                                            <path
+                                                className="opacity-75"
+                                                fill="currentColor"
+                                                d="M4 12a8 8 0 018-8v8H4z"
+                                            />
+                                        </svg>
+                                        <span>Deleting from Sheet...</span>
+                                    </>
+                                ) : (
+                                    <span>Yes, Delete Vehicle</span>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* SUCCESS / FEEDBACK MODAL */}
+            {alertModal.isOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+                    <div
+                        className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl border border-gray-100 transform transition-all relative overflow-hidden text-center"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div
+                            className={`absolute top-0 left-0 right-0 h-2 ${
+                                alertModal.type === "success"
+                                    ? "bg-gradient-to-r from-emerald-400 to-teal-500"
+                                    : "bg-gradient-to-r from-vivid-red to-rose-600"
+                            }`}
+                        />
+                        <div className="w-14 h-14 mx-auto rounded-2xl bg-emerald-50 text-emerald-500 border border-emerald-100 flex items-center justify-center mb-3 mt-2 shadow-inner">
+                            <svg
+                                className="w-7 h-7"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2.5}
+                                    d="M5 13l4 4L19 7"
+                                />
+                            </svg>
+                        </div>
+                        <h3 className="text-base font-extrabold text-slate-900">
+                            {alertModal.title}
+                        </h3>
+                        <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
+                            {alertModal.message}
+                        </p>
+                        <div className="mt-5">
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    setAlertModal({
+                                        isOpen: false,
+                                        title: "",
+                                        message: "",
+                                        type: "success",
+                                    })
+                                }
+                                className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition shadow-sm"
+                            >
+                                Done
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* SELECT VEHICLE MODAL FOR TOP PRINT / SHARE */}
+            {vehicleActionModal.isOpen && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
+                    onClick={() =>
+                        setVehicleActionModal({
+                            isOpen: false,
+                            action: null,
+                            selectedCarId: "",
+                            searchQuery: "",
+                        })
+                    }
+                >
+                    <div
+                        className="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-gray-100 transform transition-all relative overflow-hidden"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Top Accent Bar */}
+                        <div
+                            className={`absolute top-0 left-0 right-0 h-2 ${
+                                vehicleActionModal.action === "print"
+                                    ? "bg-gradient-to-r from-purple to-indigo-600"
+                                    : "bg-gradient-to-r from-dark-purple to-purple"
+                            }`}
+                        />
+
+                        {/* Modal Header */}
+                        <div className="flex items-start justify-between gap-3 mb-5">
+                            <div className="flex items-center gap-3">
+                                <div
+                                    className={`w-11 h-11 rounded-2xl flex items-center justify-center shadow-inner ${
+                                        vehicleActionModal.action === "print"
+                                            ? "bg-purple/10 text-purple border border-purple/20"
+                                            : "bg-dark-purple/10 text-dark-purple border border-dark-purple/20"
+                                    }`}
+                                >
+                                    {vehicleActionModal.action === "print" ? (
+                                        <svg
+                                            className="w-5 h-5"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+                                            />
+                                        </svg>
+                                    ) : (
+                                        <svg
+                                            className="w-5 h-5"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+                                            />
+                                        </svg>
+                                    )}
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-black text-slate-900 tracking-tight">
+                                        {vehicleActionModal.action === "print"
+                                            ? "Select Car to Print"
+                                            : "Select Car to Share"}
+                                    </h3>
+                                    <p className="text-xs text-slate-500 mt-0.5">
+                                        {vehicleActionModal.action === "print"
+                                            ? "Choose which vehicle's public spec sheet and photo gallery to print."
+                                            : "Choose which public single vehicle page link to share."}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    setVehicleActionModal({
+                                        isOpen: false,
+                                        action: null,
+                                        selectedCarId: "",
+                                        searchQuery: "",
+                                    })
+                                }
+                                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
+                            >
+                                <svg
+                                    className="w-5 h-5"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M6 18L18 6M6 6l12 12"
+                                    />
+                                </svg>
+                            </button>
+                        </div>
+
+                        {/* Search Filter input inside modal */}
+                        <div className="relative mb-3">
+                            <svg
+                                className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                                />
+                            </svg>
+                            <input
+                                type="text"
+                                value={vehicleActionModal.searchQuery}
+                                onChange={(e) =>
+                                    setVehicleActionModal((prev) => ({
+                                        ...prev,
+                                        searchQuery: e.target.value,
+                                    }))
+                                }
+                                placeholder="Search by make, model, year, or ID..."
+                                className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 text-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple/40 focus:border-purple placeholder:text-slate-400"
+                            />
+                        </div>
+
+                        {/* Vehicle List Selection */}
+                        <div className="max-h-64 overflow-y-auto space-y-2 pr-1 scrollbar-thin">
+                            {(() => {
+                                const q = vehicleActionModal.searchQuery
+                                    .trim()
+                                    .toLowerCase();
+                                const filtered = vehicles.filter(
+                                    (v) =>
+                                        !q ||
+                                        v.id.toLowerCase().includes(q) ||
+                                        v.make.toLowerCase().includes(q) ||
+                                        v.model.toLowerCase().includes(q) ||
+                                        String(v.year || "").includes(q),
+                                );
+
+                                if (filtered.length === 0) {
+                                    return (
+                                        <div className="p-6 text-center text-xs text-slate-400">
+                                            No matching vehicles found.
+                                        </div>
+                                    );
+                                }
+
+                                return filtered.map((car) => {
+                                    const isSelected =
+                                        vehicleActionModal.selectedCarId ===
+                                        car.id;
+                                    const mainPhoto =
+                                        car.images && car.images.length > 0
+                                            ? car.images[0]
+                                            : null;
+
+                                    return (
+                                        <div
+                                            key={car.id}
+                                            onClick={() =>
+                                                setVehicleActionModal(
+                                                    (prev) => ({
+                                                        ...prev,
+                                                        selectedCarId: car.id,
+                                                    }),
+                                                )
+                                            }
+                                            className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                                                isSelected
+                                                    ? "bg-purple/5 border-purple shadow-sm ring-1 ring-purple/30"
+                                                    : "bg-white hover:bg-slate-50 border-slate-200/80"
+                                            }`}
+                                        >
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                {/* Thumbnail */}
+                                                <div className="w-12 h-10 rounded-xl bg-slate-100 overflow-hidden shrink-0 border border-slate-200/80 flex items-center justify-center">
+                                                    {mainPhoto ? (
+                                                        <img
+                                                            src={mainPhoto}
+                                                            alt={car.title}
+                                                            className="w-full h-full object-cover"
+                                                        />
+                                                    ) : (
+                                                        <span className="text-[10px] text-slate-400">
+                                                            No pic
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                {/* Vehicle Details */}
+                                                <div className="min-w-0">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-xs font-bold text-slate-900 truncate">
+                                                            {car.make}{" "}
+                                                            {car.model}{" "}
+                                                            {car.year
+                                                                ? `(${car.year})`
+                                                                : ""}
+                                                        </span>
+                                                        <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200 shrink-0">
+                                                            #{car.id}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-0.5">
+                                                        <span className="font-semibold text-slate-700">
+                                                            {formatCurrency(
+                                                                car.price,
+                                                            )}
+                                                        </span>
+                                                        <span>•</span>
+                                                        <span>
+                                                            {car.mileage ||
+                                                                "0 km"}
+                                                        </span>
+                                                        {car.availabilities && (
+                                                            <>
+                                                                <span>•</span>
+                                                                <span className="capitalize">
+                                                                    {
+                                                                        car.availabilities
+                                                                    }
+                                                                </span>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Radio Check icon */}
+                                            <div className="shrink-0">
+                                                <div
+                                                    className={`w-5 h-5 rounded-full flex items-center justify-center border transition ${
+                                                        isSelected
+                                                            ? "bg-purple border-purple text-white shadow-sm"
+                                                            : "border-slate-300 bg-white"
+                                                    }`}
+                                                >
+                                                    {isSelected && (
+                                                        <svg
+                                                            className="w-3 h-3"
+                                                            fill="none"
+                                                            viewBox="0 0 24 24"
+                                                            stroke="currentColor"
+                                                            strokeWidth={3}
+                                                        >
+                                                            <path
+                                                                strokeLinecap="round"
+                                                                strokeLinejoin="round"
+                                                                d="M5 13l4 4L19 7"
+                                                            />
+                                                        </svg>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                });
+                            })()}
+                        </div>
+
+                        {/* Modal Action Buttons */}
+                        <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    setVehicleActionModal({
+                                        isOpen: false,
+                                        action: null,
+                                        selectedCarId: "",
+                                        searchQuery: "",
+                                    })
+                                }
+                                className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50 transition"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                disabled={!vehicleActionModal.selectedCarId}
+                                onClick={handleExecuteVehicleAction}
+                                className={`px-5 py-2.5 rounded-xl text-white text-xs font-bold transition shadow-sm inline-flex items-center gap-2 ${
+                                    vehicleActionModal.action === "print"
+                                        ? "bg-purple hover:bg-dark-purple"
+                                        : "bg-dark-purple hover:bg-purple"
+                                } disabled:opacity-50 disabled:cursor-not-allowed`}
+                            >
+                                {vehicleActionModal.action === "print" ? (
+                                    <>
+                                        <svg
+                                            className="w-4 h-4"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+                                            />
+                                        </svg>
+                                        <span>Print Selected Car</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <svg
+                                            className="w-4 h-4"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+                                            />
+                                        </svg>
+                                        <span>Share Selected Car</span>
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </AuthenticatedLayout>
     );
 }

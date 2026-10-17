@@ -176,6 +176,94 @@ function doPost(e) {
             ).setMimeType(ContentService.MimeType.JSON);
         }
 
+        // Action: DELETE
+        if (data.action === "delete") {
+            var deleteCarId = (data.carId || "")
+                .toString()
+                .trim()
+                .toLowerCase();
+            if (!deleteCarId) {
+                return ContentService.createTextOutput(
+                    JSON.stringify({
+                        status: "error",
+                        message: "Car ID is required for delete action.",
+                    }),
+                ).setMimeType(ContentService.MimeType.JSON);
+            }
+
+            var lastCol = sheet.getLastColumn();
+            var totalRows = sheet.getLastRow();
+            if (lastCol < 1 || totalRows < 2) {
+                return ContentService.createTextOutput(
+                    JSON.stringify({
+                        status: "error",
+                        message: "No vehicle records found in sheet to delete.",
+                    }),
+                ).setMimeType(ContentService.MimeType.JSON);
+            }
+
+            var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+            var carIdColIdx = -1;
+            for (var c = 0; c < headers.length; c++) {
+                if (headers[c].toString().trim().toLowerCase() === "car id") {
+                    carIdColIdx = c + 1;
+                    break;
+                }
+            }
+
+            if (carIdColIdx === -1) {
+                return ContentService.createTextOutput(
+                    JSON.stringify({
+                        status: "error",
+                        message:
+                            "Column 'Car ID' not found in 'Vehicle details' sheet.",
+                    }),
+                ).setMimeType(ContentService.MimeType.JSON);
+            }
+
+            var idValues = sheet
+                .getRange(2, carIdColIdx, totalRows - 1, 1)
+                .getValues();
+            var rowToDelete = -1;
+            for (var r = 0; r < idValues.length; r++) {
+                if (
+                    idValues[r][0] &&
+                    idValues[r][0].toString().trim().toLowerCase() ===
+                        deleteCarId
+                ) {
+                    rowToDelete = r + 2; // +2 for 1-based index and header offset
+                    break;
+                }
+            }
+
+            if (rowToDelete > 0) {
+                sheet.deleteRow(rowToDelete);
+                return ContentService.createTextOutput(
+                    JSON.stringify({
+                        status: "success",
+                        message:
+                            "Vehicle " +
+                            data.carId +
+                            " was deleted from row " +
+                            rowToDelete +
+                            " in Google Sheet.",
+                        deletedRow: rowToDelete,
+                        carId: data.carId,
+                    }),
+                ).setMimeType(ContentService.MimeType.JSON);
+            } else {
+                return ContentService.createTextOutput(
+                    JSON.stringify({
+                        status: "error",
+                        message:
+                            "Vehicle with ID '" +
+                            data.carId +
+                            "' was not found in 'Vehicle details' sheet.",
+                    }),
+                ).setMimeType(ContentService.MimeType.JSON);
+            }
+        }
+
         // 4. Read headers dynamically from Row 1
         var lastCol = sheet.getLastColumn();
         if (lastCol < 1) {
@@ -322,9 +410,58 @@ function doPost(e) {
             }
         }
 
-        // 6. Append the new row to the last row of "Vehicle details"
-        sheet.appendRow(newRow);
-        var updatedLastRow = sheet.getLastRow();
+        // 6. Save or Update row in "Vehicle details"
+        var isEdit =
+            data.editMode === true ||
+            data.action === "edit" ||
+            data.action === "update";
+        var targetRowIndex = -1;
+        var carIdToFind = (data.originalCarId || data.carId || "")
+            .toString()
+            .trim()
+            .toLowerCase();
+
+        if (isEdit && carIdToFind) {
+            var carIdColIdx = -1;
+            for (var c = 0; c < headers.length; c++) {
+                if (headers[c].toString().trim().toLowerCase() === "car id") {
+                    carIdColIdx = c + 1;
+                    break;
+                }
+            }
+
+            if (carIdColIdx !== -1) {
+                var totalRows = sheet.getLastRow();
+                if (totalRows > 1) {
+                    var idValues = sheet
+                        .getRange(2, carIdColIdx, totalRows - 1, 1)
+                        .getValues();
+                    for (var r = 0; r < idValues.length; r++) {
+                        if (
+                            idValues[r][0] &&
+                            idValues[r][0].toString().trim().toLowerCase() ===
+                                carIdToFind
+                        ) {
+                            targetRowIndex = r + 2; // +2 for 1-based index and header row offset
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        var updatedRowNumber;
+        if (targetRowIndex > 0) {
+            // Update existing row preserving timestamp if not provided
+            sheet
+                .getRange(targetRowIndex, 1, 1, newRow.length)
+                .setValues([newRow]);
+            updatedRowNumber = targetRowIndex;
+        } else {
+            // Append as new row
+            sheet.appendRow(newRow);
+            updatedRowNumber = sheet.getLastRow();
+        }
 
         // 7. Return JSON response
         return ContentService.createTextOutput(
@@ -333,9 +470,12 @@ function doPost(e) {
                 message:
                     "Vehicle " +
                     (data.carId || "") +
-                    " saved successfully to row " +
-                    updatedLastRow,
-                rowNumber: updatedLastRow,
+                    (targetRowIndex > 0
+                        ? " updated successfully in row "
+                        : " saved successfully to row ") +
+                    updatedRowNumber,
+                isUpdated: targetRowIndex > 0,
+                rowNumber: updatedRowNumber,
                 carId: data.carId,
                 mainImageUrl: mainImageUrl,
                 subImageUrls: subImagesJoined,
