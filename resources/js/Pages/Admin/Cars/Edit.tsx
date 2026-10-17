@@ -231,6 +231,72 @@ async function compressAndConvertToWebp(
     };
 }
 
+// Convert various date strings (e.g., "MM/DD/YYYY", "YYYY-MM-DD", "M/D/YY") to standard ISO "YYYY-MM-DD" for <input type="date">
+function parseDateToIso(str: string): string {
+    if (!str) return "";
+    const trimmed = str.trim();
+    if (!trimmed) return "";
+
+    // Already in YYYY-MM-DD format
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+        return trimmed;
+    }
+
+    // Matches MM/DD/YYYY or M/D/YYYY
+    const slashMatch = trimmed.match(
+        /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/,
+    );
+    if (slashMatch) {
+        const m = slashMatch[1].padStart(2, "0");
+        const d = slashMatch[2].padStart(2, "0");
+        let y = slashMatch[3];
+        if (y.length === 2) {
+            y = parseInt(y, 10) > 50 ? `19${y}` : `20${y}`;
+        }
+        return `${y}-${m}-${d}`;
+    }
+
+    // Try standard JS Date parsing as fallback
+    const parsed = new Date(trimmed);
+    if (!isNaN(parsed.getTime())) {
+        const y = parsed.getFullYear();
+        const m = String(parsed.getMonth() + 1).padStart(2, "0");
+        const d = String(parsed.getDate()).padStart(2, "0");
+        return `${y}-${m}-${d}`;
+    }
+
+    return "";
+}
+
+// Format phone numbers gracefully as user types (e.g. +1 (555) 000-0000 or (555) 000-0000)
+function formatPhoneNumber(value: string): string {
+    if (!value) return "";
+    // Keep digits only
+    const digits = value.replace(/\D/g, "");
+    if (!digits) return "";
+
+    // If starts with 1 and length > 10, handle leading country code +1
+    if (digits.length > 10 && digits.startsWith("1")) {
+        const d = digits.slice(1);
+        if (d.length <= 3) {
+            return `+1 (${d}`;
+        }
+        if (d.length <= 6) {
+            return `+1 (${d.slice(0, 3)}) ${d.slice(3)}`;
+        }
+        return `+1 (${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6, 10)}`;
+    }
+
+    // Standard 10-digit format
+    if (digits.length <= 3) {
+        return `(${digits}`;
+    }
+    if (digits.length <= 6) {
+        return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+    }
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+}
+
 export default function Edit({ id }: EditProps) {
     // Initial fetch state
     const [loadingInitial, setLoadingInitial] = useState<boolean>(true);
@@ -428,9 +494,9 @@ export default function Edit({ id }: EditProps) {
                     setDriveCondition(found.driveCondition || "Runs/drives");
 
                     setClientName(found.clientName || "");
-                    setClientPhone(found.clientPhone || "");
+                    setClientPhone(formatPhoneNumber(found.clientPhone || ""));
                     setClientEmail(found.clientEmail || "");
-                    setPurchaseDate(found.purchaseDate || "");
+                    setPurchaseDate(parseDateToIso(found.purchaseDate || ""));
 
                     setInteriorFeatures(
                         Array.isArray(found.interiorFeatures)
@@ -729,6 +795,13 @@ export default function Edit({ id }: EditProps) {
             .replace(/[^A-HJ-NPR-Z0-9]/g, "")
             .slice(0, 17);
         setVin(val);
+    };
+
+    // Handle Client Phone input with real-time formatting & validation
+    const handleClientPhoneChange = (e: ChangeEvent<HTMLInputElement>) => {
+        const inputVal = e.target.value;
+        const formatted = formatPhoneNumber(inputVal);
+        setClientPhone(formatted);
     };
 
     // Interior Features handlers
@@ -2555,18 +2628,53 @@ export default function Edit({ id }: EditProps) {
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                                    Client Phone
-                                </label>
-                                <input
-                                    type="text"
-                                    value={clientPhone}
-                                    onChange={(e) =>
-                                        setClientPhone(e.target.value)
-                                    }
-                                    placeholder="+1 (555) 000-0000"
-                                    className="w-full bg-white border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-vivid-red shadow-sm"
-                                />
+                                <div className="flex justify-between items-center mb-2">
+                                    <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                                        Client Phone
+                                    </label>
+                                    <span className="text-[10px] text-slate-400">
+                                        (###) ###-####
+                                    </span>
+                                </div>
+                                <div className="relative">
+                                    <input
+                                        type="tel"
+                                        value={clientPhone}
+                                        onChange={handleClientPhoneChange}
+                                        placeholder="(555) 000-0000"
+                                        maxLength={18}
+                                        className="w-full bg-white border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-vivid-red shadow-sm font-medium"
+                                    />
+                                    {clientPhone && (
+                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                                            {clientPhone.replace(/\D/g, "")
+                                                .length >= 10 ? (
+                                                <svg
+                                                    className="w-4 h-4 text-emerald-500"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                    stroke="currentColor"
+                                                >
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth={2.5}
+                                                        d="M5 13l4 4L19 7"
+                                                    />
+                                                </svg>
+                                            ) : (
+                                                <span className="text-[10px] font-bold text-amber-500">
+                                                    {10 -
+                                                        clientPhone.replace(
+                                                            /\D/g,
+                                                            "",
+                                                        ).length}{" "}
+                                                    left
+                                                </span>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
 
                             <div>
@@ -2585,17 +2693,21 @@ export default function Edit({ id }: EditProps) {
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                                    Purchase Date
-                                </label>
+                                <div className="flex justify-between items-center mb-2">
+                                    <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                                        Purchase Date
+                                    </label>
+                                    <span className="text-[10px] text-slate-400">
+                                        Calendar Date
+                                    </span>
+                                </div>
                                 <input
-                                    type="text"
+                                    type="date"
                                     value={purchaseDate}
                                     onChange={(e) =>
                                         setPurchaseDate(e.target.value)
                                     }
-                                    placeholder="MM/DD/YYYY"
-                                    className="w-full bg-white border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-vivid-red shadow-sm"
+                                    className="w-full bg-white border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-vivid-red shadow-sm font-medium cursor-pointer"
                                 />
                             </div>
                         </div>
