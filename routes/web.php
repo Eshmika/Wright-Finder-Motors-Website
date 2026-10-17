@@ -49,6 +49,12 @@ Route::middleware('auth')->group(function () {
         return Inertia::render('Admin/Cars/Create');
     })->name('admin.cars.create');
 
+    Route::get('/admin/cars/{id}/edit', function ($id) {
+        return Inertia::render('Admin/Cars/Edit', [
+            'id' => $id,
+        ]);
+    })->name('admin.cars.edit');
+
     Route::get('/admin/cars/{id}', function ($id) {
         return Inertia::render('Admin/Cars/Show', [
             'id' => $id,

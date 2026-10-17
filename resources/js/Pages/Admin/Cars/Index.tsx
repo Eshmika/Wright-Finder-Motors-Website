@@ -882,12 +882,17 @@ export default function Index() {
                                                             </svg>
                                                         </Link>
 
-                                                        {/* Edit button */}
-                                                        <button
-                                                            type="button"
-                                                            title="Edit"
-                                                            aria-label="Edit"
-                                                            className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-slate-100 transition active:scale-95"
+                                                        {/* Edit button - Opens vehicle edit panel */}
+                                                        <Link
+                                                            href={route(
+                                                                "admin.cars.edit",
+                                                                {
+                                                                    id: car.id,
+                                                                },
+                                                            )}
+                                                            title="Edit Vehicle Details Panel"
+                                                            aria-label="Edit Vehicle Details Panel"
+                                                            className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition active:scale-95 inline-flex items-center justify-center"
                                                         >
                                                             <svg
                                                                 className="w-4 h-4"
@@ -904,7 +909,7 @@ export default function Index() {
                                                                     d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
                                                                 />
                                                             </svg>
-                                                        </button>
+                                                        </Link>
 
                                                         {/* Delete button */}
                                                         <button

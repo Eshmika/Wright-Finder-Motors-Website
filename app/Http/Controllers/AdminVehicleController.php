@@ -16,6 +16,9 @@ class AdminVehicleController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'carId' => 'nullable|string',
+            'originalCarId' => 'nullable|string',
+            'editMode' => 'nullable|boolean',
+            'action' => 'nullable|string',
             'carName' => 'required|string',
             'model' => 'required|string',
             'year' => 'required|string',
@@ -25,6 +28,7 @@ class AdminVehicleController extends Controller
             'title' => 'nullable|string',
             'trim' => 'nullable|string',
             'bodyStyle' => 'nullable|string',
+            'rentOrSell' => 'nullable|string',
             'exteriorColor' => 'nullable|string',
             'interiorColor' => 'nullable|string',
             'seatMaterial' => 'nullable|string',
@@ -43,6 +47,13 @@ class AdminVehicleController extends Controller
             'timestamp' => 'nullable|string',
             'mainImage' => 'nullable',
             'subImages' => 'nullable|array',
+            'mainImageUrl' => 'nullable|string',
+            'subImageUrls' => 'nullable|string',
+            'clientName' => 'nullable|string',
+            'clientPhone' => 'nullable|string',
+            'clientEmail' => 'nullable|string',
+            'purchaseDate' => 'nullable|string',
+            'tradeStatus' => 'nullable|string',
             'scriptUrl' => 'nullable|string',
         ]);
 
