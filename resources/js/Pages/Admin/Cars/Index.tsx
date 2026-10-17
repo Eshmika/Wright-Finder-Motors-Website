@@ -623,7 +623,7 @@ export default function Index() {
                                                                 id: car.id,
                                                             },
                                                         )}
-                                                        className="w-14 h-11 mx-auto rounded-lg overflow-hidden bg-slate-100 border border-slate-200 shadow-sm flex items-center justify-center relative group-hover:scale-105 transition-transform duration-200 cursor-pointer block"
+                                                        className="w-14 h-11 mx-auto rounded-lg overflow-hidden bg-slate-100 border border-slate-200 shadow-sm items-center justify-center relative group-hover:scale-105 transition-transform duration-200 cursor-pointer block"
                                                         title="Click to view details panel"
                                                     >
                                                         {car.mainImageUrl ||
@@ -892,7 +892,7 @@ export default function Index() {
                                                             )}
                                                             title="Edit Vehicle Details Panel"
                                                             aria-label="Edit Vehicle Details Panel"
-                                                            className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition active:scale-95 inline-flex items-center justify-center"
+                                                            className="p-1.5 rounded-lg text-slate-600 hover:text-white hover:bg-blue-600 bg-slate-50 border border-slate-200 transition active:scale-95 shadow-sm inline-flex items-center justify-center"
                                                         >
                                                             <svg
                                                                 className="w-4 h-4"
@@ -916,7 +916,7 @@ export default function Index() {
                                                             type="button"
                                                             title="Delete"
                                                             aria-label="Delete"
-                                                            className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-slate-100 transition active:scale-95"
+                                                            className="p-1.5 rounded-lg text-slate-600 hover:text-white hover:bg-rose-600 bg-slate-50 border border-slate-200 transition active:scale-95 shadow-sm inline-flex items-center justify-center"
                                                         >
                                                             <svg
                                                                 className="w-4 h-4"
@@ -943,7 +943,7 @@ export default function Index() {
                                                             }
                                                             title="Print"
                                                             aria-label="Print"
-                                                            className="p-1.5 rounded-lg text-slate-500 hover:text-purple hover:bg-slate-100 transition active:scale-95"
+                                                            className="p-1.5 rounded-lg text-slate-600 hover:text-white hover:bg-purple bg-slate-50 border border-slate-200 transition active:scale-95 shadow-sm inline-flex items-center justify-center"
                                                         >
                                                             <svg
                                                                 className="w-4 h-4"
@@ -970,7 +970,7 @@ export default function Index() {
                                                             }
                                                             title="Share"
                                                             aria-label="Share"
-                                                            className="p-1.5 rounded-lg text-slate-500 hover:text-dark-blue hover:bg-slate-100 transition active:scale-95"
+                                                            className="p-1.5 rounded-lg text-slate-600 hover:text-white hover:bg-purple bg-slate-50 border border-slate-200 transition active:scale-95 shadow-sm inline-flex items-center justify-center"
                                                         >
                                                             <svg
                                                                 className="w-4 h-4"
