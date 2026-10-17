@@ -1065,11 +1065,14 @@ export default function Index() {
                                                         {/* Print button */}
                                                         <button
                                                             type="button"
-                                                            onClick={
-                                                                handlePrint
+                                                            onClick={() =>
+                                                                window.open(
+                                                                    `/vehicles/${encodeURIComponent(car.id)}?print=1`,
+                                                                    "_blank",
+                                                                )
                                                             }
-                                                            title="Print"
-                                                            aria-label="Print"
+                                                            title="Print Vehicle Details"
+                                                            aria-label="Print Vehicle Details"
                                                             className="p-1.5 rounded-lg text-slate-600 hover:text-white hover:bg-purple bg-slate-50 border border-slate-200 transition active:scale-95 shadow-sm inline-flex items-center justify-center"
                                                         >
                                                             <svg

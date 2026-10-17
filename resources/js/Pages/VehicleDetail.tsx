@@ -63,6 +63,20 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
         };
     }, [id]);
 
+    // Handle Auto Print when opened via Admin Panel Print button (?print=1)
+    useEffect(() => {
+        if (!isLoading && vehicle && typeof window !== "undefined") {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get("print") === "1" || params.get("print") === "true") {
+                // Allow a brief moment for all images and DOM to settle before opening print dialog
+                const timer = setTimeout(() => {
+                    window.print();
+                }, 600);
+                return () => clearTimeout(timer);
+            }
+        }
+    }, [isLoading, vehicle]);
+
     const hasDiscount =
         vehicle &&
         vehicle.originalPrice > 0 &&
@@ -86,13 +100,48 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
             />
 
             {/* Header */}
-            <Header user={auth?.user} />
+            <div className="print:hidden">
+                <Header user={auth?.user} />
+            </div>
+
+            {/* Print-Only Header: Dealership Brand & Document Title */}
+            {vehicle && (
+                <div className="hidden print:block p-6 border-b-2 border-slate-900 bg-white text-slate-900 mb-6">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <div className="flex items-center gap-3">
+                                <span className="text-2xl font-black tracking-wider uppercase text-red-600">
+                                    WRIGHT FINDER
+                                </span>
+                                <span className="text-2xl font-light tracking-widest uppercase text-slate-900">
+                                    MOTORS
+                                </span>
+                            </div>
+                            <p className="text-xs text-slate-500 font-medium mt-1">
+                                Premium Pre-Owned & Luxury Auto Dealership •
+                                Official Vehicle Spec Sheet
+                            </p>
+                        </div>
+                        <div className="text-right">
+                            <span className="inline-block px-3 py-1 rounded bg-slate-100 text-slate-800 text-xs font-mono font-bold border border-slate-300">
+                                Vehicle ID: #{vehicle.id}
+                            </span>
+                            <p className="text-[11px] text-slate-400 mt-1">
+                                Printed on{" "}
+                                {new Date().toLocaleDateString(undefined, {
+                                    dateStyle: "long",
+                                })}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Main Content Area with bggray theme */}
-            <main className="flex-1 py-8 md:py-12">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+            <main className="flex-1 py-8 md:py-12 print:py-0 print:bg-white">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 print:px-0 print:space-y-6">
                     {/* Bottom Navigation Buttons */}
-                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6">
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 print:hidden">
                         <Link
                             href="/buy"
                             className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-6 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs uppercase tracking-wider transition border border-slate-700"
@@ -114,7 +163,7 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                         </Link>
                     </div>
                     {/* Breadcrumbs Navigation */}
-                    <nav className="flex items-center space-x-2 text-xs md:text-sm text-slate-300">
+                    <nav className="flex items-center space-x-2 text-xs md:text-sm text-slate-300 print:hidden">
                         <Link
                             href="/"
                             className="hover:text-vivid-red transition-colors"
@@ -189,7 +238,7 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                     {!isLoading && vehicle && (
                         <div className="space-y-10">
                             {/* COMMON VEHICLE SALE HERO HEADER: Title, Badges, Key Stats */}
-                            <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl">
+                            <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl print:bg-white print:border-slate-300 print:text-slate-900 print:shadow-none print:p-4">
                                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                                     <div className="space-y-2.5">
                                         {/* Status & Category Badges */}
@@ -199,32 +248,32 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                                     className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
                                                         vehicle.availabilities.toLowerCase() ===
                                                         "available"
-                                                            ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                                                            : "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                                                            ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 print:bg-emerald-100 print:text-emerald-800 print:border-emerald-300"
+                                                            : "bg-amber-500/20 text-amber-400 border border-amber-500/30 print:bg-amber-100 print:text-amber-800 print:border-amber-300"
                                                     }`}
                                                 >
                                                     {vehicle.availabilities}
                                                 </span>
                                             )}
                                             {vehicle.condition && (
-                                                <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-vivid-red/20 text-vivid-red border border-vivid-red/30">
+                                                <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-vivid-red/20 text-vivid-red border border-vivid-red/30 print:bg-red-50 print:text-red-700 print:border-red-200">
                                                     {vehicle.condition}
                                                 </span>
                                             )}
                                             {vehicle.bodyStyle && (
-                                                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700">
+                                                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700 print:bg-slate-100 print:text-slate-800 print:border-slate-300">
                                                     {vehicle.bodyStyle}
                                                 </span>
                                             )}
                                             {vehicle.id && (
-                                                <span className="text-xs font-mono text-slate-400 px-2.5 py-1 rounded-full bg-slate-950/60 border border-slate-800">
+                                                <span className="text-xs font-mono text-slate-400 px-2.5 py-1 rounded-full bg-slate-950/60 border border-slate-800 print:bg-slate-100 print:text-slate-700 print:border-slate-300">
                                                     ID: {vehicle.id}
                                                 </span>
                                             )}
                                         </div>
 
                                         {/* Main Heading Title : "Car Name" + "Model" + "Year" */}
-                                        <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight leading-tight">
+                                        <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-white print:text-slate-900 tracking-tight leading-tight">
                                             {vehicle.make} {vehicle.model}{" "}
                                             {vehicle.year && vehicle.year > 0
                                                 ? vehicle.year
@@ -232,7 +281,7 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                         </h1>
 
                                         {/* Quick Key Highlights Bar */}
-                                        <div className="flex flex-wrap items-center gap-y-2 gap-x-5 text-xs sm:text-sm text-slate-300 pt-1">
+                                        <div className="flex flex-wrap items-center gap-y-2 gap-x-5 text-xs sm:text-sm text-slate-300 print:text-slate-700 pt-1">
                                             <div className="flex items-center gap-1.5">
                                                 <svg
                                                     className="w-4 h-4 text-vivid-red"
@@ -324,8 +373,8 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                         </div>
                                     </div>
 
-                                    {/* Action shortcuts / Share / Print */}
-                                    <div className="flex items-center gap-3">
+                                    {/* Action shortcuts / Share / Print (Hidden in Print) */}
+                                    <div className="flex items-center gap-3 print:hidden">
                                         <button
                                             type="button"
                                             onClick={() => {
@@ -370,8 +419,9 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                             {/* SPLIT SHOWCASE: Left Gallery (8 cols) + Right Pricing & Purchase Box (4 cols) */}
                             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                                 {/* LEFT: Large Photo Gallery (8 of 12 columns) */}
-                                <div className="lg:col-span-8 space-y-4">
-                                    <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-4 sm:p-5 shadow-2xl overflow-hidden">
+                                <div className="lg:col-span-8 space-y-4 print:col-span-12 print:w-full">
+                                    {/* Web View: Interactive Gallery (Hidden in Print) */}
+                                    <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-4 sm:p-5 shadow-2xl overflow-hidden print:hidden">
                                         {/* Main Selected Image Viewer */}
                                         <div className="relative w-full h-[340px] sm:h-[460px] md:h-[520px] rounded-2xl overflow-hidden bg-slate-950 flex items-center justify-center group">
                                             {vehicle.images.length > 0 ? (
@@ -535,15 +585,58 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                             </div>
                                         )}
                                     </div>
+
+                                    {/* Print View: Full Photo Gallery (All Images Shown in Clean Grid) */}
+                                    <div className="hidden print:block bg-white border border-slate-300 rounded-2xl p-4">
+                                        <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-200">
+                                            <h3 className="font-bold text-slate-800 text-sm tracking-wide uppercase">
+                                                Vehicle Photo Gallery (
+                                                {vehicle.images.length}{" "}
+                                                {vehicle.images.length === 1
+                                                    ? "Photo"
+                                                    : "Photos"}
+                                                )
+                                            </h3>
+                                            <span className="text-xs text-slate-500 font-mono">
+                                                High-Resolution Records
+                                            </span>
+                                        </div>
+                                        {vehicle.images.length > 0 ? (
+                                            <div className="grid grid-cols-2 gap-3">
+                                                {vehicle.images.map(
+                                                    (img, idx) => (
+                                                        <div
+                                                            key={idx}
+                                                            className="relative rounded-xl overflow-hidden border border-slate-200 bg-slate-50 aspect-[4/3] flex items-center justify-center break-inside-avoid"
+                                                        >
+                                                            <img
+                                                                src={img}
+                                                                alt={`${vehicle.title} - photo ${idx + 1}`}
+                                                                className="w-full h-full object-cover"
+                                                            />
+                                                            <span className="absolute bottom-2 right-2 px-2 py-0.5 rounded bg-black/60 text-[10px] font-mono text-white">
+                                                                #{idx + 1}
+                                                            </span>
+                                                        </div>
+                                                    ),
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <p className="text-xs text-slate-500 italic py-4 text-center">
+                                                No photographic images attached
+                                                to this vehicle record.
+                                            </p>
+                                        )}
+                                    </div>
                                 </div>
 
                                 {/* RIGHT: Common Vehicle Sale Pricing, Deal & Inquire Box (4 of 12 columns) */}
-                                <div className="lg:col-span-4 space-y-6">
-                                    <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-7 shadow-2xl space-y-6 lg:sticky lg:top-8">
+                                <div className="lg:col-span-4 space-y-6 print:col-span-12 print:w-full">
+                                    <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-7 shadow-2xl space-y-6 lg:sticky lg:top-8 print:static print:bg-white print:border-slate-300 print:text-slate-900 print:shadow-none">
                                         {/* Price Header */}
-                                        <div className="space-y-2 pb-5 border-b border-slate-800">
+                                        <div className="space-y-2 pb-5 border-b border-slate-800 print:border-slate-200">
                                             <div className="flex items-center justify-between">
-                                                <span className="text-xs uppercase font-extrabold text-slate-400 tracking-wider">
+                                                <span className="text-xs uppercase font-extrabold text-slate-400 print:text-slate-600 tracking-wider">
                                                     {hasDiscount
                                                         ? "Special Discount Price"
                                                         : "Listed Price"}
@@ -558,7 +651,7 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
 
                                             {/* Primary Price: "Price" - "Discount" */}
                                             <div className="flex items-baseline gap-3">
-                                                <span className="text-4xl font-black text-white tracking-tight">
+                                                <span className="text-4xl font-black text-white print:text-slate-900 tracking-tight">
                                                     $
                                                     {vehicle.price.toLocaleString()}
                                                 </span>
@@ -572,7 +665,7 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
 
                                             {/* Savings Tag */}
                                             {hasDiscount && (
-                                                <p className="text-xs text-emerald-400 font-bold flex items-center gap-1.5 pt-1">
+                                                <p className="text-xs text-emerald-400 print:text-emerald-700 font-bold flex items-center gap-1.5 pt-1">
                                                     <svg
                                                         className="w-4 h-4 text-emerald-400 shrink-0"
                                                         fill="currentColor"
@@ -595,8 +688,8 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
 
                                         {/* Dealership Assurance Badges */}
                                         <div className="space-y-3 py-1">
-                                            <div className="flex items-center gap-3 text-xs text-slate-300">
-                                                <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-vivid-red shrink-0">
+                                            <div className="flex items-center gap-3 text-xs text-slate-300 print:text-slate-700">
+                                                <div className="w-8 h-8 rounded-lg bg-slate-800 print:bg-slate-100 flex items-center justify-center text-vivid-red shrink-0">
                                                     <svg
                                                         className="w-4 h-4"
                                                         fill="none"
@@ -612,19 +705,19 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                                     </svg>
                                                 </div>
                                                 <div>
-                                                    <p className="font-bold text-white">
+                                                    <p className="font-bold text-white print:text-slate-900">
                                                         Verified Clean Title /
                                                         History
                                                     </p>
-                                                    <p className="text-[11px] text-slate-400">
+                                                    <p className="text-[11px] text-slate-400 print:text-slate-500">
                                                         Inspected by Wright
                                                         Finder Motors
                                                     </p>
                                                 </div>
                                             </div>
 
-                                            <div className="flex items-center gap-3 text-xs text-slate-300">
-                                                <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-vivid-red shrink-0">
+                                            <div className="flex items-center gap-3 text-xs text-slate-300 print:text-slate-700">
+                                                <div className="w-8 h-8 rounded-lg bg-slate-800 print:bg-slate-100 flex items-center justify-center text-vivid-red shrink-0">
                                                     <svg
                                                         className="w-4 h-4"
                                                         fill="none"
@@ -640,11 +733,11 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                                     </svg>
                                                 </div>
                                                 <div>
-                                                    <p className="font-bold text-white">
+                                                    <p className="font-bold text-white print:text-slate-900">
                                                         Transparent Cash & Deal
                                                         Pricing
                                                     </p>
-                                                    <p className="text-[11px] text-slate-400">
+                                                    <p className="text-[11px] text-slate-400 print:text-slate-500">
                                                         No hidden dealership
                                                         handling surprises
                                                     </p>
@@ -652,8 +745,8 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                             </div>
                                         </div>
 
-                                        {/* Action Buttons */}
-                                        <div className="space-y-3 pt-2">
+                                        {/* Action Buttons (Hidden on Print) */}
+                                        <div className="space-y-3 pt-2 print:hidden">
                                             <button
                                                 type="button"
                                                 onClick={() => {
@@ -751,11 +844,11 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                             </div>
 
                             {/* DETAILED SPECIFICATIONS GRID (Vehicle Overview & Power & Performance) */}
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 print:gap-4">
                                 {/* 1. Vehicle Overview */}
-                                <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
-                                    <div className="flex items-center space-x-3 pb-4 border-b border-slate-800">
-                                        <div className="w-10 h-10 rounded-xl bg-vivid-red/10 border border-vivid-red/20 text-vivid-red flex items-center justify-center">
+                                <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6 print:bg-white print:border-slate-300 print:text-slate-900 print:shadow-none print:p-4 print:break-inside-avoid">
+                                    <div className="flex items-center space-x-3 pb-4 border-b border-slate-800 print:border-slate-200">
+                                        <div className="w-10 h-10 rounded-xl bg-vivid-red/10 border border-vivid-red/20 text-vivid-red flex items-center justify-center print:bg-red-50">
                                             <svg
                                                 className="w-5 h-5"
                                                 fill="none"
@@ -771,17 +864,17 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                             </svg>
                                         </div>
                                         <div>
-                                            <h2 className="text-xl font-black text-white tracking-tight">
+                                            <h2 className="text-xl font-black text-white print:text-slate-900 tracking-tight">
                                                 Vehicle Overview
                                             </h2>
-                                            <p className="text-xs text-slate-400">
+                                            <p className="text-xs text-slate-400 print:text-slate-500">
                                                 Core chassis, body &
                                                 registration specifications
                                             </p>
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 print:grid-cols-2 print:gap-2">
                                         <SpecItem
                                             label="Make"
                                             value={vehicle.make}
@@ -843,9 +936,9 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                 </div>
 
                                 {/* 2. Power & Performance */}
-                                <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
-                                    <div className="flex items-center space-x-3 pb-4 border-b border-slate-800">
-                                        <div className="w-10 h-10 rounded-xl bg-vivid-red/10 border border-vivid-red/20 text-vivid-red flex items-center justify-center">
+                                <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6 print:bg-white print:border-slate-300 print:text-slate-900 print:shadow-none print:p-4 print:break-inside-avoid">
+                                    <div className="flex items-center space-x-3 pb-4 border-b border-slate-800 print:border-slate-200">
+                                        <div className="w-10 h-10 rounded-xl bg-vivid-red/10 border border-vivid-red/20 text-vivid-red flex items-center justify-center print:bg-red-50">
                                             <svg
                                                 className="w-5 h-5"
                                                 fill="none"
@@ -861,17 +954,17 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                             </svg>
                                         </div>
                                         <div>
-                                            <h2 className="text-xl font-black text-white tracking-tight">
+                                            <h2 className="text-xl font-black text-white print:text-slate-900 tracking-tight">
                                                 Power & Performance
                                             </h2>
-                                            <p className="text-xs text-slate-400">
+                                            <p className="text-xs text-slate-400 print:text-slate-500">
                                                 Powertrain, mechanics & drive
                                                 conditioning
                                             </p>
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 print:grid-cols-2 print:gap-2">
                                         <SpecItem
                                             label="Engine"
                                             value={vehicle.engine}
@@ -909,9 +1002,9 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                             </div>
 
                             {/* 3. Features & Condition (Interior Features divided by comma) */}
-                            <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
-                                <div className="flex items-center space-x-3 pb-4 border-b border-slate-800">
-                                    <div className="w-10 h-10 rounded-xl bg-vivid-red/10 border border-vivid-red/20 text-vivid-red flex items-center justify-center">
+                            <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6 print:bg-white print:border-slate-300 print:text-slate-900 print:shadow-none print:p-4 print:break-inside-avoid">
+                                <div className="flex items-center space-x-3 pb-4 border-b border-slate-800 print:border-slate-200">
+                                    <div className="w-10 h-10 rounded-xl bg-vivid-red/10 border border-vivid-red/20 text-vivid-red flex items-center justify-center print:bg-red-50">
                                         <svg
                                             className="w-5 h-5"
                                             fill="none"
@@ -927,10 +1020,10 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                         </svg>
                                     </div>
                                     <div>
-                                        <h2 className="text-xl font-black text-white tracking-tight">
+                                        <h2 className="text-xl font-black text-white print:text-slate-900 tracking-tight">
                                             Features & Condition
                                         </h2>
-                                        <p className="text-xs text-slate-400">
+                                        <p className="text-xs text-slate-400 print:text-slate-500">
                                             Interior luxury, electronics &
                                             safety inclusions
                                         </p>
@@ -939,12 +1032,12 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
 
                                 {vehicle.interiorFeatures &&
                                 vehicle.interiorFeatures.length > 0 ? (
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 print:grid-cols-3 print:gap-2">
                                         {vehicle.interiorFeatures.map(
                                             (feat, idx) => (
                                                 <div
                                                     key={idx}
-                                                    className="flex items-center space-x-2.5 p-3 rounded-2xl bg-slate-800/70 border border-slate-700/60 text-slate-200 hover:border-vivid-red/40 transition"
+                                                    className="flex items-center space-x-2.5 p-3 rounded-2xl bg-slate-800/70 border border-slate-700/60 text-slate-200 hover:border-vivid-red/40 transition print:bg-slate-50 print:border-slate-200 print:text-slate-800 print:rounded-lg print:p-2"
                                                 >
                                                     <div className="w-2 h-2 rounded-full bg-vivid-red shrink-0"></div>
                                                     <span
@@ -958,16 +1051,16 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                         )}
                                     </div>
                                 ) : (
-                                    <div className="p-4 rounded-2xl bg-slate-800/60 border border-slate-700/60 text-slate-400 text-sm font-semibold">
+                                    <div className="p-4 rounded-2xl bg-slate-800/60 border border-slate-700/60 text-slate-400 text-sm font-semibold print:bg-white print:border-slate-200">
                                         N/A
                                     </div>
                                 )}
                             </div>
 
                             {/* 4. Client Information Card */}
-                            <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
-                                <div className="flex items-center space-x-3 pb-4 border-b border-slate-800">
-                                    <div className="w-10 h-10 rounded-xl bg-vivid-red/10 border border-vivid-red/20 text-vivid-red flex items-center justify-center">
+                            <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6 print:bg-white print:border-slate-300 print:text-slate-900 print:shadow-none print:p-4 print:break-inside-avoid">
+                                <div className="flex items-center space-x-3 pb-4 border-b border-slate-800 print:border-slate-200">
+                                    <div className="w-10 h-10 rounded-xl bg-vivid-red/10 border border-vivid-red/20 text-vivid-red flex items-center justify-center print:bg-red-50">
                                         <svg
                                             className="w-5 h-5"
                                             fill="none"
@@ -983,17 +1076,17 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                         </svg>
                                     </div>
                                     <div>
-                                        <h2 className="text-xl font-black text-white tracking-tight">
+                                        <h2 className="text-xl font-black text-white print:text-slate-900 tracking-tight">
                                             Client Information
                                         </h2>
-                                        <p className="text-xs text-slate-400">
+                                        <p className="text-xs text-slate-400 print:text-slate-500">
                                             Agent & client contact points for
                                             quick consultation
                                         </p>
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 print:grid-cols-4 print:gap-2">
                                     <SpecItem
                                         label="CLIENT NAME"
                                         value={vehicle.clientName}
@@ -1020,10 +1113,29 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
             </main>
 
             {/* Call to Action Section */}
-            <CallToActionSection />
+            <div className="print:hidden">
+                <CallToActionSection />
+            </div>
 
             {/* Footer */}
-            <Footer />
+            <div className="print:hidden">
+                <Footer />
+            </div>
+
+            {/* Print Footer note */}
+            {vehicle && (
+                <div className="hidden print:block pt-8 mt-8 border-t border-slate-300 text-center text-xs text-slate-500">
+                    <p className="font-semibold text-slate-700">
+                        Wright Finder Motors • 1121 S Main St, Dayton, OH 45409
+                        • Phone: (937) 838-8616
+                    </p>
+                    <p className="mt-1">
+                        All vehicle details, specifications, and availability
+                        subject to prior sale. Visit us online or contact our
+                        sales team.
+                    </p>
+                </div>
+            )}
         </div>
     );
 }
@@ -1049,32 +1161,34 @@ function SpecItem({
     const displayText = isMissing ? "N/A" : `${rawStr}${suffix}`;
 
     return (
-        <div className="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-4 flex flex-col justify-between hover:bg-slate-800/90 transition">
-            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1">
+        <div className="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-4 flex flex-col justify-between hover:bg-slate-800/90 transition print:bg-white print:border-slate-300 print:rounded-xl print:p-2.5 print:break-inside-avoid">
+            <span className="text-[10px] uppercase font-bold text-slate-400 print:text-slate-500 tracking-wider mb-1">
                 {label}
             </span>
             {isMissing ? (
-                <span className="text-sm font-semibold text-slate-400">
+                <span className="text-sm font-semibold text-slate-400 print:text-slate-400">
                     N/A
                 </span>
             ) : isPhone ? (
                 <a
                     href={`tel:${rawStr}`}
-                    className="text-sm font-semibold text-white hover:text-vivid-red transition truncate"
+                    className="text-sm font-semibold text-white print:text-slate-900 hover:text-vivid-red transition truncate"
                 >
                     {displayText}
                 </a>
             ) : isEmail ? (
                 <a
                     href={`mailto:${rawStr}`}
-                    className="text-sm font-semibold text-white hover:text-vivid-red transition truncate"
+                    className="text-sm font-semibold text-white print:text-slate-900 hover:text-vivid-red transition truncate"
                 >
                     {displayText}
                 </a>
             ) : (
                 <span
                     className={`text-sm font-semibold truncate ${
-                        highlight ? "text-emerald-400 font-bold" : "text-white"
+                        highlight
+                            ? "text-emerald-400 print:text-emerald-700 font-bold"
+                            : "text-white print:text-slate-900"
                     }`}
                     title={displayText}
                 >
