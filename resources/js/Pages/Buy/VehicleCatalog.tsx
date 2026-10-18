@@ -234,7 +234,17 @@ function VehicleCard({ car }: { car: Vehicle }) {
                     </div>
                 )}
 
-                {/* Availabilities Tag with Custom Colors */}
+                {/* Discount Badge on the Left Side Corner */}
+                {hasDiscount && (
+                    <div className="absolute top-3.5 left-3.5 z-20 backdrop-blur-md px-2.5 py-1 rounded-full bg-red-500/90 border border-red-400 text-white text-[11px] font-extrabold tracking-wide flex items-center gap-1.5 shadow-lg">
+                        <span>Save ${discountAmount.toLocaleString()}</span>
+                        <span className="bg-white text-vivid-red text-[9px] font-black px-1 rounded-full">
+                            -{discountPercentage}%
+                        </span>
+                    </div>
+                )}
+
+                {/* Availabilities Tag with Custom Colors (Top Right Corner) */}
                 {(car.availabilities || car.badge) &&
                     (() => {
                         const statusText = (
@@ -252,29 +262,29 @@ function VehicleCard({ car }: { car: Vehicle }) {
 
                         const badgeConfig = isSold
                             ? {
-                                  bg: "bg-[#22c55e]/15 hover:bg-[#22c55e]/25",
-                                  border: "border-[#22c55e]/40 shadow-[#22c55e]/15",
-                                  text: "text-[#15803d]",
+                                  bg: "bg-[#22c55e]",
+                                  border: "border-[#22c55e]",
+                                  text: "text-[#ffffff]",
                                   label: statusText,
                               }
                             : isAvailable
                               ? {
-                                    bg: "bg-[#facc15]/20 hover:bg-[#facc15]/30",
-                                    border: "border-[#facc15]/60 shadow-[#facc15]/20",
-                                    text: "text-[#854d0e]",
+                                    bg: "bg-[#facc15]",
+                                    border: "border-[#facc15]",
+                                    text: "text-[#ffffff]",
                                     label: statusText,
                                 }
                               : isPending
                                 ? {
-                                      bg: "bg-[#9ca3af]/20 hover:bg-[#9ca3af]/30",
-                                      border: "border-[#9ca3af]/50 shadow-[#9ca3af]/15",
-                                      text: "text-[#4b5563]",
+                                      bg: "bg-[#9ca3af]",
+                                      border: "border-[#9ca3af]",
+                                      text: "text-[#ffffff]",
                                       label: statusText,
                                   }
                                 : {
-                                      bg: "bg-white/95 hover:bg-white",
-                                      border: "border-white/70 shadow-black/10",
-                                      text: "text-[#170a3d]",
+                                      bg: "bg-black",
+                                      border: "border-black",
+                                      text: "text-[#ffffff]",
                                       label: statusText,
                                   };
 
@@ -474,7 +484,7 @@ function VehicleCard({ car }: { car: Vehicle }) {
                 </div>
 
                 {/* Price Display Section */}
-                <div className="pt-4 mt-2">
+                <div className="mt-1">
                     <div className="flex items-baseline justify-between">
                         <div>
                             <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider block mb-0.5">
@@ -491,20 +501,6 @@ function VehicleCard({ car }: { car: Vehicle }) {
                                 )}
                             </div>
                         </div>
-
-                        {/* Discount badge */}
-                        {hasDiscount && (
-                            <div className="flex flex-col items-end">
-                                <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full bg-red-50 border border-red-200/80 text-vivid-red text-[11px] font-extrabold shadow-sm">
-                                    <span>
-                                        Save ${discountAmount.toLocaleString()}
-                                    </span>
-                                    <span className="bg-vivid-red text-white text-[9px] px-1 rounded-full">
-                                        -{discountPercentage}%
-                                    </span>
-                                </span>
-                            </div>
-                        )}
                     </div>
 
                     {/* Action Buttons: 1 Row with "Contact Agent" & "Explore More" */}
