@@ -88,7 +88,7 @@ const BODY_TYPE_CATEGORIES = [
         countBadge: "TOP TIER",
         bgGradient: "from-sky-950/90 via-slate-900/80 to-black/90",
         badgeBg: "bg-cyan-500/20 text-cyan-300 border-cyan-400/30",
-        image: "https://images.unsplash.com/photo-1519641471654-76ce0107ad1b?auto=format&fit=crop&w=1200&q=80",
+        image: "/storage/images/suv.webp",
     },
     {
         key: "Sedan",
@@ -99,10 +99,10 @@ const BODY_TYPE_CATEGORIES = [
         countBadge: "TOP PICK",
         bgGradient: "from-emerald-950/90 via-slate-900/80 to-black/90",
         badgeBg: "bg-emerald-500/20 text-emerald-300 border-emerald-400/30",
-        image: "https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=1200&q=80",
+        image: "/storage/images/sedan.webp",
     },
     {
-        key: "Truck",
+        key: "Pickup Truck",
         title: "Trucks",
         subtitle:
             "Impressive towing power, rugged durability, and capability built for the toughest jobs.",
@@ -110,10 +110,10 @@ const BODY_TYPE_CATEGORIES = [
         countBadge: "POWER PICK",
         bgGradient: "from-amber-950/90 via-slate-900/80 to-black/90",
         badgeBg: "bg-amber-500/20 text-amber-300 border-amber-400/30",
-        image: "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=1200&q=80",
+        image: "/storage/images/truck.webp",
     },
     {
-        key: "Minivan",
+        key: "Minivan/Van",
         title: "Minivans",
         subtitle:
             "Spacious interiors, flexible seating, and everyday convenience for the whole family.",
@@ -121,7 +121,7 @@ const BODY_TYPE_CATEGORIES = [
         countBadge: "FAMILY PICK",
         bgGradient: "from-rose-950/90 via-slate-900/80 to-black/90",
         badgeBg: "bg-rose-500/20 text-rose-300 border-rose-400/30",
-        image: "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80",
+        image: "/storage/images/minivan.webp",
     },
 ];
 
