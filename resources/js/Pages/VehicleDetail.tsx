@@ -706,12 +706,10 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                                 </div>
                                                 <div>
                                                     <p className="font-bold text-white print:text-slate-900">
-                                                        Verified Clean Title /
-                                                        History
+                                                        Accurate Vehicle Title Information
                                                     </p>
                                                     <p className="text-[11px] text-slate-400 print:text-slate-500">
-                                                        Inspected by Wright
-                                                        Finder Motors
+                                                        Available history information provided transparently
                                                     </p>
                                                 </div>
                                             </div>
