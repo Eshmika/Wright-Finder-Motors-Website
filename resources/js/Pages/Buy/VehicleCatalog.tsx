@@ -1076,7 +1076,7 @@ export default function VehicleCatalog() {
                 {!isLoading && !error && (
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                         {/* LEFT: Filter Vehicles Sidebar (Compact Width: 3 of 12 columns) */}
-                        <div className="lg:col-span-3 xl:col-span-3 lg:sticky lg:top-6 z-30">
+                        <div className="lg:col-span-3 xl:col-span-3 lg:sticky lg:top-6 z-30 lg:mt-14 mt-0">
                             <div className="bg-slate-800/95 border border-slate-700/80 rounded-3xl p-5 sm:p-6 shadow-xl backdrop-blur-sm lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto space-y-5">
                                 {/* Filter Card Header */}
                                 <div className="flex items-center justify-between pb-4 border-b border-slate-700">
