@@ -18,6 +18,7 @@ export interface Vehicle {
     condition: string;
     vehicleCondition?: string;
     badge: string;
+    availabilities?: string;
     images: string[];
     clientEmail?: string;
 }
@@ -233,12 +234,58 @@ function VehicleCard({ car }: { car: Vehicle }) {
                     </div>
                 )}
 
-                {/* Badge Tag (Status from sheet) */}
-                {car.badge && (
-                    <div className="absolute top-3.5 right-3.5 bg-white/95 backdrop-blur-md px-3 py-1 rounded-full text-[11px] font-bold text-dark-blue shadow-md border border-white/60">
-                        {car.badge}
-                    </div>
-                )}
+                {/* Availabilities Tag with Custom Colors */}
+                {(car.availabilities || car.badge) &&
+                    (() => {
+                        const statusText = (
+                            car.availabilities || car.badge
+                        ).trim();
+                        const statusLower = statusText.toLowerCase();
+
+                        // Colors requested:
+                        // Sold: #22c55e (vibrant emerald green)
+                        // Available: #facc15 (luminous warm gold/yellow)
+                        // Pending: #9ca3af (sleek refined neutral slate/gray)
+                        const isSold = statusLower === "sold";
+                        const isAvailable = statusLower === "available";
+                        const isPending = statusLower === "pending";
+
+                        const badgeConfig = isSold
+                            ? {
+                                  bg: "bg-[#22c55e]/15 hover:bg-[#22c55e]/25",
+                                  border: "border-[#22c55e]/40 shadow-[#22c55e]/15",
+                                  text: "text-[#15803d]",
+                                  label: statusText,
+                              }
+                            : isAvailable
+                              ? {
+                                    bg: "bg-[#facc15]/20 hover:bg-[#facc15]/30",
+                                    border: "border-[#facc15]/60 shadow-[#facc15]/20",
+                                    text: "text-[#854d0e]",
+                                    label: statusText,
+                                }
+                              : isPending
+                                ? {
+                                      bg: "bg-[#9ca3af]/20 hover:bg-[#9ca3af]/30",
+                                      border: "border-[#9ca3af]/50 shadow-[#9ca3af]/15",
+                                      text: "text-[#4b5563]",
+                                      label: statusText,
+                                  }
+                                : {
+                                      bg: "bg-white/95 hover:bg-white",
+                                      border: "border-white/70 shadow-black/10",
+                                      text: "text-[#170a3d]",
+                                      label: statusText,
+                                  };
+
+                        return (
+                            <div
+                                className={`absolute top-3.5 right-3.5 z-20 backdrop-blur-md px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider flex items-center gap-1.5 shadow-lg border transition-all duration-300 ${badgeConfig.bg} ${badgeConfig.border} ${badgeConfig.text}`}
+                            >
+                                <span>{badgeConfig.label}</span>
+                            </div>
+                        );
+                    })()}
             </div>
 
             {/* Card Content */}
@@ -601,7 +648,10 @@ export default function VehicleCatalog() {
                 const transmissionIdx = getIndex("Transmission");
                 const titleIdx = getIndex("Title");
                 const conditionColIdx = getIndex("Condition");
-                const statusIdx = getIndex("Status");
+                const statusIdx =
+                    getIndex("Availabilities") !== -1
+                        ? getIndex("Availabilities")
+                        : getIndex("Status");
                 const mainImageIdx = getIndex("Main Image URLs");
                 const subImagesIdx = getIndex("Sub Image URLs");
                 const clientEmailIdx = getIndex("Client Email");
@@ -724,6 +774,7 @@ export default function VehicleCatalog() {
                         condition,
                         vehicleCondition,
                         badge,
+                        availabilities: badge,
                         images: formattedImages,
                         clientEmail,
                     });
