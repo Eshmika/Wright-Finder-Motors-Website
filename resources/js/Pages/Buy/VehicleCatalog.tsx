@@ -18,6 +18,7 @@ export interface Vehicle {
     condition: string;
     vehicleCondition?: string;
     badge: string;
+    availabilities?: string;
     images: string[];
     clientEmail?: string;
 }
@@ -233,12 +234,68 @@ function VehicleCard({ car }: { car: Vehicle }) {
                     </div>
                 )}
 
-                {/* Badge Tag (Status from sheet) */}
-                {car.badge && (
-                    <div className="absolute top-3.5 right-3.5 bg-white/95 backdrop-blur-md px-3 py-1 rounded-full text-[11px] font-bold text-dark-blue shadow-md border border-white/60">
-                        {car.badge}
+                {/* Discount Badge on the Left Side Corner */}
+                {hasDiscount && (
+                    <div className="absolute top-3.5 left-3.5 z-20 backdrop-blur-md px-2.5 py-1 rounded-full bg-red-500/90 border border-red-400 text-white text-[11px] font-extrabold tracking-wide flex items-center gap-1.5 shadow-lg">
+                        <span>Save ${discountAmount.toLocaleString()}</span>
+                        <span className="bg-white text-vivid-red text-[9px] font-black px-1 rounded-full">
+                            -{discountPercentage}%
+                        </span>
                     </div>
                 )}
+
+                {/* Availabilities Tag with Custom Colors (Top Right Corner) */}
+                {(car.availabilities || car.badge) &&
+                    (() => {
+                        const statusText = (
+                            car.availabilities || car.badge
+                        ).trim();
+                        const statusLower = statusText.toLowerCase();
+
+                        // Colors requested:
+                        // Sold: #22c55e (vibrant emerald green)
+                        // Available: #facc15 (luminous warm gold/yellow)
+                        // Pending: #9ca3af (sleek refined neutral slate/gray)
+                        const isSold = statusLower === "sold";
+                        const isAvailable = statusLower === "available";
+                        const isPending = statusLower === "pending";
+
+                        const badgeConfig = isSold
+                            ? {
+                                  bg: "bg-[#22c55e]",
+                                  border: "border-[#22c55e]",
+                                  text: "text-[#ffffff]",
+                                  label: statusText,
+                              }
+                            : isAvailable
+                              ? {
+                                    bg: "bg-[#facc15]",
+                                    border: "border-[#facc15]",
+                                    text: "text-[#ffffff]",
+                                    label: statusText,
+                                }
+                              : isPending
+                                ? {
+                                      bg: "bg-[#9ca3af]",
+                                      border: "border-[#9ca3af]",
+                                      text: "text-[#ffffff]",
+                                      label: statusText,
+                                  }
+                                : {
+                                      bg: "bg-black",
+                                      border: "border-black",
+                                      text: "text-[#ffffff]",
+                                      label: statusText,
+                                  };
+
+                        return (
+                            <div
+                                className={`absolute top-3.5 right-3.5 z-20 backdrop-blur-md px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider flex items-center gap-1.5 shadow-lg border transition-all duration-300 ${badgeConfig.bg} ${badgeConfig.border} ${badgeConfig.text}`}
+                            >
+                                <span>{badgeConfig.label}</span>
+                            </div>
+                        );
+                    })()}
             </div>
 
             {/* Card Content */}
@@ -427,7 +484,7 @@ function VehicleCard({ car }: { car: Vehicle }) {
                 </div>
 
                 {/* Price Display Section */}
-                <div className="pt-4 mt-2">
+                <div className="mt-1">
                     <div className="flex items-baseline justify-between">
                         <div>
                             <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider block mb-0.5">
@@ -444,20 +501,6 @@ function VehicleCard({ car }: { car: Vehicle }) {
                                 )}
                             </div>
                         </div>
-
-                        {/* Discount badge */}
-                        {hasDiscount && (
-                            <div className="flex flex-col items-end">
-                                <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full bg-red-50 border border-red-200/80 text-vivid-red text-[11px] font-extrabold shadow-sm">
-                                    <span>
-                                        Save ${discountAmount.toLocaleString()}
-                                    </span>
-                                    <span className="bg-vivid-red text-white text-[9px] px-1 rounded-full">
-                                        -{discountPercentage}%
-                                    </span>
-                                </span>
-                            </div>
-                        )}
                     </div>
 
                     {/* Action Buttons: 1 Row with "Contact Agent" & "Explore More" */}
@@ -601,7 +644,10 @@ export default function VehicleCatalog() {
                 const transmissionIdx = getIndex("Transmission");
                 const titleIdx = getIndex("Title");
                 const conditionColIdx = getIndex("Condition");
-                const statusIdx = getIndex("Status");
+                const statusIdx =
+                    getIndex("Availabilities") !== -1
+                        ? getIndex("Availabilities")
+                        : getIndex("Status");
                 const mainImageIdx = getIndex("Main Image URLs");
                 const subImagesIdx = getIndex("Sub Image URLs");
                 const clientEmailIdx = getIndex("Client Email");
@@ -724,6 +770,7 @@ export default function VehicleCatalog() {
                         condition,
                         vehicleCondition,
                         badge,
+                        availabilities: badge,
                         images: formattedImages,
                         clientEmail,
                     });
@@ -753,12 +800,18 @@ export default function VehicleCatalog() {
         };
     }, []);
 
-    // Read condition and search query from URL if present
+    // Read condition, bodyStyle/category, and search query from URL if present
     const urlParams =
         typeof window !== "undefined"
             ? new URLSearchParams(window.location.search)
             : null;
     const urlCondition = urlParams?.get("condition") || "";
+    const urlBodyStyle =
+        urlParams?.get("bodyStyle") ||
+        urlParams?.get("body_type") ||
+        urlParams?.get("body") ||
+        urlParams?.get("category") ||
+        "";
     const urlSearchQuery =
         urlParams?.get("search") || urlParams?.get("q") || "";
 
@@ -770,7 +823,8 @@ export default function VehicleCatalog() {
     const [maxPrice, setMaxPrice] = useState<string>("");
     const [fromYear, setFromYear] = useState<string>("");
     const [toYear, setToYear] = useState<string>("");
-    const [selectedCategory, setSelectedCategory] = useState<string>("");
+    const [selectedCategory, setSelectedCategory] =
+        useState<string>(urlBodyStyle);
     const [selectedCondition, setSelectedCondition] =
         useState<string>(urlCondition);
 
@@ -783,7 +837,7 @@ export default function VehicleCatalog() {
         maxPrice: "",
         fromYear: "",
         toYear: "",
-        category: "",
+        category: urlBodyStyle,
         condition: urlCondition,
     });
 
@@ -791,10 +845,19 @@ export default function VehicleCatalog() {
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const nextCondition = params.get("condition") || "";
+        const nextBodyStyle =
+            params.get("bodyStyle") ||
+            params.get("body_type") ||
+            params.get("body") ||
+            params.get("category") ||
+            "";
         const nextSearch = params.get("search") || params.get("q") || "";
 
         if (nextCondition) {
             setSelectedCondition(nextCondition);
+        }
+        if (nextBodyStyle) {
+            setSelectedCategory(nextBodyStyle);
         }
         if (nextSearch) {
             setSearchKeyword(nextSearch);
@@ -803,9 +866,10 @@ export default function VehicleCatalog() {
         setAppliedFilters((prev) => ({
             ...prev,
             condition: nextCondition,
+            category: nextBodyStyle,
             search: nextSearch,
         }));
-    }, [urlCondition, urlSearchQuery]);
+    }, [urlCondition, urlBodyStyle, urlSearchQuery]);
 
     // Unique options derived from vehicles data
     const makeOptions = Array.from(
@@ -898,11 +962,20 @@ export default function VehicleCatalog() {
         ) {
             return false;
         }
-        if (
-            appliedFilters.category &&
-            car.category.toLowerCase() !== appliedFilters.category.toLowerCase()
-        ) {
-            return false;
+        if (appliedFilters.category) {
+            const filterCat = appliedFilters.category.toLowerCase().trim();
+            const carCat = (car.category || "").toLowerCase().trim();
+            const normalizedFilter = filterCat.replace(/s$/, "");
+            const normalizedCarCat = carCat.replace(/s$/, "");
+
+            if (
+                carCat !== filterCat &&
+                !carCat.includes(filterCat) &&
+                !carCat.includes(normalizedFilter) &&
+                !normalizedCarCat.includes(normalizedFilter)
+            ) {
+                return false;
+            }
         }
         if (appliedFilters.condition) {
             const condFilter = appliedFilters.condition.toLowerCase().trim();
@@ -1003,8 +1076,8 @@ export default function VehicleCatalog() {
                 {!isLoading && !error && (
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                         {/* LEFT: Filter Vehicles Sidebar (Compact Width: 3 of 12 columns) */}
-                        <div className="lg:col-span-3 xl:col-span-3">
-                            <div className="bg-slate-800/95 border border-slate-700/80 rounded-3xl p-5 sm:p-6 shadow-xl backdrop-blur-sm sticky top-28 space-y-5">
+                        <div className="lg:col-span-3 xl:col-span-3 lg:sticky lg:top-6 z-30">
+                            <div className="bg-slate-800/95 border border-slate-700/80 rounded-3xl p-5 sm:p-6 shadow-xl backdrop-blur-sm lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto space-y-5">
                                 {/* Filter Card Header */}
                                 <div className="flex items-center justify-between pb-4 border-b border-slate-700">
                                     <div className="flex items-center space-x-2.5">
@@ -1335,6 +1408,28 @@ export default function VehicleCatalog() {
                                             </button>
                                         </span>
                                     )}
+                                    {appliedFilters.category && (
+                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 text-[11px] font-semibold">
+                                            Body Style:{" "}
+                                            {appliedFilters.category}
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setSelectedCategory("");
+                                                    setAppliedFilters(
+                                                        (prev) => ({
+                                                            ...prev,
+                                                            category: "",
+                                                        }),
+                                                    );
+                                                }}
+                                                className="hover:text-white transition"
+                                                title="Remove body style filter"
+                                            >
+                                                ✕
+                                            </button>
+                                        </span>
+                                    )}
                                 </div>
                                 {filteredVehicles.length > 0 && (
                                     <span>
@@ -1362,8 +1457,8 @@ export default function VehicleCatalog() {
                                     </button>
                                 </div>
                             ) : (
-                                /* Vehicle Cards Grid: 3 columns on desktop */
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                /* Vehicle Cards Grid: 2 columns on iPad (md/lg), 3 columns on desktop (xl) */
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                                     {currentVehicles.map((car) => (
                                         <VehicleCard key={car.id} car={car} />
                                     ))}

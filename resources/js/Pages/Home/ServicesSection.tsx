@@ -77,52 +77,51 @@ function parseCsv(text: string): string[][] {
     return rows;
 }
 
-// 4 Condition categories for Row 2
-const CONDITION_CATEGORIES = [
+// 4 Body Type categories for Row 2
+const BODY_TYPE_CATEGORIES = [
     {
-        key: "New",
-        title: "New Cars",
-        subtitle: "Zero miles, latest models with peak factory warranties",
-        tag: "Factory Fresh",
-        countBadge: "Top Tier",
-        bgGradient: "from-sky-950/90 via-slate-900/80 to-black/90",
-        accentColor: "from-cyan-500 to-blue-600",
-        badgeBg: "bg-cyan-500/20 text-cyan-300 border-cyan-400/30",
-        image: "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=1200&q=80",
-    },
-    {
-        key: "Pre-owned",
-        title: "Pre-Owned",
-        subtitle: "Multi-point checked & verified for premium peace of mind",
-        tag: "Certified Standard",
-        countBadge: "Top Pick",
-        bgGradient: "from-emerald-950/90 via-slate-900/80 to-black/90",
-        accentColor: "from-emerald-500 to-teal-600",
-        badgeBg: "bg-emerald-500/20 text-emerald-300 border-emerald-400/30",
-        image: "https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=1200&q=80",
-    },
-    {
-        key: "Used",
-        title: "Used Cars",
-        subtitle: "Budget-friendly, high-value daily drivers road-tested daily",
-        tag: "Great Value",
-        countBadge: "Popular",
-        bgGradient: "from-amber-950/90 via-slate-900/80 to-black/90",
-        accentColor: "from-amber-500 to-orange-600",
-        badgeBg: "bg-amber-500/20 text-amber-300 border-amber-400/30",
-        image: "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=80",
-    },
-    {
-        key: "Salvage",
-        title: "Salvage",
+        key: "SUV",
+        title: "SUVs",
         subtitle:
-            "Exceptional rebuild & project opportunities at huge discounts",
-        tag: "Best Bargain",
-        countBadge: "Max Savings",
+            "Spacious comfort, versatile performance, and room for every adventure.",
+        tag: "Popular Choice",
+        countBadge: "TOP TIER",
+        bgGradient: "from-sky-950/90 via-slate-900/80 to-black/90",
+        badgeBg: "bg-cyan-500/20 text-cyan-300 border-cyan-400/30",
+        image: "/storage/images/suv.webp",
+    },
+    {
+        key: "Sedan",
+        title: "Sedans",
+        subtitle:
+            "Sleek designs, smooth rides, and smart efficiency for everyday journeys.",
+        tag: "Smart Driving",
+        countBadge: "TOP PICK",
+        bgGradient: "from-emerald-950/90 via-slate-900/80 to-black/90",
+        badgeBg: "bg-emerald-500/20 text-emerald-300 border-emerald-400/30",
+        image: "/storage/images/sedan.webp",
+    },
+    {
+        key: "Pickup Truck",
+        title: "Trucks",
+        subtitle:
+            "Impressive towing power, rugged durability, and capability built for the toughest jobs.",
+        tag: "Heavy Duty",
+        countBadge: "POWER PICK",
+        bgGradient: "from-amber-950/90 via-slate-900/80 to-black/90",
+        badgeBg: "bg-amber-500/20 text-amber-300 border-amber-400/30",
+        image: "/storage/images/truck.webp",
+    },
+    {
+        key: "Minivan/Van",
+        title: "Minivans",
+        subtitle:
+            "Spacious interiors, flexible seating, and everyday convenience for the whole family.",
+        tag: "Family Ready",
+        countBadge: "FAMILY PICK",
         bgGradient: "from-rose-950/90 via-slate-900/80 to-black/90",
-        accentColor: "from-vivid-red to-rose-700",
         badgeBg: "bg-rose-500/20 text-rose-300 border-rose-400/30",
-        image: "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=1200&q=80",
+        image: "/storage/images/minivan.webp",
     },
 ];
 
@@ -270,8 +269,8 @@ export default function ServicesSection() {
         );
     };
 
-    const handleCardClick = (conditionKey: string) => {
-        router.visit(`/buy?condition=${encodeURIComponent(conditionKey)}`);
+    const handleCardClick = (bodyTypeKey: string) => {
+        router.visit(`/buy?bodyStyle=${encodeURIComponent(bodyTypeKey)}`);
     };
 
     const [searchQuery, setSearchQuery] = useState("");
@@ -600,25 +599,25 @@ export default function ServicesSection() {
                         </>
                     )}
                 </div>
-                {/* ROW 2: 4 Condition Cards (New, Pre-owned, Used, Salvage) */}
+                {/* ROW 2: 4 Body Type Cards (SUVs, Sedans, Trucks, Minivans) */}
                 <div className="space-y-10 pt-20">
                     <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
                         <div>
                             <span className="text-xs uppercase tracking-widest font-extrabold text-vivid-red">
-                                By Vehicle Condition
+                                By Body Type
                             </span>
                             <h3 className="text-3xl lg:text-5xl font-extrabold text-white tracking-tight mt-1">
-                                Find by Vehicle Condition
+                                Browse by Body Type
                             </h3>
                         </div>
                         <p className="text-sm lg:text-base text-gray-200 mx-auto leading-relaxed max-w-md">
-                            Select a category below to instantly filter our
-                            inventory by vehicle condition.
+                            Select a body type below to instantly explore our
+                            inventory.
                         </p>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                        {CONDITION_CATEGORIES.map((card) => (
+                        {BODY_TYPE_CATEGORIES.map((card) => (
                             <div
                                 key={card.key}
                                 onClick={() => handleCardClick(card.key)}
