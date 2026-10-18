@@ -753,12 +753,18 @@ export default function VehicleCatalog() {
         };
     }, []);
 
-    // Read condition and search query from URL if present
+    // Read condition, bodyStyle/category, and search query from URL if present
     const urlParams =
         typeof window !== "undefined"
             ? new URLSearchParams(window.location.search)
             : null;
     const urlCondition = urlParams?.get("condition") || "";
+    const urlBodyStyle =
+        urlParams?.get("bodyStyle") ||
+        urlParams?.get("body_type") ||
+        urlParams?.get("body") ||
+        urlParams?.get("category") ||
+        "";
     const urlSearchQuery =
         urlParams?.get("search") || urlParams?.get("q") || "";
 
@@ -770,7 +776,8 @@ export default function VehicleCatalog() {
     const [maxPrice, setMaxPrice] = useState<string>("");
     const [fromYear, setFromYear] = useState<string>("");
     const [toYear, setToYear] = useState<string>("");
-    const [selectedCategory, setSelectedCategory] = useState<string>("");
+    const [selectedCategory, setSelectedCategory] =
+        useState<string>(urlBodyStyle);
     const [selectedCondition, setSelectedCondition] =
         useState<string>(urlCondition);
 
@@ -783,7 +790,7 @@ export default function VehicleCatalog() {
         maxPrice: "",
         fromYear: "",
         toYear: "",
-        category: "",
+        category: urlBodyStyle,
         condition: urlCondition,
     });
 
@@ -791,10 +798,19 @@ export default function VehicleCatalog() {
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const nextCondition = params.get("condition") || "";
+        const nextBodyStyle =
+            params.get("bodyStyle") ||
+            params.get("body_type") ||
+            params.get("body") ||
+            params.get("category") ||
+            "";
         const nextSearch = params.get("search") || params.get("q") || "";
 
         if (nextCondition) {
             setSelectedCondition(nextCondition);
+        }
+        if (nextBodyStyle) {
+            setSelectedCategory(nextBodyStyle);
         }
         if (nextSearch) {
             setSearchKeyword(nextSearch);
@@ -803,9 +819,10 @@ export default function VehicleCatalog() {
         setAppliedFilters((prev) => ({
             ...prev,
             condition: nextCondition,
+            category: nextBodyStyle,
             search: nextSearch,
         }));
-    }, [urlCondition, urlSearchQuery]);
+    }, [urlCondition, urlBodyStyle, urlSearchQuery]);
 
     // Unique options derived from vehicles data
     const makeOptions = Array.from(
@@ -898,11 +915,20 @@ export default function VehicleCatalog() {
         ) {
             return false;
         }
-        if (
-            appliedFilters.category &&
-            car.category.toLowerCase() !== appliedFilters.category.toLowerCase()
-        ) {
-            return false;
+        if (appliedFilters.category) {
+            const filterCat = appliedFilters.category.toLowerCase().trim();
+            const carCat = (car.category || "").toLowerCase().trim();
+            const normalizedFilter = filterCat.replace(/s$/, "");
+            const normalizedCarCat = carCat.replace(/s$/, "");
+
+            if (
+                carCat !== filterCat &&
+                !carCat.includes(filterCat) &&
+                !carCat.includes(normalizedFilter) &&
+                !normalizedCarCat.includes(normalizedFilter)
+            ) {
+                return false;
+            }
         }
         if (appliedFilters.condition) {
             const condFilter = appliedFilters.condition.toLowerCase().trim();
@@ -1330,6 +1356,28 @@ export default function VehicleCatalog() {
                                                 }}
                                                 className="hover:text-white transition"
                                                 title="Remove condition filter"
+                                            >
+                                                ✕
+                                            </button>
+                                        </span>
+                                    )}
+                                    {appliedFilters.category && (
+                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 text-[11px] font-semibold">
+                                            Body Style:{" "}
+                                            {appliedFilters.category}
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setSelectedCategory("");
+                                                    setAppliedFilters(
+                                                        (prev) => ({
+                                                            ...prev,
+                                                            category: "",
+                                                        }),
+                                                    );
+                                                }}
+                                                className="hover:text-white transition"
+                                                title="Remove body style filter"
                                             >
                                                 ✕
                                             </button>

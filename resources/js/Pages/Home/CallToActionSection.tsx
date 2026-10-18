@@ -1,6 +1,6 @@
 export default function CallToActionSection() {
     return (
-        <section id="contact" className="py-20 bg-bggray font-poppins relative">
+        <section id="contact" className="py-20 bg-white font-poppins relative">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Elevated Container Box with Gradient */}
                 <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#170a3d] via-[#232754] to-[#170a3d] text-white p-8 sm:p-12 lg:p-16 shadow-2xl border border-white/10">
