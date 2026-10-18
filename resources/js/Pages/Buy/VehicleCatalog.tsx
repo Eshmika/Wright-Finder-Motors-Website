@@ -1076,8 +1076,8 @@ export default function VehicleCatalog() {
                 {!isLoading && !error && (
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                         {/* LEFT: Filter Vehicles Sidebar (Compact Width: 3 of 12 columns) */}
-                        <div className="lg:col-span-3 xl:col-span-3">
-                            <div className="bg-slate-800/95 border border-slate-700/80 rounded-3xl p-5 sm:p-6 shadow-xl backdrop-blur-sm sticky top-28 space-y-5">
+                        <div className="lg:col-span-3 xl:col-span-3 lg:sticky lg:top-6 z-30">
+                            <div className="bg-slate-800/95 border border-slate-700/80 rounded-3xl p-5 sm:p-6 shadow-xl backdrop-blur-sm lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto space-y-5">
                                 {/* Filter Card Header */}
                                 <div className="flex items-center justify-between pb-4 border-b border-slate-700">
                                     <div className="flex items-center space-x-2.5">
@@ -1457,8 +1457,8 @@ export default function VehicleCatalog() {
                                     </button>
                                 </div>
                             ) : (
-                                /* Vehicle Cards Grid: 3 columns on desktop */
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                /* Vehicle Cards Grid: 2 columns on iPad (md/lg), 3 columns on desktop (xl) */
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                                     {currentVehicles.map((car) => (
                                         <VehicleCard key={car.id} car={car} />
                                     ))}
