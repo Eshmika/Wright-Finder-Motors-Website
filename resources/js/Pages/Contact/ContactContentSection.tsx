@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function ContactContentSection() {
     const [formData, setFormData] = useState({
@@ -9,8 +9,35 @@ export default function ContactContentSection() {
         message: "",
     });
 
+    const [inquiryVehicle, setInquiryVehicle] = useState<{
+        id: string;
+        title: string;
+    } | null>(null);
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const params = new URLSearchParams(window.location.search);
+            const carId = params.get("carId");
+            const carTitle = params.get("carTitle");
+            const subjectParam = params.get("subject");
+            const messageParam = params.get("message");
+
+            if (carId || carTitle) {
+                setInquiryVehicle({
+                    id: carId || "",
+                    title: carTitle || "Vehicle",
+                });
+            }
+
+            setFormData((prev) => ({
+                ...prev,
+                subject: subjectParam || prev.subject,
+                message: messageParam || prev.message,
+            }));
+        }
+    }, []);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -212,6 +239,48 @@ export default function ContactContentSection() {
                                     connect with you shortly.
                                 </p>
                             </div>
+
+                            {/* Creative Notice if redirected for vehicle inquiry */}
+                            {inquiryVehicle && (
+                                <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-red-50 to-orange-50 border border-red-100 flex items-start gap-3.5">
+                                    <div className="w-9 h-9 rounded-xl bg-vivid-red text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+                                        <svg
+                                            className="w-5 h-5"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                            strokeWidth={2}
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                d="M19 14l-7 7m0 0l-7-7m7 7V3"
+                                            />
+                                        </svg>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <span className="text-xs font-bold text-vivid-red uppercase tracking-wider">
+                                                Vehicle Inquiry Attached
+                                            </span>
+                                            {inquiryVehicle.id && (
+                                                <span className="text-[11px] font-mono font-semibold px-2 py-0.5 rounded bg-white text-slate-700 border border-red-100">
+                                                    Stock #{inquiryVehicle.id}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p className="text-sm font-semibold text-slate-800 truncate mt-0.5">
+                                            {inquiryVehicle.title}
+                                        </p>
+                                        <p className="text-xs text-slate-500 mt-0.5">
+                                            We've pre-filled your inquiry
+                                            message below. Simply provide your
+                                            contact details so our agent can get
+                                            back to you immediately!
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
 
                             {isSubmitted ? (
                                 <div className="text-center py-12 px-6 bg-emerald-50 rounded-2xl border border-emerald-200">

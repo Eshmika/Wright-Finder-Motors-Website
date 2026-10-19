@@ -706,10 +706,13 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                                 </div>
                                                 <div>
                                                     <p className="font-bold text-white print:text-slate-900">
-                                                        Accurate Vehicle Title Information
+                                                        Accurate Vehicle Title
+                                                        Information
                                                     </p>
                                                     <p className="text-[11px] text-slate-400 print:text-slate-500">
-                                                        Available history information provided transparently
+                                                        Available history
+                                                        information provided
+                                                        transparently
                                                     </p>
                                                 </div>
                                             </div>
@@ -750,19 +753,35 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                                 onClick={() => {
                                                     const email =
                                                         vehicle.clientEmail?.trim();
+                                                    const carIdentifier = `${vehicle.year ? `${vehicle.year} ` : ""}${vehicle.make} ${vehicle.model} (ID: ${vehicle.id})`;
+
                                                     if (!email) {
+                                                        const inquiryMsg = `Hello Wright Finder Motors,\n\nI would like more information and wish to contact an agent regarding this vehicle:\n- Vehicle: ${vehicle.title || carIdentifier}\n- Stock ID: #${vehicle.id}\n- Price: $${vehicle.price?.toLocaleString() || "N/A"}\n- Mileage: ${vehicle.mileage || "N/A"}\n\nPlease get in touch with me with further details.\n\nThank you!`;
                                                         router.visit(
-                                                            "/contact#contact-form",
+                                                            `/contact?subject=buy&carId=${encodeURIComponent(vehicle.id)}&carTitle=${encodeURIComponent(vehicle.title || carIdentifier)}&message=${encodeURIComponent(inquiryMsg)}#contact-form`,
                                                         );
                                                         return;
                                                     }
+
+                                                    const agentGreeting =
+                                                        vehicle.clientName
+                                                            ? `Hello ${vehicle.clientName},`
+                                                            : "Hello,";
                                                     const subject =
                                                         encodeURIComponent(
-                                                            `Vehicle Inquiry: ${vehicle.make} ${vehicle.model} ${vehicle.year} (ID: ${vehicle.id})`,
+                                                            `Vehicle Inquiry: ${carIdentifier}`,
                                                         );
                                                     const body =
                                                         encodeURIComponent(
-                                                            `Hello,\n\nI am interested in purchasing this vehicle:\n- Car: ${vehicle.title}\n- ID: ${vehicle.id}\n- Listed Price: $${vehicle.price.toLocaleString()}\n- Mileage: ${vehicle.mileage}\n\nPlease contact me regarding test drive availability and purchase steps.\n\nThank you!`,
+                                                            `${agentGreeting}\n\nI am interested in this vehicle listed on Wright Finder Motors:\n\n` +
+                                                                `• Vehicle: ${vehicle.title || carIdentifier}\n` +
+                                                                `• Stock ID: #${vehicle.id}\n` +
+                                                                `• Listed Price: $${vehicle.price?.toLocaleString() || "N/A"}\n` +
+                                                                `• Mileage: ${vehicle.mileage || "N/A"}\n` +
+                                                                (vehicle.vin
+                                                                    ? `• VIN: ${vehicle.vin}\n`
+                                                                    : "") +
+                                                                `\nPlease provide me with more details and advise on the next steps.\n\nThank you!`,
                                                         );
                                                     window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
                                                 }}
@@ -807,9 +826,44 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                                     <span>Call Agent</span>
                                                 </a>
 
-                                                <Link
-                                                    href="/contact#contact-form"
-                                                    className="py-3 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs transition border border-slate-700 flex items-center justify-center gap-1.5"
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const email =
+                                                            vehicle.clientEmail?.trim();
+                                                        const carIdentifier = `${vehicle.year ? `${vehicle.year} ` : ""}${vehicle.make} ${vehicle.model} (ID: ${vehicle.id})`;
+
+                                                        if (!email) {
+                                                            const visitMsg = `Hello Wright Finder Motors,\n\nI would like to schedule a visit / test drive to inspect this vehicle in person:\n- Vehicle: ${vehicle.title || carIdentifier}\n- Stock ID: #${vehicle.id}\n- Price: $${vehicle.price?.toLocaleString() || "N/A"}\n- Mileage: ${vehicle.mileage || "N/A"}\n\nPlease let me know your available visiting dates and times.\n\nThank you!`;
+                                                            router.visit(
+                                                                `/contact?subject=buy&carId=${encodeURIComponent(vehicle.id)}&carTitle=${encodeURIComponent(vehicle.title || carIdentifier)}&message=${encodeURIComponent(visitMsg)}#contact-form`,
+                                                            );
+                                                            return;
+                                                        }
+
+                                                        const agentGreeting =
+                                                            vehicle.clientName
+                                                                ? `Hello ${vehicle.clientName},`
+                                                                : "Hello,";
+                                                        const subject =
+                                                            encodeURIComponent(
+                                                                `Schedule a Visit: ${carIdentifier}`,
+                                                            );
+                                                        const body =
+                                                            encodeURIComponent(
+                                                                `${agentGreeting}\n\nI would like to schedule an in-person visit / test drive for this vehicle:\n\n` +
+                                                                    `• Vehicle: ${vehicle.title || carIdentifier}\n` +
+                                                                    `• Stock ID: #${vehicle.id}\n` +
+                                                                    `• Listed Price: $${vehicle.price?.toLocaleString() || "N/A"}\n` +
+                                                                    `• Mileage: ${vehicle.mileage || "N/A"}\n` +
+                                                                    (vehicle.vin
+                                                                        ? `• VIN: ${vehicle.vin}\n`
+                                                                        : "") +
+                                                                    `\nPlease let me know what dates and times are available for a visit and test drive.\n\nThank you!`,
+                                                            );
+                                                        window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
+                                                    }}
+                                                    className="py-3 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs transition border border-slate-700 flex items-center justify-center gap-1.5 active:scale-95"
                                                 >
                                                     <svg
                                                         className="w-3.5 h-3.5 text-vivid-red"
@@ -825,18 +879,18 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                                         />
                                                     </svg>
                                                     <span>Schedule Visit</span>
-                                                </Link>
+                                                </button>
                                             </div>
                                         </div>
 
                                         {/* Direct Contact Agent Information Snippet */}
-                                        <div className="pt-4 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+                                        {/* <div className="pt-4 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
                                             <span>Assigned Agent:</span>
                                             <span className="font-semibold text-slate-200">
                                                 {vehicle.clientName ||
                                                     "Wright Finder Motors"}
                                             </span>
-                                        </div>
+                                        </div> */}
                                     </div>
                                 </div>
                             </div>
@@ -1056,7 +1110,7 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                             </div>
 
                             {/* 4. Client Information Card */}
-                            <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6 print:bg-white print:border-slate-300 print:text-slate-900 print:shadow-none print:p-4 print:break-inside-avoid">
+                            {/* <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6 print:bg-white print:border-slate-300 print:text-slate-900 print:shadow-none print:p-4 print:break-inside-avoid">
                                 <div className="flex items-center space-x-3 pb-4 border-b border-slate-800 print:border-slate-200">
                                     <div className="w-10 h-10 rounded-xl bg-vivid-red/10 border border-vivid-red/20 text-vivid-red flex items-center justify-center print:bg-red-50">
                                         <svg
@@ -1104,7 +1158,7 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                         value={vehicle.purchaseDate}
                                     />
                                 </div>
-                            </div>
+                            </div> */}
                         </div>
                     )}
                 </div>
