@@ -176,7 +176,7 @@
                                 Wright Finder Motors Dealership Notification System
                             </p>
                             <p style="margin: 0; color: #94a3b8; font-size: 11px;">
-                                Dayton, OH &bull; Phone: +1 937-838-8616 &bull; Email: wrightfindermotors@gmail.com
+                                Dayton, OH &bull; Phone: +1 937-838-8616 &bull; Email: contact@wrightfindermotors.com
                             </p>
                         </td>
                     </tr>

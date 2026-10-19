@@ -148,7 +148,7 @@
                                                     </a>
                                                 </td>
                                                 <td>
-                                                    <a href="mailto:wrightfindermotors@gmail.com" style="display: inline-block; background-color: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25); color: #ffffff; font-size: 13px; font-weight: 600; padding: 9px 18px; border-radius: 9999px; text-decoration: none;">
+                                                    <a href="mailto:contact@wrightfindermotors.com" style="display: inline-block; background-color: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25); color: #ffffff; font-size: 13px; font-weight: 600; padding: 9px 18px; border-radius: 9999px; text-decoration: none;">
                                                         ✉️ Email Us
                                                     </a>
                                                 </td>

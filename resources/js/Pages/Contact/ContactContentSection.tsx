@@ -248,10 +248,10 @@ export default function ContactContentSection() {
                                         Email Support
                                     </h4>
                                     <a
-                                        href="mailto:wrightfindermotors@gmail.com"
+                                        href="mailto:contact@wrightfindermotors.com"
                                         className="text-sm font-semibold text-gray-700 hover:text-vivid-red transition block mt-1 break-all"
                                     >
-                                        wrightfindermotors@gmail.com
+                                        contact@wrightfindermotors.com
                                     </a>
                                     <p className="text-xs text-gray-400 mt-1">
                                         We typically reply within a couple of
