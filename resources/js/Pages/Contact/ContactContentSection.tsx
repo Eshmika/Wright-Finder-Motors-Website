@@ -1,5 +1,35 @@
 import { useState, useEffect } from "react";
 
+const formatPhoneNumber = (value: string): string => {
+    // Keep only numbers and a single leading '+'
+    const hasLeadingPlus = value.trim().startsWith("+");
+    const digits = value.replace(/\D/g, "");
+
+    if (!digits) {
+        return hasLeadingPlus ? "+" : "";
+    }
+
+    // Format standard 10-digit US phone numbers: (XXX) XXX-XXXX
+    // Or 11-digit with leading 1: +1 (XXX) XXX-XXXX
+    if (digits.length === 11 && digits.startsWith("1")) {
+        const d = digits.slice(1);
+        return `+1 (${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6, 10)}`;
+    } else if (digits.length <= 10) {
+        if (digits.length <= 3) {
+            return `(${digits}`;
+        }
+        if (digits.length <= 6) {
+            return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+        }
+        return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+    }
+
+    // For international numbers or longer numbers, allow up to 15 digits formatted cleanly
+    const prefix = hasLeadingPlus ? "+" : "";
+    const limited = digits.slice(0, 15);
+    return `${prefix}${limited.replace(/(\d{3})(?=\d)/g, "$1 ").trim()}`;
+};
+
 export default function ContactContentSection() {
     const [formData, setFormData] = useState({
         name: "",
@@ -16,6 +46,14 @@ export default function ContactContentSection() {
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+    const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const formatted = formatPhoneNumber(e.target.value);
+        setFormData((prev) => ({
+            ...prev,
+            phone: formatted,
+        }));
+    };
 
     useEffect(() => {
         if (typeof window !== "undefined") {
@@ -403,14 +441,12 @@ export default function ContactContentSection() {
                                             </label>
                                             <input
                                                 type="tel"
-                                                placeholder="e.g. +1 (937) 000-0000"
+                                                inputMode="tel"
+                                                autoComplete="tel"
+                                                placeholder="(937) 000-0000 or +1 (937) 000-0000"
                                                 value={formData.phone}
-                                                onChange={(e) =>
-                                                    setFormData({
-                                                        ...formData,
-                                                        phone: e.target.value,
-                                                    })
-                                                }
+                                                onChange={handlePhoneChange}
+                                                maxLength={20}
                                                 className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50/50 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-vivid-red/20 focus:border-vivid-red focus:bg-white transition"
                                             />
                                         </div>
