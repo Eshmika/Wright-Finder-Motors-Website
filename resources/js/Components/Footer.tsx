@@ -218,10 +218,10 @@ export default function Footer() {
                                         </svg>
                                     </span>
                                     <a
-                                        href="mailto:wrightfindermotors@gmail.com"
+                                        href="mailto:contact@wrightfindermotors.com"
                                         className="pt-1 hover:text-vivid-red transition text-gray-300 break-all"
                                     >
-                                        wrightfindermotors@gmail.com
+                                        contact@wrightfindermotors.com
                                     </a>
                                 </li>
 

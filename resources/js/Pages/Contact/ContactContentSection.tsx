@@ -1,5 +1,35 @@
 import { useState, useEffect } from "react";
 
+const formatPhoneNumber = (value: string): string => {
+    // Keep only numbers and a single leading '+'
+    const hasLeadingPlus = value.trim().startsWith("+");
+    const digits = value.replace(/\D/g, "");
+
+    if (!digits) {
+        return hasLeadingPlus ? "+" : "";
+    }
+
+    // Format standard 10-digit US phone numbers: (XXX) XXX-XXXX
+    // Or 11-digit with leading 1: +1 (XXX) XXX-XXXX
+    if (digits.length === 11 && digits.startsWith("1")) {
+        const d = digits.slice(1);
+        return `+1 (${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6, 10)}`;
+    } else if (digits.length <= 10) {
+        if (digits.length <= 3) {
+            return `(${digits}`;
+        }
+        if (digits.length <= 6) {
+            return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+        }
+        return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+    }
+
+    // For international numbers or longer numbers, allow up to 15 digits formatted cleanly
+    const prefix = hasLeadingPlus ? "+" : "";
+    const limited = digits.slice(0, 15);
+    return `${prefix}${limited.replace(/(\d{3})(?=\d)/g, "$1 ").trim()}`;
+};
+
 export default function ContactContentSection() {
     const [formData, setFormData] = useState({
         name: "",
@@ -15,6 +45,15 @@ export default function ContactContentSection() {
     } | null>(null);
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+    const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const formatted = formatPhoneNumber(e.target.value);
+        setFormData((prev) => ({
+            ...prev,
+            phone: formatted,
+        }));
+    };
 
     useEffect(() => {
         if (typeof window !== "undefined") {
@@ -39,13 +78,20 @@ export default function ContactContentSection() {
         }
     }, []);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
+        setErrorMessage(null);
 
-        // Simulate successful submission
-        setTimeout(() => {
-            setIsSubmitting(false);
+        try {
+            const payload = {
+                ...formData,
+                car_id: inquiryVehicle?.id || null,
+                car_title: inquiryVehicle?.title || null,
+            };
+
+            await window.axios.post("/contact", payload);
+
             setIsSubmitted(true);
             setFormData({
                 name: "",
@@ -54,7 +100,18 @@ export default function ContactContentSection() {
                 subject: "general",
                 message: "",
             });
-        }, 800);
+        } catch (error: any) {
+            console.error("Failed to send contact inquiry:", error);
+            if (error.response?.data?.message) {
+                setErrorMessage(error.response.data.message);
+            } else {
+                setErrorMessage(
+                    "We were unable to send your message right now. Please try again or reach us directly by phone or email.",
+                );
+            }
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -191,10 +248,10 @@ export default function ContactContentSection() {
                                         Email Support
                                     </h4>
                                     <a
-                                        href="mailto:wrightfindermotors@gmail.com"
+                                        href="mailto:contact@wrightfindermotors.com"
                                         className="text-sm font-semibold text-gray-700 hover:text-vivid-red transition block mt-1 break-all"
                                     >
-                                        wrightfindermotors@gmail.com
+                                        contact@wrightfindermotors.com
                                     </a>
                                     <p className="text-xs text-gray-400 mt-1">
                                         We typically reply within a couple of
@@ -292,8 +349,10 @@ export default function ContactContentSection() {
                                     </h4>
                                     <p className="text-sm text-emerald-700 mt-2 max-w-md mx-auto">
                                         Thank you for reaching out. We have
-                                        received your message and will respond
-                                        to you as soon as possible.
+                                        received your message and a confirmation
+                                        has been dispatched to your email
+                                        address. Our automotive consultants will
+                                        connect with you shortly!
                                     </p>
                                     <button
                                         type="button"
@@ -308,6 +367,24 @@ export default function ContactContentSection() {
                                     onSubmit={handleSubmit}
                                     className="space-y-5"
                                 >
+                                    {errorMessage && (
+                                        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm font-medium flex items-center gap-2">
+                                            <svg
+                                                className="w-5 h-5 text-red-500 shrink-0"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                                />
+                                            </svg>
+                                            <span>{errorMessage}</span>
+                                        </div>
+                                    )}
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                                         {/* Full Name */}
                                         <div>
@@ -364,14 +441,12 @@ export default function ContactContentSection() {
                                             </label>
                                             <input
                                                 type="tel"
-                                                placeholder="e.g. +1 (937) 000-0000"
+                                                inputMode="tel"
+                                                autoComplete="tel"
+                                                placeholder="(937) 000-0000 or +1 (937) 000-0000"
                                                 value={formData.phone}
-                                                onChange={(e) =>
-                                                    setFormData({
-                                                        ...formData,
-                                                        phone: e.target.value,
-                                                    })
-                                                }
+                                                onChange={handlePhoneChange}
+                                                maxLength={20}
                                                 className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50/50 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-vivid-red/20 focus:border-vivid-red focus:bg-white transition"
                                             />
                                         </div>
