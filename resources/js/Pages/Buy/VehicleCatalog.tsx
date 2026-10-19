@@ -512,8 +512,11 @@ function VehicleCard({ car }: { car: Vehicle }) {
                                 const email = car.clientEmail?.trim();
 
                                 if (!email) {
-                                    // Redirect to Contact Us page when Client Email is empty
-                                    router.visit("/contact#contact-form");
+                                    // Redirect to Contact Us page with prefilled car details and message
+                                    const inquiryMsg = `Hello Wright Finder Motors,\n\nI would like more information and wish to contact an agent regarding this vehicle:\n- Vehicle: ${car.title}\n- Stock ID: #${car.id}\n- Price: $${car.price?.toLocaleString() || "N/A"}\n- Mileage: ${car.mileage ? car.mileage + " km" : "N/A"}\n- Transmission: ${car.transmission || "N/A"}\n- Fuel Type: ${car.fuel || "N/A"}\n\nPlease get in touch with me with further details.\n\nThank you!`;
+                                    router.visit(
+                                        `/contact?subject=buy&carId=${encodeURIComponent(car.id)}&carTitle=${encodeURIComponent(car.title)}&message=${encodeURIComponent(inquiryMsg)}#contact-form`,
+                                    );
                                     return;
                                 }
 
