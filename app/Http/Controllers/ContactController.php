@@ -25,7 +25,7 @@ class ContactController extends Controller
             'car_title' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $adminEmail = env('MAIL_ADMIN_ADDRESS', 'wrightfindermotors@gmail.com');
+        $adminEmail = config('mail.from.address') ?: env('MAIL_FROM_ADDRESS', 'wrightfindermotors@gmail.com');
 
         try {
             // 1. Send notification email to Administrator
