@@ -706,10 +706,13 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                                 </div>
                                                 <div>
                                                     <p className="font-bold text-white print:text-slate-900">
-                                                        Accurate Vehicle Title Information
+                                                        Accurate Vehicle Title
+                                                        Information
                                                     </p>
                                                     <p className="text-[11px] text-slate-400 print:text-slate-500">
-                                                        Available history information provided transparently
+                                                        Available history
+                                                        information provided
+                                                        transparently
                                                     </p>
                                                 </div>
                                             </div>
@@ -830,13 +833,13 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                         </div>
 
                                         {/* Direct Contact Agent Information Snippet */}
-                                        <div className="pt-4 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+                                        {/* <div className="pt-4 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
                                             <span>Assigned Agent:</span>
                                             <span className="font-semibold text-slate-200">
                                                 {vehicle.clientName ||
                                                     "Wright Finder Motors"}
                                             </span>
-                                        </div>
+                                        </div> */}
                                     </div>
                                 </div>
                             </div>
@@ -1056,7 +1059,7 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                             </div>
 
                             {/* 4. Client Information Card */}
-                            <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6 print:bg-white print:border-slate-300 print:text-slate-900 print:shadow-none print:p-4 print:break-inside-avoid">
+                            {/* <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6 print:bg-white print:border-slate-300 print:text-slate-900 print:shadow-none print:p-4 print:break-inside-avoid">
                                 <div className="flex items-center space-x-3 pb-4 border-b border-slate-800 print:border-slate-200">
                                     <div className="w-10 h-10 rounded-xl bg-vivid-red/10 border border-vivid-red/20 text-vivid-red flex items-center justify-center print:bg-red-50">
                                         <svg
@@ -1104,7 +1107,7 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                         value={vehicle.purchaseDate}
                                     />
                                 </div>
-                            </div>
+                            </div> */}
                         </div>
                     )}
                 </div>
