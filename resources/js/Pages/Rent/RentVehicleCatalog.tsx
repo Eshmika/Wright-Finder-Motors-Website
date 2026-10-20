@@ -17,6 +17,7 @@ export interface Vehicle {
     mileage: string;
     transmission: string;
     condition: string;
+    engineTypeSize?: string;
     vehicleCondition?: string;
     badge: string;
     availabilities?: string;
@@ -148,7 +149,7 @@ function VehicleCard({ car }: { car: Vehicle }) {
                                     type="button"
                                     onClick={prevImage}
                                     aria-label="Previous vehicle photo"
-                                    className="absolute left-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 hover:bg-vivid-red text-white flex items-center justify-center transition-all duration-200 backdrop-blur-sm opacity-80 group-hover:opacity-100 shadow-md hover:scale-110 active:scale-95"
+                                    className="absolute left-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 hover:bg-vivid-red text-bggray flex items-center justify-center transition-all duration-200 backdrop-blur-sm opacity-80 group-hover:opacity-100 shadow-md hover:scale-110 active:scale-95"
                                 >
                                     <svg
                                         className="w-4 h-4"
@@ -168,7 +169,7 @@ function VehicleCard({ car }: { car: Vehicle }) {
                                     type="button"
                                     onClick={nextImage}
                                     aria-label="Next vehicle photo"
-                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 hover:bg-vivid-red text-white flex items-center justify-center transition-all duration-200 backdrop-blur-sm opacity-80 group-hover:opacity-100 shadow-md hover:scale-110 active:scale-95"
+                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 hover:bg-vivid-red text-bggray flex items-center justify-center transition-all duration-200 backdrop-blur-sm opacity-80 group-hover:opacity-100 shadow-md hover:scale-110 active:scale-95"
                                 >
                                     <svg
                                         className="w-4 h-4"
@@ -234,69 +235,6 @@ function VehicleCard({ car }: { car: Vehicle }) {
                         </span>
                     </div>
                 )}
-
-                {/* Discount Badge on the Left Side Corner */}
-                {hasDiscount && (
-                    <div className="absolute top-3.5 left-3.5 z-20 backdrop-blur-md px-2.5 py-1 rounded-full bg-red-500/90 border border-red-400 text-white text-[11px] font-extrabold tracking-wide flex items-center gap-1.5 shadow-lg">
-                        <span>Save ${discountAmount.toLocaleString()}</span>
-                        <span className="bg-white text-vivid-red text-[9px] font-black px-1 rounded-full">
-                            -{discountPercentage}%
-                        </span>
-                    </div>
-                )}
-
-                {/* Availabilities Tag with Custom Colors (Top Right Corner) */}
-                {(car.availabilities || car.badge) &&
-                    (() => {
-                        const statusText = (
-                            car.availabilities || car.badge
-                        ).trim();
-                        const statusLower = statusText.toLowerCase();
-
-                        // Colors requested:
-                        // Sold: #22c55e (vibrant emerald green)
-                        // Available: #facc15 (luminous warm gold/yellow)
-                        // Pending: #9ca3af (sleek refined neutral slate/gray)
-                        const isSold = statusLower === "sold";
-                        const isAvailable = statusLower === "available";
-                        const isPending = statusLower === "pending";
-
-                        const badgeConfig = isSold
-                            ? {
-                                  bg: "bg-[#22c55e]",
-                                  border: "border-[#22c55e]",
-                                  text: "text-[#ffffff]",
-                                  label: statusText,
-                              }
-                            : isAvailable
-                              ? {
-                                    bg: "bg-[#facc15]",
-                                    border: "border-[#facc15]",
-                                    text: "text-[#ffffff]",
-                                    label: statusText,
-                                }
-                              : isPending
-                                ? {
-                                      bg: "bg-[#9ca3af]",
-                                      border: "border-[#9ca3af]",
-                                      text: "text-[#ffffff]",
-                                      label: statusText,
-                                  }
-                                : {
-                                      bg: "bg-black",
-                                      border: "border-black",
-                                      text: "text-[#ffffff]",
-                                      label: statusText,
-                                  };
-
-                        return (
-                            <div
-                                className={`absolute top-3.5 right-3.5 z-20 backdrop-blur-md px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider flex items-center gap-1.5 shadow-lg border transition-all duration-300 ${badgeConfig.bg} ${badgeConfig.border} ${badgeConfig.text}`}
-                            >
-                                <span>{badgeConfig.label}</span>
-                            </div>
-                        );
-                    })()}
             </div>
 
             {/* Card Content */}
@@ -309,7 +247,7 @@ function VehicleCard({ car }: { car: Vehicle }) {
 
                     {/* 3 Columns & 2 Rows Specs Grid with SVG Icons */}
                     <div className="grid grid-cols-3 gap-2.5 text-xs mt-4 pt-4 pb-4 border-y border-gray-100">
-                        {/* 1. Fuel Type */}
+                        {/* 1. Fuel */}
                         <div className="flex flex-col bg-gray-50/90 rounded-xl p-2.5 hover:bg-red-50/50 transition-colors">
                             <div className="flex items-center space-x-1.5 text-vivid-red mb-1">
                                 <svg
@@ -337,7 +275,7 @@ function VehicleCard({ car }: { car: Vehicle }) {
                             </span>
                         </div>
 
-                        {/* 2. Power Options */}
+                        {/* 2. Body Style */}
                         <div className="flex flex-col bg-gray-50/90 rounded-xl p-2.5 hover:bg-red-50/50 transition-colors">
                             <div className="flex items-center space-x-1.5 text-vivid-red mb-1">
                                 <svg
@@ -350,22 +288,51 @@ function VehicleCard({ car }: { car: Vehicle }) {
                                     <path
                                         strokeLinecap="round"
                                         strokeLinejoin="round"
-                                        d="M13 10V3L4 14h7v7l9-11h-7z"
+                                        d="M5 16l1-5h12l1 5M5 16h14m-14 0a2 2 0 104 0m10 0a2 2 0 104 0M6 11l2-4h8l2 4"
                                     />
                                 </svg>
                                 <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
-                                    Power
+                                    Body Style
                                 </span>
                             </div>
                             <span
                                 className="font-semibold text-gray-800 text-[11px] truncate"
-                                title={car.powerOptions || "Standard"}
+                                title={car.category || "N/A"}
                             >
-                                {car.powerOptions || "Standard"}
+                                {car.category || "N/A"}
                             </span>
                         </div>
 
-                        {/* 3. Driveline */}
+                        {/* 3. Transmission */}
+                        <div className="flex flex-col bg-gray-50/90 rounded-xl p-2.5 hover:bg-red-50/50 transition-colors">
+                            <div className="flex items-center space-x-1.5 text-vivid-red mb-1">
+                                <svg
+                                    className="w-3.5 h-3.5 shrink-0"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    strokeWidth={2}
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                                    />
+                                    <circle cx="12" cy="12" r="3" />
+                                </svg>
+                                <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
+                                    Transmission
+                                </span>
+                            </div>
+                            <span
+                                className="font-semibold text-gray-800 text-[11px] truncate"
+                                title={car.transmission || "Automatic"}
+                            >
+                                {car.transmission || "Automatic"}
+                            </span>
+                        </div>
+
+                        {/* 4. Driveline */}
                         <div className="flex flex-col bg-gray-50/90 rounded-xl p-2.5 hover:bg-red-50/50 transition-colors">
                             <div className="flex items-center space-x-1.5 text-vivid-red mb-1">
                                 <svg
@@ -395,7 +362,7 @@ function VehicleCard({ car }: { car: Vehicle }) {
                             </span>
                         </div>
 
-                        {/* 4. Mileage */}
+                        {/* 5. Engine Type/Size */}
                         <div className="flex flex-col bg-gray-50/90 rounded-xl p-2.5 hover:bg-red-50/50 transition-colors">
                             <div className="flex items-center space-x-1.5 text-vivid-red mb-1">
                                 <svg
@@ -408,24 +375,22 @@ function VehicleCard({ car }: { car: Vehicle }) {
                                     <path
                                         strokeLinecap="round"
                                         strokeLinejoin="round"
-                                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                                        d="M4 7h16M4 7v10a2 2 0 002 2h12a2 2 0 002-2V7M9 3v4m6-4v4m-7 8h8"
                                     />
                                 </svg>
-                                <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
-                                    Mileage
+                                <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider truncate">
+                                    Engine
                                 </span>
                             </div>
                             <span
                                 className="font-semibold text-gray-800 text-[11px] truncate"
-                                title={
-                                    car.mileage ? `${car.mileage} km` : "N/A"
-                                }
+                                title={car.engineTypeSize || "Standard"}
                             >
-                                {car.mileage ? `${car.mileage} km` : "N/A"}
+                                {car.engineTypeSize || "Standard"}
                             </span>
                         </div>
 
-                        {/* 5. Transmission */}
+                        {/* 6. Power Options */}
                         <div className="flex flex-col bg-gray-50/90 rounded-xl p-2.5 hover:bg-red-50/50 transition-colors">
                             <div className="flex items-center space-x-1.5 text-vivid-red mb-1">
                                 <svg
@@ -438,47 +403,18 @@ function VehicleCard({ car }: { car: Vehicle }) {
                                     <path
                                         strokeLinecap="round"
                                         strokeLinejoin="round"
-                                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                                        d="M13 10V3L4 14h7v7l9-11h-7z"
                                     />
-                                    <circle cx="12" cy="12" r="3" />
                                 </svg>
                                 <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
-                                    Gearbox
+                                    Power
                                 </span>
                             </div>
                             <span
                                 className="font-semibold text-gray-800 text-[11px] truncate"
-                                title={car.transmission || "Automatic"}
+                                title={car.powerOptions || "Standard"}
                             >
-                                {car.transmission || "Automatic"}
-                            </span>
-                        </div>
-
-                        {/* 6. Condition (Title from Sheet) */}
-                        <div className="flex flex-col bg-gray-50/90 rounded-xl p-2.5 hover:bg-red-50/50 transition-colors">
-                            <div className="flex items-center space-x-1.5 text-vivid-red mb-1">
-                                <svg
-                                    className="w-3.5 h-3.5 shrink-0"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                    strokeWidth={2}
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-                                    />
-                                </svg>
-                                <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
-                                    Title
-                                </span>
-                            </div>
-                            <span
-                                className="font-semibold text-gray-800 text-[11px] truncate"
-                                title={car.condition || "Clean"}
-                            >
-                                {car.condition || "Clean"}
+                                {car.powerOptions || "Standard"}
                             </span>
                         </div>
                     </div>
@@ -661,6 +597,7 @@ export default function RentVehicleCatalog() {
                 const subImagesIdx = getIndex("Sub Image URLs");
                 const clientEmailIdx = getIndex("Client Email");
                 const rentOrSellIdx = getIndex("Rent or Sell");
+                const engineTypeSizeIdx = getIndex("Engine Type/Size");
 
                 const loadedVehicles: Vehicle[] = [];
 
@@ -743,6 +680,10 @@ export default function RentVehicleCatalog() {
                         clientEmailIdx !== -1
                             ? row[clientEmailIdx]?.trim() || ""
                             : "";
+                    const engineTypeSize =
+                        engineTypeSizeIdx !== -1
+                            ? row[engineTypeSizeIdx]?.trim() || ""
+                            : "";
 
                     const rentOrSell =
                         rentOrSellIdx !== -1
@@ -792,6 +733,7 @@ export default function RentVehicleCatalog() {
                         mileage,
                         transmission,
                         condition,
+                        engineTypeSize,
                         vehicleCondition,
                         badge,
                         availabilities: badge,
@@ -1057,14 +999,17 @@ export default function RentVehicleCatalog() {
     );
 
     return (
-        <section id="catalog" className="py-20 bg-bggray font-poppins relative">
+        <section
+            id="catalog"
+            className="py-20 bg-gray-200 font-poppins relative"
+        >
             <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Centered Header Section */}
                 <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
-                    <h2 className="text-3xl lg:text-5xl font-extrabold text-white tracking-tight">
+                    <h2 className="text-3xl lg:text-5xl font-extrabold text-bggray tracking-tight">
                         Explore Vehicles For Rent
                     </h2>
-                    <p className="text-sm lg:text-base text-gray-200 max-w-2xl mx-auto leading-relaxed">
+                    <p className="text-sm lg:text-base text-bggray max-w-2xl mx-auto leading-relaxed">
                         Handpicked quality rental vehicles available for short
                         or long-term hire. Comprehensive specifications,
                         certified multi-point inspections, and transparent
@@ -1076,7 +1021,7 @@ export default function RentVehicleCatalog() {
                 {isLoading && (
                     <div className="py-24 flex flex-col items-center justify-center space-y-4">
                         <div className="w-12 h-12 border-4 border-vivid-red border-t-transparent rounded-full animate-spin" />
-                        <p className="text-white text-sm font-medium">
+                        <p className="text-bggray text-sm font-medium">
                             Fetching vehicles from Google Sheet...
                         </p>
                     </div>
@@ -1382,11 +1327,11 @@ export default function RentVehicleCatalog() {
                         {/* RIGHT: Vehicle Grid & Pagination (9 of 12 columns, 3 cards per row on desktop) */}
                         <div className="lg:col-span-9 xl:col-span-9 space-y-8">
                             {/* Filter Summary & Total Count */}
-                            <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-300 pb-2 border-b border-slate-700/60">
+                            <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-bggray pb-2 border-b border-slate-700/60">
                                 <div className="flex items-center gap-2 flex-wrap">
                                     <span>
                                         Found{" "}
-                                        <strong className="text-white text-sm">
+                                        <strong className="text-bggray text-sm">
                                             {filteredVehicles.length}
                                         </strong>{" "}
                                         vehicles matching your criteria
@@ -1405,7 +1350,7 @@ export default function RentVehicleCatalog() {
                                                         }),
                                                     );
                                                 }}
-                                                className="hover:text-white transition"
+                                                className="hover:text-bggray transition"
                                                 title="Remove search filter"
                                             >
                                                 ✕
@@ -1427,7 +1372,7 @@ export default function RentVehicleCatalog() {
                                                         }),
                                                     );
                                                 }}
-                                                className="hover:text-white transition"
+                                                className="hover:text-bggray transition"
                                                 title="Remove condition filter"
                                             >
                                                 ✕
@@ -1435,7 +1380,7 @@ export default function RentVehicleCatalog() {
                                         </span>
                                     )}
                                     {appliedFilters.category && (
-                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 text-[11px] font-semibold">
+                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-bggray border border-cyan-400/30 text-[11px] font-semibold">
                                             Body Style:{" "}
                                             {appliedFilters.category}
                                             <button
@@ -1449,7 +1394,7 @@ export default function RentVehicleCatalog() {
                                                         }),
                                                     );
                                                 }}
-                                                className="hover:text-white transition"
+                                                className="hover:text-bggray transition"
                                                 title="Remove body style filter"
                                             >
                                                 ✕
@@ -1494,20 +1439,20 @@ export default function RentVehicleCatalog() {
                             {/* Pagination Controls */}
                             {totalPages > 1 && (
                                 <div className="mt-12 flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-slate-700 text-white">
-                                    <p className="text-xs text-slate-300">
+                                    <p className="text-xs text-bggray">
                                         Showing{" "}
-                                        <span className="font-bold text-white">
+                                        <span className="font-bold text-bggray">
                                             {startIndex + 1}
                                         </span>{" "}
                                         to{" "}
-                                        <span className="font-bold text-white">
+                                        <span className="font-bold text-bggray">
                                             {Math.min(
                                                 startIndex + CARDS_PER_PAGE,
                                                 filteredVehicles.length,
                                             )}
                                         </span>{" "}
                                         of{" "}
-                                        <span className="font-bold text-white">
+                                        <span className="font-bold text-bggray">
                                             {filteredVehicles.length}
                                         </span>{" "}
                                         vehicles
