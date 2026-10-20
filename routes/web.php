@@ -21,6 +21,13 @@ Route::get('/buy', function () {
     ]);
 })->name('buy');
 
+Route::get('/rent', function () {
+    return Inertia::render('Rent', [
+        'canLogin' => Route::has('login'),
+        'canRegister' => Route::has('register'),
+    ]);
+})->name('rent');
+
 Route::get('/vehicles/{id}', function ($id) {
     return Inertia::render('VehicleDetail', [
         'id' => $id,

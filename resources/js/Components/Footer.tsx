@@ -94,12 +94,12 @@ export default function Footer() {
                                     </Link>
                                 </li>
                                 <li>
-                                    <a
-                                        href="#rent"
+                                    <Link
+                                        href="/rent"
                                         className="hover:text-vivid-red transition"
                                     >
                                         Rent
-                                    </a>
+                                    </Link>
                                 </li>
                                 <li>
                                     <a

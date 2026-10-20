@@ -8,6 +8,7 @@ export interface Vehicle {
     model: string;
     year: number;
     category: string;
+    rentOrSell?: string;
     price: number;
     originalPrice: number;
     fuel: string;
@@ -21,6 +22,10 @@ export interface Vehicle {
     availabilities?: string;
     images: string[];
     clientEmail?: string;
+}
+
+interface VehicleCatalogProps {
+    mode?: "buy" | "rent";
 }
 
 const CARDS_PER_PAGE = 9;
@@ -513,9 +518,14 @@ function VehicleCard({ car }: { car: Vehicle }) {
 
                                 if (!email) {
                                     // Redirect to Contact Us page with prefilled car details and message
+                                    const subjectParam =
+                                        (car.rentOrSell || "").toLowerCase() ===
+                                        "rent"
+                                            ? "rent"
+                                            : "buy";
                                     const inquiryMsg = `Hello Wright Finder Motors,\n\nI would like more information and wish to contact an agent regarding this vehicle:\n- Vehicle: ${car.title}\n- Stock ID: #${car.id}\n- Price: $${car.price?.toLocaleString() || "N/A"}\n- Mileage: ${car.mileage ? car.mileage + " km" : "N/A"}\n- Transmission: ${car.transmission || "N/A"}\n- Fuel Type: ${car.fuel || "N/A"}\n\nPlease get in touch with me with further details.\n\nThank you!`;
                                     router.visit(
-                                        `/contact?subject=buy&carId=${encodeURIComponent(car.id)}&carTitle=${encodeURIComponent(car.title)}&message=${encodeURIComponent(inquiryMsg)}#contact-form`,
+                                        `/contact?subject=${subjectParam}&carId=${encodeURIComponent(car.id)}&carTitle=${encodeURIComponent(car.title)}&message=${encodeURIComponent(inquiryMsg)}#contact-form`,
                                     );
                                     return;
                                 }
@@ -590,7 +600,9 @@ function VehicleCard({ car }: { car: Vehicle }) {
     );
 }
 
-export default function VehicleCatalog() {
+export default function VehicleCatalog({
+    mode = "buy",
+}: VehicleCatalogProps = {}) {
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -654,6 +666,7 @@ export default function VehicleCatalog() {
                 const mainImageIdx = getIndex("Main Image URLs");
                 const subImagesIdx = getIndex("Sub Image URLs");
                 const clientEmailIdx = getIndex("Client Email");
+                const rentOrSellIdx = getIndex("Rent or Sell");
 
                 const loadedVehicles: Vehicle[] = [];
 
@@ -737,6 +750,30 @@ export default function VehicleCatalog() {
                             ? row[clientEmailIdx]?.trim() || ""
                             : "";
 
+                    const rentOrSell =
+                        rentOrSellIdx !== -1
+                            ? row[rentOrSellIdx]?.trim() || ""
+                            : "";
+
+                    // Filter based on catalog mode:
+                    // buy mode: only show "Sell" and "Both" (default to Sell if column is empty)
+                    // rent mode: only show "Rent"
+                    const normalizedRentOrSell = rentOrSell.toLowerCase();
+                    if (mode === "rent") {
+                        if (normalizedRentOrSell !== "rent") {
+                            continue;
+                        }
+                    } else {
+                        // mode === "buy"
+                        if (
+                            normalizedRentOrSell &&
+                            normalizedRentOrSell !== "sell" &&
+                            normalizedRentOrSell !== "both"
+                        ) {
+                            continue;
+                        }
+                    }
+
                     // Images: Main Image URLs + Sub Image URLs (comma-separated)
                     const rawMainImage =
                         mainImageIdx !== -1 ? row[mainImageIdx] || "" : "";
@@ -774,6 +811,7 @@ export default function VehicleCatalog() {
                         vehicleCondition,
                         badge,
                         availabilities: badge,
+                        rentOrSell,
                         images: formattedImages,
                         clientEmail,
                     });
@@ -801,7 +839,7 @@ export default function VehicleCatalog() {
         return () => {
             isMounted = false;
         };
-    }, []);
+    }, [mode]);
 
     // Read condition, bodyStyle/category, and search query from URL if present
     const urlParams =
@@ -1040,12 +1078,14 @@ export default function VehicleCatalog() {
                 {/* Centered Header Section */}
                 <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
                     <h2 className="text-3xl lg:text-5xl font-extrabold text-white tracking-tight">
-                        Explore Vehicles For Sale
+                        {mode === "rent"
+                            ? "Explore Vehicles For Rent"
+                            : "Explore Vehicles For Sale"}
                     </h2>
                     <p className="text-sm lg:text-base text-gray-200 max-w-2xl mx-auto leading-relaxed">
-                        Handpicked quality vehicles ready for immediate driving
-                        or booking. Comprehensive specifications, certified
-                        multi-point inspections, and transparent market pricing.
+                        {mode === "rent"
+                            ? "Handpicked quality rental vehicles available for short or long-term hire. Certified multi-point inspections and transparent pricing."
+                            : "Handpicked quality vehicles ready for immediate driving or booking. Comprehensive specifications, certified multi-point inspections, and transparent market pricing."}
                     </p>
                 </div>
 
