@@ -440,47 +440,16 @@ function VehicleCard({ car }: { car: Vehicle }) {
                         </div>
                     </div>
 
-                    {/* Action Buttons: 1 Row with "Contact Agent" & "Explore More" */}
+                    {/* Action Buttons: 1 Row with "Pay Later" & "Explore More" */}
                     <div className="grid grid-cols-2 gap-3 mt-5">
                         <button
                             type="button"
                             onClick={(e) => {
                                 e.preventDefault();
-                                const email = car.clientEmail?.trim();
-
-                                if (!email) {
-                                    // Redirect to Contact Us page with prefilled car details and message
-                                    const subjectParam =
-                                        (car.rentOrSell || "").toLowerCase() ===
-                                        "rent"
-                                            ? "rent"
-                                            : "buy";
-                                    const inquiryMsg = `Hello Wright Finder Motors,\n\nI would like more information and wish to contact an agent regarding this vehicle:\n- Vehicle: ${car.title}\n- Stock ID: #${car.id}\n- Price: $${car.price?.toLocaleString() || "N/A"}\n- Mileage: ${car.mileage ? car.mileage + " km" : "N/A"}\n- Transmission: ${car.transmission || "N/A"}\n- Fuel Type: ${car.fuel || "N/A"}\n\nPlease get in touch with me with further details.\n\nThank you!`;
-                                    router.visit(
-                                        `/contact?subject=${subjectParam}&carId=${encodeURIComponent(car.id)}&carTitle=${encodeURIComponent(car.title)}&message=${encodeURIComponent(inquiryMsg)}#contact-form`,
-                                    );
-                                    return;
-                                }
-
-                                // Open mail client with prefilled car details and problem input area
-                                const subject = encodeURIComponent(
-                                    `Inquiry / Problem Report: ${car.title} (ID: ${car.id})`,
+                                const inquiryMsg = `Hello Wright Finder Motors,\n\nI am interested in renting this vehicle with the "Pay Later" rental option:\n- Vehicle: ${car.title}\n- Stock ID: #${car.id}\n- Rental Rate / Price: $${car.price?.toLocaleString() || "N/A"}\n- Transmission: ${car.transmission || "N/A"}\n- Fuel Type: ${car.fuel || "N/A"}\n\nPlease contact me regarding vehicle availability, pickup schedule, and Pay Later reservation terms.\n\nThank you!`;
+                                router.visit(
+                                    `/contact?subject=rent&carId=${encodeURIComponent(car.id)}&carTitle=${encodeURIComponent(car.title)}&message=${encodeURIComponent(inquiryMsg)}#contact-form`,
                                 );
-                                const body = encodeURIComponent(
-                                    `Hello,\n\nI am contacting regarding the following vehicle:\n` +
-                                        `----------------------------------------\n` +
-                                        `Vehicle: ${car.title}\n` +
-                                        `Car ID: ${car.id}\n` +
-                                        `Price: $${car.price.toLocaleString()}\n` +
-                                        `Mileage: ${car.mileage ? car.mileage + " km" : "N/A"}\n` +
-                                        `Transmission: ${car.transmission || "N/A"}\n` +
-                                        `Fuel Type: ${car.fuel || "N/A"}\n` +
-                                        `Title Condition: ${car.condition || "N/A"}\n` +
-                                        `----------------------------------------\n\n` +
-                                        `[Please describe your inquiry, question, or problem below]:\n\n`,
-                                );
-
-                                window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
                             }}
                             className="inline-flex items-center justify-center space-x-1.5 py-3 px-3 rounded-xl border-2 border-dark-blue text-dark-blue hover:bg-dark-blue hover:text-white text-xs font-bold transition-all duration-200 shadow-sm active:scale-95"
                         >
@@ -494,10 +463,10 @@ function VehicleCard({ car }: { car: Vehicle }) {
                                 <path
                                     strokeLinecap="round"
                                     strokeLinejoin="round"
-                                    d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+                                    d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                                 />
                             </svg>
-                            <span className="truncate">Contact Agent</span>
+                            <span className="truncate">Pay Later</span>
                         </button>
 
                         <button
@@ -510,7 +479,7 @@ function VehicleCard({ car }: { car: Vehicle }) {
                             }}
                             className="inline-flex items-center justify-center space-x-1.5 py-3 px-3 rounded-xl bg-vivid-red hover:bg-red-600 text-white text-xs font-bold transition-all duration-200 shadow-md hover:shadow-red-500/30 active:scale-95"
                         >
-                            <span>Explore More</span>
+                            <span>Pay Now</span>
                             <svg
                                 className="w-3.5 h-3.5 shrink-0"
                                 fill="none"
