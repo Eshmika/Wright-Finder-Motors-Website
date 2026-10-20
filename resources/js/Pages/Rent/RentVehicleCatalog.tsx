@@ -749,9 +749,12 @@ export default function RentVehicleCatalog() {
                             ? row[rentOrSellIdx]?.trim() || ""
                             : "";
 
-                    // Rent Vehicle Catalog: ONLY show vehicles where "Rent or Sell" is "Rent"
+                    // Rent Vehicle Catalog: Show vehicles where "Rent or Sell" is "Rent" or "Both"
                     const normalizedRentOrSell = rentOrSell.toLowerCase();
-                    if (normalizedRentOrSell !== "rent") {
+                    if (
+                        normalizedRentOrSell !== "rent" &&
+                        normalizedRentOrSell !== "both"
+                    ) {
                         continue;
                     }
 
