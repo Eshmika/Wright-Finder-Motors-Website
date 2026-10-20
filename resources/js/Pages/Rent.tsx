@@ -1,6 +1,6 @@
 import Header from "@/Components/Header";
 import Footer from "@/Components/Footer";
-import VehicleCatalog from "./Buy/VehicleCatalog";
+import RentVehicleCatalog from "./Rent/RentVehicleCatalog";
 import CallToActionSection from "./Home/CallToActionSection";
 import { PageProps } from "@/types";
 import { Head } from "@inertiajs/react";
@@ -15,7 +15,7 @@ export default function Rent({ auth }: PageProps) {
 
             {/* Main Page Sections */}
             <main className="flex-1">
-                <VehicleCatalog mode="rent" />
+                <RentVehicleCatalog />
                 <CallToActionSection />
             </main>
 

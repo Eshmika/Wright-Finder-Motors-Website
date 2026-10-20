@@ -24,10 +24,6 @@ export interface Vehicle {
     clientEmail?: string;
 }
 
-interface VehicleCatalogProps {
-    mode?: "buy" | "rent";
-}
-
 const CARDS_PER_PAGE = 9;
 
 // Convert Google Drive share link to direct image viewable URL
@@ -600,9 +596,7 @@ function VehicleCard({ car }: { car: Vehicle }) {
     );
 }
 
-export default function VehicleCatalog({
-    mode = "buy",
-}: VehicleCatalogProps = {}) {
+export default function VehicleCatalog() {
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -755,23 +749,14 @@ export default function VehicleCatalog({
                             ? row[rentOrSellIdx]?.trim() || ""
                             : "";
 
-                    // Filter based on catalog mode:
-                    // buy mode: only show "Sell" and "Both" (default to Sell if column is empty)
-                    // rent mode: only show "Rent"
+                    // Buy Vehicle Catalog: Only show "Sell" and "Both" (default to Sell if column is empty)
                     const normalizedRentOrSell = rentOrSell.toLowerCase();
-                    if (mode === "rent") {
-                        if (normalizedRentOrSell !== "rent") {
-                            continue;
-                        }
-                    } else {
-                        // mode === "buy"
-                        if (
-                            normalizedRentOrSell &&
-                            normalizedRentOrSell !== "sell" &&
-                            normalizedRentOrSell !== "both"
-                        ) {
-                            continue;
-                        }
+                    if (
+                        normalizedRentOrSell &&
+                        normalizedRentOrSell !== "sell" &&
+                        normalizedRentOrSell !== "both"
+                    ) {
+                        continue;
                     }
 
                     // Images: Main Image URLs + Sub Image URLs (comma-separated)
@@ -839,7 +824,7 @@ export default function VehicleCatalog({
         return () => {
             isMounted = false;
         };
-    }, [mode]);
+    }, []);
 
     // Read condition, bodyStyle/category, and search query from URL if present
     const urlParams =
@@ -1078,14 +1063,12 @@ export default function VehicleCatalog({
                 {/* Centered Header Section */}
                 <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
                     <h2 className="text-3xl lg:text-5xl font-extrabold text-white tracking-tight">
-                        {mode === "rent"
-                            ? "Explore Vehicles For Rent"
-                            : "Explore Vehicles For Sale"}
+                        Explore Vehicles For Sale
                     </h2>
                     <p className="text-sm lg:text-base text-gray-200 max-w-2xl mx-auto leading-relaxed">
-                        {mode === "rent"
-                            ? "Handpicked quality rental vehicles available for short or long-term hire. Certified multi-point inspections and transparent pricing."
-                            : "Handpicked quality vehicles ready for immediate driving or booking. Comprehensive specifications, certified multi-point inspections, and transparent market pricing."}
+                        Handpicked quality vehicles ready for immediate driving
+                        or booking. Comprehensive specifications, certified
+                        multi-point inspections, and transparent market pricing.
                     </p>
                 </div>
 
