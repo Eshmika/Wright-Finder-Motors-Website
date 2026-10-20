@@ -246,10 +246,10 @@ function VehicleCard({ car }: { car: Vehicle }) {
                     </h3>
 
                     {/* 3 Columns & 2 Rows Specs Grid with SVG Icons */}
-                    <div className="grid grid-cols-3 gap-2.5 text-xs mt-4 pt-4 pb-4 border-y border-gray-100">
+                    <div className="grid grid-cols-3 gap-2 text-xs mt-4 pt-4 pb-4 border-y border-gray-100">
                         {/* 1. Fuel */}
-                        <div className="flex flex-col bg-gray-50/90 rounded-xl p-2.5 hover:bg-red-50/50 transition-colors">
-                            <div className="flex items-center space-x-1.5 text-vivid-red mb-1">
+                        <div className="flex flex-col justify-between min-w-0 h-[58px] bg-gray-50/90 rounded-xl p-2 hover:bg-red-50/50 transition-colors">
+                            <div className="flex items-center space-x-1 text-vivid-red">
                                 <svg
                                     className="w-3.5 h-3.5 shrink-0"
                                     fill="none"
@@ -263,12 +263,12 @@ function VehicleCard({ car }: { car: Vehicle }) {
                                         d="M19 14V6a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2v-4m0 0h2a2 2 0 002-2v-2a2 2 0 00-2-2h-2m-8 2h4"
                                     />
                                 </svg>
-                                <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
+                                <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider truncate">
                                     Fuel
                                 </span>
                             </div>
                             <span
-                                className="font-semibold text-gray-800 text-[11px] truncate"
+                                className="font-semibold text-gray-800 text-[11px] truncate block leading-tight"
                                 title={car.fuel || "N/A"}
                             >
                                 {car.fuel || "N/A"}
@@ -276,8 +276,8 @@ function VehicleCard({ car }: { car: Vehicle }) {
                         </div>
 
                         {/* 2. Body Style */}
-                        <div className="flex flex-col bg-gray-50/90 rounded-xl p-2.5 hover:bg-red-50/50 transition-colors">
-                            <div className="flex items-center space-x-1.5 text-vivid-red mb-1">
+                        <div className="flex flex-col justify-between min-w-0 h-[58px] bg-gray-50/90 rounded-xl p-2 hover:bg-red-50/50 transition-colors">
+                            <div className="flex items-center space-x-1 text-vivid-red">
                                 <svg
                                     className="w-3.5 h-3.5 shrink-0"
                                     fill="none"
@@ -291,12 +291,12 @@ function VehicleCard({ car }: { car: Vehicle }) {
                                         d="M5 16l1-5h12l1 5M5 16h14m-14 0a2 2 0 104 0m10 0a2 2 0 104 0M6 11l2-4h8l2 4"
                                     />
                                 </svg>
-                                <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
+                                <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider truncate">
                                     Body Style
                                 </span>
                             </div>
                             <span
-                                className="font-semibold text-gray-800 text-[11px] truncate"
+                                className="font-semibold text-gray-800 text-[11px] truncate block leading-tight"
                                 title={car.category || "N/A"}
                             >
                                 {car.category || "N/A"}
@@ -304,8 +304,8 @@ function VehicleCard({ car }: { car: Vehicle }) {
                         </div>
 
                         {/* 3. Transmission */}
-                        <div className="flex flex-col bg-gray-50/90 rounded-xl p-2.5 hover:bg-red-50/50 transition-colors">
-                            <div className="flex items-center space-x-1.5 text-vivid-red mb-1">
+                        <div className="flex flex-col justify-between min-w-0 h-[58px] bg-gray-50/90 rounded-xl p-2 hover:bg-red-50/50 transition-colors">
+                            <div className="flex items-center space-x-1 text-vivid-red">
                                 <svg
                                     className="w-3.5 h-3.5 shrink-0"
                                     fill="none"
@@ -320,12 +320,12 @@ function VehicleCard({ car }: { car: Vehicle }) {
                                     />
                                     <circle cx="12" cy="12" r="3" />
                                 </svg>
-                                <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
-                                    Transmission
+                                <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider truncate">
+                                    Gearbox
                                 </span>
                             </div>
                             <span
-                                className="font-semibold text-gray-800 text-[11px] truncate"
+                                className="font-semibold text-gray-800 text-[11px] truncate block leading-tight"
                                 title={car.transmission || "Automatic"}
                             >
                                 {car.transmission || "Automatic"}
@@ -333,8 +333,8 @@ function VehicleCard({ car }: { car: Vehicle }) {
                         </div>
 
                         {/* 4. Driveline */}
-                        <div className="flex flex-col bg-gray-50/90 rounded-xl p-2.5 hover:bg-red-50/50 transition-colors">
-                            <div className="flex items-center space-x-1.5 text-vivid-red mb-1">
+                        <div className="flex flex-col justify-between min-w-0 h-[58px] bg-gray-50/90 rounded-xl p-2 hover:bg-red-50/50 transition-colors">
+                            <div className="flex items-center space-x-1 text-vivid-red">
                                 <svg
                                     className="w-3.5 h-3.5 shrink-0"
                                     fill="none"
@@ -350,12 +350,12 @@ function VehicleCard({ car }: { car: Vehicle }) {
                                         d="M9 12h6M12 9v6"
                                     />
                                 </svg>
-                                <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
+                                <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider truncate">
                                     Driveline
                                 </span>
                             </div>
                             <span
-                                className="font-semibold text-gray-800 text-[11px] truncate"
+                                className="font-semibold text-gray-800 text-[11px] truncate block leading-tight"
                                 title={car.driveline || "N/A"}
                             >
                                 {car.driveline || "N/A"}
@@ -363,8 +363,8 @@ function VehicleCard({ car }: { car: Vehicle }) {
                         </div>
 
                         {/* 5. Engine Type/Size */}
-                        <div className="flex flex-col bg-gray-50/90 rounded-xl p-2.5 hover:bg-red-50/50 transition-colors">
-                            <div className="flex items-center space-x-1.5 text-vivid-red mb-1">
+                        <div className="flex flex-col justify-between min-w-0 h-[58px] bg-gray-50/90 rounded-xl p-2 hover:bg-red-50/50 transition-colors">
+                            <div className="flex items-center space-x-1 text-vivid-red">
                                 <svg
                                     className="w-3.5 h-3.5 shrink-0"
                                     fill="none"
@@ -383,7 +383,7 @@ function VehicleCard({ car }: { car: Vehicle }) {
                                 </span>
                             </div>
                             <span
-                                className="font-semibold text-gray-800 text-[11px] truncate"
+                                className="font-semibold text-gray-800 text-[11px] truncate block leading-tight"
                                 title={car.engineTypeSize || "Standard"}
                             >
                                 {car.engineTypeSize || "Standard"}
@@ -391,8 +391,8 @@ function VehicleCard({ car }: { car: Vehicle }) {
                         </div>
 
                         {/* 6. Power Options */}
-                        <div className="flex flex-col bg-gray-50/90 rounded-xl p-2.5 hover:bg-red-50/50 transition-colors">
-                            <div className="flex items-center space-x-1.5 text-vivid-red mb-1">
+                        <div className="flex flex-col justify-between min-w-0 h-[58px] bg-gray-50/90 rounded-xl p-2 hover:bg-red-50/50 transition-colors">
+                            <div className="flex items-center space-x-1 text-vivid-red">
                                 <svg
                                     className="w-3.5 h-3.5 shrink-0"
                                     fill="none"
@@ -406,12 +406,12 @@ function VehicleCard({ car }: { car: Vehicle }) {
                                         d="M13 10V3L4 14h7v7l9-11h-7z"
                                     />
                                 </svg>
-                                <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
+                                <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider truncate">
                                     Power
                                 </span>
                             </div>
                             <span
-                                className="font-semibold text-gray-800 text-[11px] truncate"
+                                className="font-semibold text-gray-800 text-[11px] truncate block leading-tight"
                                 title={car.powerOptions || "Standard"}
                             >
                                 {car.powerOptions || "Standard"}
