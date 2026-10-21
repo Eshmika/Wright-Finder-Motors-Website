@@ -11,6 +11,7 @@ export interface Vehicle {
     rentOrSell?: string;
     price: number;
     originalPrice: number;
+    discount?: number;
     fuel: string;
     powerOptions: string;
     driveline: string;
@@ -113,13 +114,19 @@ function VehicleCard({ car }: { car: Vehicle }) {
         );
     };
 
-    const hasDiscount =
-        car.originalPrice > 0 && car.price > 0 && car.originalPrice > car.price;
+    const displayDiscount =
+        car.discount !== undefined && car.discount > 0
+            ? car.discount
+            : car.originalPrice > car.price && car.price > 0
+              ? car.originalPrice - car.price
+              : 0;
 
-    const discountAmount = hasDiscount ? car.originalPrice - car.price : 0;
-    const discountPercentage = hasDiscount
-        ? Math.round((discountAmount / car.originalPrice) * 100)
-        : 0;
+    const hasDiscount = displayDiscount > 0;
+    const discountAmount = displayDiscount;
+    const discountPercentage =
+        hasDiscount && car.originalPrice > 0
+            ? Math.round((discountAmount / car.originalPrice) * 100)
+            : 0;
 
     const [imageError, setImageError] = useState(false);
     const hasImages = car.images && car.images.length > 0 && !imageError;
@@ -425,7 +432,7 @@ function VehicleCard({ car }: { car: Vehicle }) {
                     <div className="flex items-baseline justify-between">
                         <div>
                             <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider block mb-0.5">
-                                Price
+                                Rent Price
                             </span>
                             <div className="flex items-baseline gap-2.5">
                                 <span className="text-2xl font-black text-[#170a3d] tracking-tight">
@@ -440,8 +447,8 @@ function VehicleCard({ car }: { car: Vehicle }) {
                         </div>
                     </div>
 
-                    {/* Action Buttons: 1 Row with "Pay Later" & "Explore More" */}
-                    <div className="grid grid-cols-2 gap-3 mt-5">
+                    {/* Action Buttons: 1 Row with "Pay Later" & "Pay Now" */}
+                    <div className="grid grid-cols-2 gap-3 mt-5 items-start">
                         <button
                             type="button"
                             onClick={(e) => {
@@ -451,7 +458,7 @@ function VehicleCard({ car }: { car: Vehicle }) {
                                     `/contact?subject=rent&carId=${encodeURIComponent(car.id)}&carTitle=${encodeURIComponent(car.title)}&message=${encodeURIComponent(inquiryMsg)}#contact-form`,
                                 );
                             }}
-                            className="inline-flex items-center justify-center space-x-1.5 py-3 px-3 rounded-xl border-2 border-dark-blue text-dark-blue hover:bg-dark-blue hover:text-white text-xs font-bold transition-all duration-200 shadow-sm active:scale-95"
+                            className="inline-flex items-center justify-center space-x-1.5 py-3 px-3 rounded-xl border-2 border-dark-blue text-dark-blue hover:bg-dark-blue hover:text-white text-xs font-bold transition-all duration-200 shadow-sm active:scale-95 h-[42px]"
                         >
                             <svg
                                 className="w-3.5 h-3.5 shrink-0"
@@ -469,31 +476,44 @@ function VehicleCard({ car }: { car: Vehicle }) {
                             <span className="truncate">Pay Later</span>
                         </button>
 
-                        <button
-                            type="button"
-                            onClick={(e) => {
-                                e.preventDefault();
-                                router.visit(
-                                    `/vehicles/${encodeURIComponent(car.id)}`,
-                                );
-                            }}
-                            className="inline-flex items-center justify-center space-x-1.5 py-3 px-3 rounded-xl bg-vivid-red hover:bg-red-600 text-white text-xs font-bold transition-all duration-200 shadow-md hover:shadow-red-500/30 active:scale-95"
-                        >
-                            <span>Pay Now</span>
-                            <svg
-                                className="w-3.5 h-3.5 shrink-0"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                                strokeWidth={2.5}
+                        <div className="flex flex-col items-center">
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    router.visit(
+                                        `/vehicles/${encodeURIComponent(car.id)}`,
+                                    );
+                                }}
+                                className="w-full inline-flex items-center justify-center space-x-1.5 py-3 px-3 rounded-xl bg-vivid-red hover:bg-red-600 text-white text-xs font-bold transition-all duration-200 shadow-md hover:shadow-red-500/30 active:scale-95 h-[42px]"
                             >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    d="M14 5l7 7m0 0l-7 7m7-7H3"
-                                />
-                            </svg>
-                        </button>
+                                <span>Pay Now</span>
+                                <svg
+                                    className="w-3.5 h-3.5 shrink-0"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    strokeWidth={2.5}
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        d="M14 5l7 7m0 0l-7 7m7-7H3"
+                                    />
+                                </svg>
+                            </button>
+
+                            {/* 'Pay Now & Save' Label under Pay Now button */}
+                            {hasDiscount && (
+                                <div className="mt-2 flex items-center justify-center gap-1 px-2 py-0.5 rounded-full bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200/80 shadow-xs">
+                                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                    <span className="text-[10px] font-extrabold text-emerald-700 tracking-tight whitespace-nowrap">
+                                        Pay Now &amp; Save $
+                                        {discountAmount.toLocaleString()}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -696,6 +716,7 @@ export default function RentVehicleCatalog() {
                         category,
                         price: finalPrice,
                         originalPrice: originalPriceRaw,
+                        discount: discountRaw,
                         fuel,
                         powerOptions,
                         driveline,
