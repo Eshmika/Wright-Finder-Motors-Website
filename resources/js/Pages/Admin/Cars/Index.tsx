@@ -1051,7 +1051,13 @@ export default function Index() {
                                                                     ).toLowerCase() ===
                                                                     "sell"
                                                                   ? "bg-purple/10 text-purple border border-purple/20"
-                                                                  : "bg-slate-100 text-slate-800 border border-slate-200"
+                                                                  : (
+                                                                          car.rentOrSell ||
+                                                                          ""
+                                                                      ).toLowerCase() ===
+                                                                      "both"
+                                                                    ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                                                    : "bg-slate-100 text-slate-800 border border-slate-200"
                                                         }`}
                                                     >
                                                         {car.rentOrSell || "-"}

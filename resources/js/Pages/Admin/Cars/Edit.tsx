@@ -1818,7 +1818,7 @@ export default function Edit({ id }: EditProps) {
                             {/* Category: Rent or Sell */}
                             <div>
                                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                                    Category (Rent or Sell)
+                                    Rent or Sell
                                 </label>
                                 <select
                                     value={rentOrSell}
@@ -1829,6 +1829,7 @@ export default function Edit({ id }: EditProps) {
                                 >
                                     <option value="Sell">Sell</option>
                                     <option value="Rent">Rent</option>
+                                    <option value="Both">Both</option>
                                 </select>
                             </div>
                         </div>

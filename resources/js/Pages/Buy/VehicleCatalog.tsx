@@ -8,6 +8,7 @@ export interface Vehicle {
     model: string;
     year: number;
     category: string;
+    rentOrSell?: string;
     price: number;
     originalPrice: number;
     fuel: string;
@@ -513,9 +514,14 @@ function VehicleCard({ car }: { car: Vehicle }) {
 
                                 if (!email) {
                                     // Redirect to Contact Us page with prefilled car details and message
+                                    const subjectParam =
+                                        (car.rentOrSell || "").toLowerCase() ===
+                                        "rent"
+                                            ? "rent"
+                                            : "buy";
                                     const inquiryMsg = `Hello Wright Finder Motors,\n\nI would like more information and wish to contact an agent regarding this vehicle:\n- Vehicle: ${car.title}\n- Stock ID: #${car.id}\n- Price: $${car.price?.toLocaleString() || "N/A"}\n- Mileage: ${car.mileage ? car.mileage + " km" : "N/A"}\n- Transmission: ${car.transmission || "N/A"}\n- Fuel Type: ${car.fuel || "N/A"}\n\nPlease get in touch with me with further details.\n\nThank you!`;
                                     router.visit(
-                                        `/contact?subject=buy&carId=${encodeURIComponent(car.id)}&carTitle=${encodeURIComponent(car.title)}&message=${encodeURIComponent(inquiryMsg)}#contact-form`,
+                                        `/contact?subject=${subjectParam}&carId=${encodeURIComponent(car.id)}&carTitle=${encodeURIComponent(car.title)}&message=${encodeURIComponent(inquiryMsg)}#contact-form`,
                                     );
                                     return;
                                 }
@@ -654,6 +660,7 @@ export default function VehicleCatalog() {
                 const mainImageIdx = getIndex("Main Image URLs");
                 const subImagesIdx = getIndex("Sub Image URLs");
                 const clientEmailIdx = getIndex("Client Email");
+                const rentOrSellIdx = getIndex("Rent or Sell");
 
                 const loadedVehicles: Vehicle[] = [];
 
@@ -737,6 +744,21 @@ export default function VehicleCatalog() {
                             ? row[clientEmailIdx]?.trim() || ""
                             : "";
 
+                    const rentOrSell =
+                        rentOrSellIdx !== -1
+                            ? row[rentOrSellIdx]?.trim() || ""
+                            : "";
+
+                    // Buy Vehicle Catalog: Only show "Sell" and "Both" (default to Sell if column is empty)
+                    const normalizedRentOrSell = rentOrSell.toLowerCase();
+                    if (
+                        normalizedRentOrSell &&
+                        normalizedRentOrSell !== "sell" &&
+                        normalizedRentOrSell !== "both"
+                    ) {
+                        continue;
+                    }
+
                     // Images: Main Image URLs + Sub Image URLs (comma-separated)
                     const rawMainImage =
                         mainImageIdx !== -1 ? row[mainImageIdx] || "" : "";
@@ -774,6 +796,7 @@ export default function VehicleCatalog() {
                         vehicleCondition,
                         badge,
                         availabilities: badge,
+                        rentOrSell,
                         images: formattedImages,
                         clientEmail,
                     });

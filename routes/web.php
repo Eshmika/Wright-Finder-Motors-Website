@@ -21,6 +21,23 @@ Route::get('/buy', function () {
     ]);
 })->name('buy');
 
+Route::get('/rent', function () {
+    return Inertia::render('Rent', [
+        'canLogin' => Route::has('login'),
+        'canRegister' => Route::has('register'),
+    ]);
+})->name('rent');
+
+Route::get('/rent/reserve/{id}', function ($id) {
+    return Inertia::render('Rent/RentReservation', [
+        'id' => $id,
+        'canLogin' => Route::has('login'),
+        'canRegister' => Route::has('register'),
+    ]);
+})->name('rent.reserve');
+
+Route::post('/rent/reserve', [\App\Http\Controllers\ReservationController::class, 'store'])->name('rent.reserve.store');
+
 Route::get('/vehicles/{id}', function ($id) {
     return Inertia::render('VehicleDetail', [
         'id' => $id,

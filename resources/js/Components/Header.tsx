@@ -13,12 +13,13 @@ export default function Header({ user }: HeaderProps = {}) {
 
     const isHome = url === "/" || url === "" || component === "Home";
     const isBuy = url.startsWith("/buy") || component === "Buy";
+    const isRent = url.startsWith("/rent") || component === "Rent";
     const isContact = url.startsWith("/contact") || component === "Contact";
 
     const navLinks = [
         { name: "Home", href: "/", isCurrent: isHome },
         { name: "Buy", href: "/buy", isCurrent: isBuy },
-        { name: "Rent", href: "#", isCurrent: false },
+        { name: "Rent", href: "/rent", isCurrent: isRent },
         { name: "Repair", href: "#", isCurrent: false },
         { name: "Blog", href: "#", isCurrent: false },
         { name: "Contact Us", href: "/contact", isCurrent: isContact },

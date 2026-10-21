@@ -19,6 +19,7 @@ interface CarListRow {
 }
 
 // Fixed dropdown option lists
+const RENT_OR_SELL_OPTIONS = ["Sell", "Rent", "Both"];
 const STATUS_OPTIONS = ["Available", "Pending", "Sold"];
 const TITLE_OPTIONS = ["Clean", "Rebuilt", "Lien", "Salvage", "None", "Other"];
 const EXTERIOR_COLORS = [
@@ -252,6 +253,7 @@ export default function Create() {
     const [trim, setTrim] = useState("");
     const [fuelType, setFuelType] = useState("");
     const [bodyStyle, setBodyStyle] = useState("");
+    const [rentOrSell, setRentOrSell] = useState("Sell");
 
     const [mileage, setMileage] = useState("");
     const [vin, setVin] = useState("");
@@ -677,6 +679,7 @@ export default function Create() {
         setInteriorFeatures(["Bluetooth", "Backup Camera"]);
 
         // Reset dropdowns to standard defaults
+        setRentOrSell("Sell");
         setStatus("Available");
         setTitle("Clean");
         setExteriorColor("White");
@@ -754,7 +757,7 @@ export default function Create() {
                 title: resolvedTitle,
                 trim,
                 bodyStyle,
-                rentOrSell: "Sell",
+                rentOrSell,
                 engine,
                 engineTypeSize,
                 transmission,
@@ -1300,6 +1303,24 @@ export default function Create() {
                                 {availableBodyStyles.map((b) => (
                                     <option key={b} value={b}>
                                         {b}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* 7. Rent or Sell (Column N) */}
+                        <div>
+                            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                                Rent or Sell
+                            </label>
+                            <select
+                                value={rentOrSell}
+                                onChange={(e) => setRentOrSell(e.target.value)}
+                                className="w-full bg-white border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-vivid-red transition font-medium shadow-sm"
+                            >
+                                {RENT_OR_SELL_OPTIONS.map((opt) => (
+                                    <option key={opt} value={opt}>
+                                        {opt}
                                     </option>
                                 ))}
                             </select>
