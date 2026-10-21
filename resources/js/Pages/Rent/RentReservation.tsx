@@ -358,7 +358,7 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
     const progressPercentage = Math.round((currentStep / 4) * 100);
 
     return (
-        <div className="min-h-screen flex flex-col bg-gray-200 text-gray-800 font-poppins selection:bg-vivid-red selection:text-white">
+        <div className="min-h-screen flex flex-col bg-gray-200 text-gray-800 font-poppins selection:bg-vivid-red selection:text-white print:bg-white print:text-black">
             <Head
                 title={
                     vehicle
@@ -368,13 +368,15 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
             />
 
             {/* Header */}
-            <Header user={auth?.user} />
+            <div className="print:hidden">
+                <Header user={auth?.user} />
+            </div>
 
             {/* Main Reservation Flow */}
-            <main className="flex-1 py-10 md:py-16">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <main className="flex-1 py-10 md:py-16 print:py-0 print:m-0">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 print:p-0 print:max-w-full">
                     {/* Breadcrumbs */}
-                    <div className="flex items-center space-x-2 text-xs text-bggray font-medium mb-6">
+                    <div className="flex items-center space-x-2 text-xs text-bggray font-medium mb-6 print:hidden">
                         <Link
                             href="/"
                             className="hover:text-vivid-red transition"
@@ -395,7 +397,7 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                     </div>
 
                     {/* Page Header */}
-                    <div className="text-center max-w-3xl mx-auto mb-10">
+                    <div className="text-center max-w-3xl mx-auto mb-10 print:hidden">
                         <span className="inline-block px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-vivid-red/10 text-vivid-red border border-vivid-red/20 mb-3">
                             Direct Online Reservation
                         </span>
@@ -408,12 +410,43 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                         </p>
                     </div>
 
-                    {/* SUCCESS CONFIRMATION MODAL / BANNER */}
+                    {/* SUCCESS CONFIRMATION MODAL / BANNER (Printable Receipt) */}
                     {reservationResult && (
-                        <div className="mb-12 p-8 sm:p-10 rounded-3xl bg-white border-2 border-emerald-400 shadow-2xl animate-fade-in text-center max-w-3xl mx-auto">
-                            <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner">
+                        <div className="mb-12 p-8 sm:p-10 rounded-3xl bg-white border-2 border-emerald-400 shadow-2xl animate-fade-in text-center max-w-3xl mx-auto print:m-0 print:p-6 print:border-2 print:border-slate-800 print:shadow-none print:rounded-2xl print:max-w-full">
+                            {/* Receipt Company Header for Print */}
+                            <div className="hidden print:flex items-center justify-between border-b-2 border-slate-900 pb-4 mb-6 text-left">
+                                <div>
+                                    <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase">
+                                        Wright Finder Motors
+                                    </h1>
+                                    <p className="text-xs text-slate-600">
+                                        Quality Vehicle Sales &amp; Rentals |
+                                        Official Rental Receipt
+                                    </p>
+                                    <p className="text-xs text-slate-600">
+                                        contact@wrightfindermotors.com
+                                    </p>
+                                </div>
+                                <div className="text-right">
+                                    <span className="inline-block px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider border border-slate-900 bg-slate-100 text-slate-900">
+                                        Rental Reservation
+                                    </span>
+                                    <div className="text-[11px] text-slate-500 mt-1 font-mono">
+                                        {new Date().toLocaleDateString(
+                                            "en-US",
+                                            {
+                                                year: "numeric",
+                                                month: "short",
+                                                day: "numeric",
+                                            },
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner print:w-12 print:h-12 print:mb-3">
                                 <svg
-                                    className="w-10 h-10"
+                                    className="w-10 h-10 print:w-6 print:h-6"
                                     fill="none"
                                     viewBox="0 0 24 24"
                                     stroke="currentColor"
@@ -427,33 +460,33 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                 </svg>
                             </div>
 
-                            <span className="inline-block px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-300 mb-3">
+                            <span className="inline-block px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-300 mb-3 print:bg-slate-100 print:text-slate-900 print:border-slate-400">
                                 {reservationResult.paymentStatus}
                             </span>
 
-                            <h2 className="text-2xl sm:text-3xl font-extrabold text-[#170a3d]">
+                            <h2 className="text-2xl sm:text-3xl font-extrabold text-[#170a3d] print:text-slate-900 print:text-2xl">
                                 Reservation Successfully Placed!
                             </h2>
 
-                            <p className="mt-2 text-sm text-gray-600 max-w-xl mx-auto">
+                            <p className="mt-2 text-sm text-gray-600 max-w-xl mx-auto print:text-slate-700">
                                 Thank you,{" "}
-                                <span className="font-bold text-gray-800">
+                                <span className="font-bold text-gray-800 print:text-black">
                                     {firstName} {lastName}
                                 </span>
                                 ! We have saved your reservation details to our
                                 booking sheet.
                             </p>
 
-                            <div className="my-6 p-5 bg-gradient-to-r from-gray-50 to-slate-100 rounded-2xl border border-gray-200 inline-block shadow-inner">
-                                <div className="text-xs uppercase font-extrabold tracking-widest text-gray-500 mb-1">
+                            <div className="my-6 p-5 bg-gradient-to-r from-gray-50 to-slate-100 rounded-2xl border border-gray-200 inline-block shadow-inner print:my-4 print:py-3 print:px-6 print:border-slate-400 print:bg-slate-50">
+                                <div className="text-xs uppercase font-extrabold tracking-widest text-gray-500 print:text-slate-600 mb-1">
                                     Your Confirmation Number
                                 </div>
-                                <div className="text-2xl sm:text-3xl font-mono font-black text-vivid-red tracking-wider">
+                                <div className="text-2xl sm:text-3xl font-mono font-black text-vivid-red print:text-slate-900 tracking-wider">
                                     {reservationResult.confirmationNumber}
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left max-w-xl mx-auto p-5 bg-slate-50 rounded-2xl border border-slate-200 text-xs text-slate-700 mb-8">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left max-w-xl mx-auto p-5 bg-slate-50 rounded-2xl border border-slate-200 text-xs text-slate-700 mb-8 print:mb-4 print:border-slate-300 print:bg-white print:p-4 print:grid-cols-2">
                                 <div>
                                     <span className="font-bold block text-slate-900">
                                         Vehicle:
@@ -468,7 +501,7 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                     <span className="font-bold block text-slate-900">
                                         Payment Status:
                                     </span>
-                                    <span className="font-semibold text-amber-600">
+                                    <span className="font-semibold text-amber-600 print:text-slate-900">
                                         {reservationResult.paymentStatus}
                                     </span>
                                 </div>
@@ -490,6 +523,32 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                 </div>
                                 <div>
                                     <span className="font-bold block text-slate-900">
+                                        Pickup Location:
+                                    </span>
+                                    <span>{pickupLocation}</span>
+                                </div>
+                                <div>
+                                    <span className="font-bold block text-slate-900">
+                                        Return Location:
+                                    </span>
+                                    <span>{returnLocation}</span>
+                                </div>
+                                <div>
+                                    <span className="font-bold block text-slate-900">
+                                        Primary Driver:
+                                    </span>
+                                    <span>
+                                        {firstName} {lastName} ({phone})
+                                    </span>
+                                </div>
+                                <div>
+                                    <span className="font-bold block text-slate-900">
+                                        Email:
+                                    </span>
+                                    <span>{email}</span>
+                                </div>
+                                <div>
+                                    <span className="font-bold block text-slate-900">
                                         Selected Payment Method:
                                     </span>
                                     <span className="capitalize">
@@ -505,14 +564,21 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                         Total Rate ({rentalDays}{" "}
                                         {rentalDays === 1 ? "day" : "days"}):
                                     </span>
-                                    <span className="font-bold text-emerald-600">
+                                    <span className="font-bold text-emerald-600 print:text-black">
                                         ${totalEstimate.toLocaleString()} (Saved
                                         ${totalSavings.toLocaleString()})
                                     </span>
                                 </div>
                             </div>
 
-                            <div className="flex flex-wrap items-center justify-center gap-4">
+                            {/* Print Footer Notice */}
+                            <div className="hidden print:block text-center text-[10px] text-slate-500 pt-3 border-t border-slate-300">
+                                Please present this confirmation receipt upon
+                                vehicle pickup along with your valid
+                                Driver&apos;s License and Payment.
+                            </div>
+
+                            <div className="flex flex-wrap items-center justify-center gap-4 print:hidden">
                                 <Link
                                     href="/rent"
                                     className="px-6 py-3 rounded-xl bg-vivid-red hover:bg-red-600 text-white text-xs font-bold shadow-md transition"
@@ -531,7 +597,7 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                     )}
 
                     {!reservationResult && (
-                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start print:hidden">
                             {/* LEFT SIDE: MULTI-STEP RESERVATION WIZARD (7 cols on lg) */}
                             <div className="lg:col-span-7 bg-white rounded-3xl border border-gray-100 shadow-xl overflow-hidden p-6 sm:p-8">
                                 {/* Top Step Navigator with 4 Sections */}
@@ -2123,7 +2189,9 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
             </main>
 
             {/* Footer */}
-            <Footer />
+            <div className="print:hidden">
+                <Footer />
+            </div>
         </div>
     );
 }

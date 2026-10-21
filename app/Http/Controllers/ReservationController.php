@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\ReservationAdminMail;
+use App\Mail\ReservationUserMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -83,59 +85,17 @@ class ReservationController extends Controller
             $googleSheetMessage = 'Webhook URL not configured in .env or request, reservation logged locally.';
         }
 
-        // Try to send notification email to Admin and customer if mailer is configured
+        // Send notification email to Admin and customer using branded templates
         try {
             $adminEmail = config('mail.from.address') ?: env('MAIL_FROM_ADDRESS', 'contact@wrightfindermotors.com');
-            $fullName = trim($data['firstName'] . ' ' . $data['lastName']);
-            $confirmation = $data['confirmationNumber'];
-            $carTitle = $data['carTitle'];
 
-            // Basic alert to admin
-            Mail::raw(
-                "New Vehicle Reservation Received!\n\n" .
-                    "Confirmation #: {$confirmation}\n" .
-                    "Status: No payment received (Pending Reservation)\n" .
-                    "Vehicle: {$carTitle} (#{$data['carId']})\n" .
-                    "Customer: {$fullName}\n" .
-                    "Email: {$data['email']}\n" .
-                    "Phone: {$data['phone']}\n" .
-                    "Age: {$data['age']}\n" .
-                    "Residency: {$data['residency']}\n\n" .
-                    "Pickup: {$data['pickupLocation']} on {$data['pickupDate']} at {$data['pickupTime']} (EST)\n" .
-                    "Return: {$data['returnLocation']} on {$data['returnDate']} at {$data['returnTime']} (EST)\n" .
-                    "Payment Method: {$data['paymentOption']}\n" .
-                    "Rental Rate: \${$data['rentalRate']}\n" .
-                    "Discount/Savings: \${$data['discount']}\n",
-                function ($message) use ($adminEmail, $confirmation, $carTitle) {
-                    $message->to($adminEmail)
-                        ->subject("🚗 New Rental Reservation: {$confirmation} - {$carTitle}");
-                }
-            );
+            // 1. Send branded HTML reservation alert to Administrator
+            Mail::to($adminEmail)->send(new ReservationAdminMail($data));
 
-            // Confirmation to customer
-            Mail::raw(
-                "Hello {$data['firstName']},\n\n" .
-                    "Thank you for reserving a vehicle with Wright Finder Motors!\n\n" .
-                    "YOUR CONFIRMATION NUMBER: {$confirmation}\n" .
-                    "STATUS: Pending Reservation - No payment received yet\n" .
-                    "VEHICLE: {$carTitle}\n\n" .
-                    "PICKUP DETAILS (EST):\n" .
-                    "- Location: {$data['pickupLocation']}\n" .
-                    "- Date & Time: {$data['pickupDate']} at {$data['pickupTime']}\n\n" .
-                    "RETURN DETAILS (EST):\n" .
-                    "- Location: {$data['returnLocation']}\n" .
-                    "- Date & Time: {$data['returnDate']} at {$data['returnTime']}\n\n" .
-                    "PAYMENT OPTION CHOSEN: {$data['paymentOption']}\n" .
-                    "(For Zelle / Cash App: please use our official payment email: contact@wrightfindermotors.com)\n\n" .
-                    "Our team will contact you shortly to confirm your booking and complete any remaining verification.\n\n" .
-                    "Best regards,\nWright Finder Motors Team\ncontact@wrightfindermotors.com",
-                function ($message) use ($data, $confirmation) {
-                    $message->to($data['email'])
-                        ->subject("Your Wright Finder Motors Reservation Confirmation [{$confirmation}]");
-                }
-            );
+            // 2. Send branded HTML confirmation receipt to Customer
+            Mail::to($data['email'])->send(new ReservationUserMail($data));
         } catch (\Throwable $mErr) {
-            Log::info('Reservation notification email skipped/failed: ' . $mErr->getMessage());
+            Log::info('Reservation notification email error: ' . $mErr->getMessage());
         }
 
         return response()->json([
