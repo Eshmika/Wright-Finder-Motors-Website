@@ -315,20 +315,6 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
 
             const data = await res.json();
 
-            // Also attempt direct fallback to Google Apps Script Webhook if stored in client localStorage
-            if (storedScriptUrl) {
-                try {
-                    await fetch(storedScriptUrl, {
-                        method: "POST",
-                        mode: "no-cors",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ ...payload, action: "reserve" }),
-                    });
-                } catch (e) {
-                    // non-fatal direct backup
-                }
-            }
-
             setReservationResult({
                 confirmationNumber: confirmationNum,
                 paymentStatus: "No payment received (Pending Reservation)",

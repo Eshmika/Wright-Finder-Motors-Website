@@ -205,6 +205,40 @@ function doPost(e) {
                 headerRange.setFontWeight("bold");
             }
 
+            // Deduplication check: verify confirmation number does not already exist
+            var confirmationCode = (data.confirmationNumber || "")
+                .toString()
+                .trim()
+                .toUpperCase();
+            var totalResRows = resSheet.getLastRow();
+            if (confirmationCode && totalResRows > 1) {
+                var existingCodes = resSheet
+                    .getRange(2, 1, totalResRows - 1, 1)
+                    .getValues();
+                for (var r = 0; r < existingCodes.length; r++) {
+                    if (
+                        existingCodes[r][0] &&
+                        existingCodes[r][0].toString().trim().toUpperCase() ===
+                            confirmationCode
+                    ) {
+                        return ContentService.createTextOutput(
+                            JSON.stringify({
+                                status: "success",
+                                message:
+                                    "Reservation " +
+                                    confirmationCode +
+                                    " already recorded (duplicate request ignored).",
+                                confirmationNumber: confirmationCode,
+                                paymentStatus:
+                                    data.paymentStatus ||
+                                    "No payment received (Pending Reservation)",
+                                rowNumber: r + 2,
+                            }),
+                        ).setMimeType(ContentService.MimeType.JSON);
+                    }
+                }
+            }
+
             var reservationRow = [
                 data.confirmationNumber || "",
                 data.timestamp || new Date().toISOString(),
