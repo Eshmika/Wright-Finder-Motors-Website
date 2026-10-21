@@ -12,7 +12,11 @@ type SortOption =
     | "mileage-low"
     | "name-asc";
 
-export default function Index() {
+export default function Index({
+    hasGoogleAppsScriptUrl,
+}: {
+    hasGoogleAppsScriptUrl?: boolean;
+}) {
     const [vehicles, setVehicles] = useState<DetailedVehicle[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);

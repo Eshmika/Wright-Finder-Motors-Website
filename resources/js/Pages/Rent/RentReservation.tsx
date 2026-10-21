@@ -255,12 +255,6 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
         setIsSubmitting(true);
         const confirmationNum = generateConfirmationNumber();
 
-        // Stored script URL in localStorage if admin configured
-        let storedScriptUrl = "";
-        if (typeof window !== "undefined") {
-            storedScriptUrl = localStorage.getItem("WFM_APPS_SCRIPT_URL") || "";
-        }
-
         const payload = {
             confirmationNumber: confirmationNum,
             carId: vehicle?.id || id,
@@ -293,7 +287,6 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                       : "In Person / Cash at Pickup",
             paymentStatus: "No payment received (Pending Reservation)",
             notes: specialNotes,
-            scriptUrl: storedScriptUrl,
         };
 
         try {

@@ -232,12 +232,16 @@ async function compressAndConvertToWebp(
     };
 }
 
-export default function Create() {
+export default function Create({
+    hasGoogleAppsScriptUrl,
+}: {
+    hasGoogleAppsScriptUrl?: boolean;
+}) {
     // Car List sheet dataset
     const [carList, setCarList] = useState<CarListRow[]>([]);
     const [isLoadingList, setIsLoadingList] = useState(true);
 
-    // Google Apps Script Webhook URL setting (stored in browser local storage for convenience)
+    // Google Apps Script Webhook URL setting
     const [scriptWebhookUrl, setScriptWebhookUrl] = useState<string>(() => {
         if (typeof window !== "undefined") {
             return localStorage.getItem("WFM_APPS_SCRIPT_URL") || "";
@@ -245,6 +249,7 @@ export default function Create() {
         return "";
     });
     const [showWebhookConfig, setShowWebhookConfig] = useState(false);
+    const isWebhookActive = Boolean(hasGoogleAppsScriptUrl || scriptWebhookUrl);
 
     // Form fields
     const [carName, setCarName] = useState("");
@@ -894,14 +899,16 @@ export default function Create() {
                         >
                             <span
                                 className={`w-2 h-2 rounded-full ${
-                                    scriptWebhookUrl
+                                    isWebhookActive
                                         ? "bg-emerald-500 animate-pulse"
                                         : "bg-amber-400"
                                 }`}
                             />
                             <span>
-                                {scriptWebhookUrl
-                                    ? "Google Sync Configured"
+                                {isWebhookActive
+                                    ? hasGoogleAppsScriptUrl
+                                        ? "Google Sync Active (.env)"
+                                        : "Google Sync Configured"
                                     : "Setup Google Sync"}
                             </span>
                         </button>

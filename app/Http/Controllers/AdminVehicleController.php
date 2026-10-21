@@ -65,13 +65,13 @@ class AdminVehicleController extends Controller
             ], 422);
         }
 
-        // Webhook / Google Apps Script endpoint URL: check request first, then .env
-        $scriptUrl = $request->input('scriptUrl') ?: env('GOOGLE_APPS_SCRIPT_URL');
+        // Webhook / Google Apps Script endpoint URL: check services config first, then .env, then request
+        $scriptUrl = config('services.google.apps_script_url') ?: env('GOOGLE_APPS_SCRIPT_URL') ?: $request->input('scriptUrl');
 
         if (!$scriptUrl) {
             return response()->json([
                 'status' => 'need_webhook',
-                'message' => 'Google Apps Script Webhook URL is not configured. Please paste your deployed Web App URL in the setup banner above or in the .env file.',
+                'message' => 'Google Apps Script Webhook URL is not configured. Please add GOOGLE_APPS_SCRIPT_URL to your .env file.',
                 'carId' => $request->input('carId'),
             ], 400);
         }
@@ -131,11 +131,11 @@ class AdminVehicleController extends Controller
             ], 422);
         }
 
-        $scriptUrl = $request->input('scriptUrl') ?: env('GOOGLE_APPS_SCRIPT_URL');
+        $scriptUrl = config('services.google.apps_script_url') ?: env('GOOGLE_APPS_SCRIPT_URL') ?: $request->input('scriptUrl');
         if (!$scriptUrl) {
             return response()->json([
                 'status' => 'need_webhook',
-                'message' => 'Google Apps Script Webhook URL is not configured.',
+                'message' => 'Google Apps Script Webhook URL is not configured. Please add GOOGLE_APPS_SCRIPT_URL to your .env file.',
                 'carId' => $carId,
             ], 400);
         }

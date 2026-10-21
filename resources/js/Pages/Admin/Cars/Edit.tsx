@@ -16,6 +16,7 @@ import {
 
 interface EditProps {
     id: string;
+    hasGoogleAppsScriptUrl?: boolean;
 }
 
 interface CarListRow {
@@ -297,7 +298,7 @@ function formatPhoneNumber(value: string): string {
     return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
 }
 
-export default function Edit({ id }: EditProps) {
+export default function Edit({ id, hasGoogleAppsScriptUrl }: EditProps) {
     // Initial fetch state
     const [loadingInitial, setLoadingInitial] = useState<boolean>(true);
     const [initialVehicle, setInitialVehicle] =
@@ -319,6 +320,7 @@ export default function Edit({ id }: EditProps) {
         return "";
     });
     const [showWebhookConfig, setShowWebhookConfig] = useState(false);
+    const isWebhookActive = Boolean(hasGoogleAppsScriptUrl || scriptWebhookUrl);
 
     // Form fields
     const [carId, setCarId] = useState("");
@@ -1118,14 +1120,16 @@ export default function Edit({ id }: EditProps) {
                         >
                             <span
                                 className={`w-2 h-2 rounded-full ${
-                                    scriptWebhookUrl
+                                    isWebhookActive
                                         ? "bg-emerald-500 animate-pulse"
                                         : "bg-amber-400"
                                 }`}
                             />
                             <span>
-                                {scriptWebhookUrl
-                                    ? "Sync Active"
+                                {isWebhookActive
+                                    ? hasGoogleAppsScriptUrl
+                                        ? "Sync Active (.env)"
+                                        : "Sync Active"
                                     : "Config Webhook"}
                             </span>
                         </button>
