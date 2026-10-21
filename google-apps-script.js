@@ -155,7 +155,7 @@ function doPost(e) {
         }
         var subImagesJoined = subImageUrls.join(", ");
 
-        // 3. Target Google Sheet: "Vehicle details" tab
+        // 3. Target Google Sheet: "Vehicle details" or "Reservation" tab
         var SPREADSHEET_ID = "16dhtw1POBIeifrAEk0ZqmH3jV8s20quo9Si3GfebifE";
         var ss;
         try {
@@ -163,6 +163,91 @@ function doPost(e) {
             if (!ss) ss = SpreadsheetApp.openById(SPREADSHEET_ID);
         } catch (ssErr) {
             ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+        }
+
+        // Action: RESERVE (Save to "Reservation" tab)
+        if (data.action === "reserve") {
+            var resSheet = ss.getSheetByName("Reservation");
+            if (!resSheet) {
+                resSheet = ss.insertSheet("Reservation");
+            }
+
+            var resHeaders = [
+                "Confirmation Number",
+                "Timestamp",
+                "Car ID",
+                "Car Title",
+                "Rental Rate",
+                "Discount",
+                "First Name",
+                "Last Name",
+                "Email",
+                "Mobile Phone",
+                "Age",
+                "Residency",
+                "Pickup Location",
+                "Pickup Date",
+                "Pickup Time (EST)",
+                "Return Location",
+                "Return Date",
+                "Return Time (EST)",
+                "Payment Option",
+                "Payment Status",
+                "Special Notes",
+            ];
+
+            if (resSheet.getLastRow() === 0) {
+                resSheet.appendRow(resHeaders);
+                // Style header row
+                var headerRange = resSheet.getRange(1, 1, 1, resHeaders.length);
+                headerRange.setBackground("#170a3d");
+                headerRange.setFontColor("#ffffff");
+                headerRange.setFontWeight("bold");
+            }
+
+            var reservationRow = [
+                data.confirmationNumber || "",
+                data.timestamp || new Date().toISOString(),
+                data.carId || "",
+                data.carTitle || "",
+                data.rentalRate !== undefined ? data.rentalRate : "",
+                data.discount !== undefined ? data.discount : "",
+                data.firstName || "",
+                data.lastName || "",
+                data.email || "",
+                data.phone || "",
+                data.age || "",
+                data.residency || "",
+                data.pickupLocation || "",
+                data.pickupDate || "",
+                data.pickupTime || "",
+                data.returnLocation || "",
+                data.returnDate || "",
+                data.returnTime || "",
+                data.paymentOption || "",
+                data.paymentStatus ||
+                    "No payment received (Pending Reservation)",
+                data.notes || "",
+            ];
+
+            resSheet.appendRow(reservationRow);
+            var resRowNumber = resSheet.getLastRow();
+
+            return ContentService.createTextOutput(
+                JSON.stringify({
+                    status: "success",
+                    message:
+                        "Reservation " +
+                        (data.confirmationNumber || "") +
+                        " recorded in Reservation sheet row " +
+                        resRowNumber,
+                    confirmationNumber: data.confirmationNumber,
+                    paymentStatus:
+                        data.paymentStatus ||
+                        "No payment received (Pending Reservation)",
+                    rowNumber: resRowNumber,
+                }),
+            ).setMimeType(ContentService.MimeType.JSON);
         }
 
         var sheet = ss.getSheetByName("Vehicle details");

@@ -482,7 +482,7 @@ function VehicleCard({ car }: { car: Vehicle }) {
                                 onClick={(e) => {
                                     e.preventDefault();
                                     router.visit(
-                                        `/vehicles/${encodeURIComponent(car.id)}`,
+                                        `/rent/reserve/${encodeURIComponent(car.id)}`,
                                     );
                                 }}
                                 className="w-full inline-flex items-center justify-center space-x-1.5 py-3 px-3 rounded-xl bg-vivid-red hover:bg-red-600 text-white text-xs font-bold transition-all duration-200 shadow-md hover:shadow-red-500/30 active:scale-95 h-[42px]"
