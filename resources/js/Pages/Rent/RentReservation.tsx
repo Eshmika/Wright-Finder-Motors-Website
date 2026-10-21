@@ -359,38 +359,38 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
             </div>
 
             {/* Main Reservation Flow */}
-            <main className="flex-1 py-10 md:py-16 print:py-0 print:m-0">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 print:p-0 print:max-w-full">
+            <main className="flex-1 py-6 sm:py-10 md:py-16 print:py-0 print:m-0">
+                <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 print:p-0 print:max-w-full">
                     {/* Breadcrumbs */}
-                    <div className="flex items-center space-x-2 text-xs text-bggray font-medium mb-6 print:hidden">
+                    <div className="flex items-center space-x-1.5 sm:space-x-2 text-[11px] sm:text-xs text-bggray font-medium mb-4 sm:mb-6 overflow-x-auto whitespace-nowrap py-1 scrollbar-none print:hidden">
                         <Link
                             href="/"
-                            className="hover:text-vivid-red transition"
+                            className="hover:text-vivid-red transition shrink-0"
                         >
                             Home
                         </Link>
                         <span>/</span>
                         <Link
                             href="/rent"
-                            className="hover:text-vivid-red transition"
+                            className="hover:text-vivid-red transition shrink-0"
                         >
                             Rent Catalog
                         </Link>
                         <span>/</span>
-                        <span className="text-[#170a3d] font-bold">
+                        <span className="text-[#170a3d] font-bold shrink-0">
                             Booking &amp; Reservation
                         </span>
                     </div>
 
                     {/* Page Header */}
-                    <div className="text-center max-w-3xl mx-auto mb-10 print:hidden">
-                        <span className="inline-block px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-vivid-red/10 text-vivid-red border border-vivid-red/20 mb-3">
+                    <div className="text-center max-w-3xl mx-auto mb-6 sm:mb-10 print:hidden px-2">
+                        <span className="inline-block px-3 py-1 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wider bg-vivid-red/10 text-vivid-red border border-vivid-red/20 mb-2 sm:mb-3">
                             Direct Online Reservation
                         </span>
-                        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-[#170a3d] tracking-tight">
+                        <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-[#170a3d] tracking-tight leading-tight">
                             Vehicle Reservation &amp; Booking
                         </h1>
-                        <p className="mt-2 text-sm sm:text-base text-bggray leading-relaxed">
+                        <p className="mt-1.5 sm:mt-2 text-xs sm:text-sm md:text-base text-bggray leading-relaxed">
                             Lock in your special discounted rate with immediate
                             priority reservation.
                         </p>
@@ -398,7 +398,7 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
 
                     {/* SUCCESS CONFIRMATION MODAL / BANNER (Printable Receipt) */}
                     {reservationResult && (
-                        <div className="mb-12 p-8 sm:p-10 rounded-3xl bg-white border-2 border-emerald-400 shadow-2xl animate-fade-in text-center max-w-3xl mx-auto print:m-0 print:p-6 print:border-2 print:border-slate-800 print:shadow-none print:rounded-2xl print:max-w-full">
+                        <div className="mb-12 p-4 sm:p-8 md:p-10 rounded-2xl sm:rounded-3xl bg-white border-2 border-emerald-400 shadow-2xl animate-fade-in text-center max-w-3xl mx-auto print:m-0 print:p-6 print:border-2 print:border-slate-800 print:shadow-none print:rounded-2xl print:max-w-full">
                             {/* Receipt Company Header for Print */}
                             <div className="hidden print:flex items-center justify-between border-b-2 border-slate-900 pb-4 mb-6 text-left">
                                 <div>
@@ -430,9 +430,9 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                 </div>
                             </div>
 
-                            <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner print:w-12 print:h-12 print:mb-3">
+                            <div className="w-14 h-14 sm:w-20 sm:h-20 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-5 shadow-inner print:w-12 print:h-12 print:mb-3">
                                 <svg
-                                    className="w-10 h-10 print:w-6 print:h-6"
+                                    className="w-7 h-7 sm:w-10 sm:h-10 print:w-6 print:h-6"
                                     fill="none"
                                     viewBox="0 0 24 24"
                                     stroke="currentColor"
@@ -446,15 +446,15 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                 </svg>
                             </div>
 
-                            <span className="inline-block px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-300 mb-3 print:bg-slate-100 print:text-slate-900 print:border-slate-400">
+                            <span className="inline-block px-3 py-1 sm:px-4 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-bold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-300 mb-3 print:bg-slate-100 print:text-slate-900 print:border-slate-400">
                                 {reservationResult.paymentStatus}
                             </span>
 
-                            <h2 className="text-2xl sm:text-3xl font-extrabold text-[#170a3d] print:text-slate-900 print:text-2xl">
+                            <h2 className="text-xl sm:text-3xl font-extrabold text-[#170a3d] print:text-slate-900 print:text-2xl">
                                 Reservation Successfully Placed!
                             </h2>
 
-                            <p className="mt-2 text-sm text-gray-600 max-w-xl mx-auto print:text-slate-700">
+                            <p className="mt-2 text-xs sm:text-sm text-gray-600 max-w-xl mx-auto print:text-slate-700">
                                 Thank you,{" "}
                                 <span className="font-bold text-gray-800 print:text-black">
                                     {firstName} {lastName}
@@ -463,16 +463,16 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                 booking sheet.
                             </p>
 
-                            <div className="my-6 p-5 bg-gradient-to-r from-gray-50 to-slate-100 rounded-2xl border border-gray-200 inline-block shadow-inner print:my-4 print:py-3 print:px-6 print:border-slate-400 print:bg-slate-50">
-                                <div className="text-xs uppercase font-extrabold tracking-widest text-gray-500 print:text-slate-600 mb-1">
+                            <div className="my-4 sm:my-6 p-4 sm:p-5 bg-gradient-to-r from-gray-50 to-slate-100 rounded-2xl border border-gray-200 inline-block shadow-inner print:my-4 print:py-3 print:px-6 print:border-slate-400 print:bg-slate-50 w-full sm:w-auto">
+                                <div className="text-[10px] sm:text-xs uppercase font-extrabold tracking-widest text-gray-500 print:text-slate-600 mb-1">
                                     Your Confirmation Number
                                 </div>
-                                <div className="text-2xl sm:text-3xl font-mono font-black text-vivid-red print:text-slate-900 tracking-wider">
+                                <div className="text-xl sm:text-3xl font-mono font-black text-vivid-red print:text-slate-900 tracking-wider break-all">
                                     {reservationResult.confirmationNumber}
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left max-w-xl mx-auto p-5 bg-slate-50 rounded-2xl border border-slate-200 text-xs text-slate-700 mb-8 print:mb-4 print:border-slate-300 print:bg-white print:p-4 print:grid-cols-2">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-left max-w-xl mx-auto p-4 sm:p-5 bg-slate-50 rounded-2xl border border-slate-200 text-xs text-slate-700 mb-6 sm:mb-8 print:mb-4 print:border-slate-300 print:bg-white print:p-4 print:grid-cols-2">
                                 <div>
                                     <span className="font-bold block text-slate-900">
                                         Vehicle:
@@ -511,13 +511,17 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                     <span className="font-bold block text-slate-900">
                                         Pickup Location:
                                     </span>
-                                    <span>{pickupLocation}</span>
+                                    <span className="break-words">
+                                        {pickupLocation}
+                                    </span>
                                 </div>
                                 <div>
                                     <span className="font-bold block text-slate-900">
                                         Return Location:
                                     </span>
-                                    <span>{returnLocation}</span>
+                                    <span className="break-words">
+                                        {returnLocation}
+                                    </span>
                                 </div>
                                 <div>
                                     <span className="font-bold block text-slate-900">
@@ -531,13 +535,13 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                     <span className="font-bold block text-slate-900">
                                         Email:
                                     </span>
-                                    <span>{email}</span>
+                                    <span className="break-all">{email}</span>
                                 </div>
                                 <div>
                                     <span className="font-bold block text-slate-900">
                                         Selected Payment Method:
                                     </span>
-                                    <span className="capitalize">
+                                    <span className="capitalize break-words">
                                         {paymentMethod === "zelle"
                                             ? "Zelle (contact@wrightfindermotors.com)"
                                             : paymentMethod === "cashapp"
@@ -564,17 +568,17 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                 Driver&apos;s License and Payment.
                             </div>
 
-                            <div className="flex flex-wrap items-center justify-center gap-4 print:hidden">
+                            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 print:hidden">
                                 <Link
                                     href="/rent"
-                                    className="px-6 py-3 rounded-xl bg-vivid-red hover:bg-red-600 text-white text-xs font-bold shadow-md transition"
+                                    className="w-full sm:w-auto text-center px-6 py-3 rounded-xl bg-vivid-red hover:bg-red-600 text-white text-xs font-bold shadow-md transition"
                                 >
                                     Back to Rent Catalog
                                 </Link>
                                 <button
                                     type="button"
                                     onClick={() => window.print()}
-                                    className="px-6 py-3 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 text-xs font-bold transition shadow-sm"
+                                    className="w-full sm:w-auto px-6 py-3 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 text-xs font-bold transition shadow-sm"
                                 >
                                     Print Receipt
                                 </button>
@@ -583,13 +587,13 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                     )}
 
                     {!reservationResult && (
-                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start print:hidden">
-                            {/* LEFT SIDE: MULTI-STEP RESERVATION WIZARD (7 cols on lg) */}
-                            <div className="lg:col-span-7 bg-white rounded-3xl border border-gray-100 shadow-xl overflow-hidden p-6 sm:p-8">
+                        <div className="flex flex-col lg:grid lg:grid-cols-12 gap-6 lg:gap-8 items-start print:hidden">
+                            {/* LEFT SIDE: MULTI-STEP RESERVATION WIZARD (7 cols on lg, full on mobile/tablet) */}
+                            <div className="w-full lg:col-span-7 bg-white rounded-2xl sm:rounded-3xl border border-gray-100 shadow-xl overflow-hidden p-4 sm:p-6 md:p-8">
                                 {/* Top Step Navigator with 4 Sections */}
-                                <div className="mb-8">
-                                    {/* Section Steps Header */}
-                                    <div className="grid grid-cols-4 gap-2 mb-4">
+                                <div className="mb-6 sm:mb-8">
+                                    {/* Section Steps Header (Responsive Grid: 2 cols on very small screens, 4 on sm+) */}
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
                                         {steps.map((s) => {
                                             const isActive =
                                                 currentStep === s.id;
@@ -608,9 +612,9 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                                             );
                                                         }
                                                     }}
-                                                    className={`text-left p-2.5 rounded-2xl transition-all ${
+                                                    className={`text-left p-2 sm:p-2.5 rounded-xl sm:rounded-2xl transition-all ${
                                                         isActive
-                                                            ? "bg-red-50 border border-vivid-red/30 shadow-xs"
+                                                            ? "bg-red-50 border border-vivid-red/30 shadow-xs ring-1 ring-vivid-red/20"
                                                             : isDone
                                                               ? "bg-emerald-50/70 border border-emerald-200 cursor-pointer"
                                                               : "bg-gray-50/80 border border-transparent opacity-60 cursor-not-allowed"
@@ -618,7 +622,7 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                                 >
                                                     <div className="flex items-center space-x-1.5 mb-1">
                                                         <div
-                                                            className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${
+                                                            className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center text-[9px] sm:text-[10px] font-black shrink-0 ${
                                                                 isActive
                                                                     ? "bg-vivid-red text-white"
                                                                     : isDone
@@ -631,7 +635,7 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                                                 : s.id}
                                                         </div>
                                                         <span
-                                                            className={`text-[10px] uppercase font-black truncate ${
+                                                            className={`text-[9px] sm:text-[10px] uppercase font-black truncate ${
                                                                 isActive
                                                                     ? "text-vivid-red"
                                                                     : isDone
@@ -642,7 +646,7 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                                             Step {s.id}
                                                         </span>
                                                     </div>
-                                                    <div className="text-[11px] font-bold text-gray-800 truncate leading-tight">
+                                                    <div className="text-[10px] sm:text-[11px] font-bold text-gray-800 truncate leading-tight">
                                                         {s.name}
                                                     </div>
                                                 </button>
@@ -651,7 +655,7 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                     </div>
 
                                     {/* Filling Progress Bar */}
-                                    <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden shadow-inner">
+                                    <div className="w-full bg-gray-100 h-2 sm:h-2.5 rounded-full overflow-hidden shadow-inner">
                                         <div
                                             className="h-full bg-gradient-to-r from-vivid-red to-red-500 transition-all duration-500 rounded-full"
                                             style={{
@@ -659,12 +663,12 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                             }}
                                         />
                                     </div>
-                                    <div className="flex justify-between items-center text-[11px] font-semibold text-gray-400 mt-1.5">
-                                        <span>
+                                    <div className="flex justify-between items-center text-[10px] sm:text-[11px] font-semibold text-gray-400 mt-1.5">
+                                        <span className="truncate pr-2">
                                             Step {currentStep} of 4:{" "}
                                             {steps[currentStep - 1].name}
                                         </span>
-                                        <span className="text-vivid-red font-bold">
+                                        <span className="text-vivid-red font-bold shrink-0">
                                             {progressPercentage}% Completed
                                         </span>
                                     </div>
@@ -1226,10 +1230,10 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                             <div className="space-y-3">
                                                 {/* Option 1: Zelle */}
                                                 <label
-                                                    className={`block p-4 rounded-2xl border-2 transition-all cursor-pointer ${
+                                                    className={`block p-3.5 sm:p-4 rounded-2xl border-2 transition-all cursor-pointer ${
                                                         paymentMethod ===
                                                         "zelle"
-                                                            ? "border-vivid-red bg-red-50/40 shadow-sm"
+                                                            ? "border-vivid-red bg-red-50/40 shadow-sm ring-1 ring-vivid-red/20"
                                                             : "border-gray-200 bg-white hover:border-gray-300"
                                                     }`}
                                                 >
@@ -1247,19 +1251,19 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                                                     "zelle",
                                                                 )
                                                             }
-                                                            className="mt-1 text-vivid-red focus:ring-vivid-red"
+                                                            className="mt-1 text-vivid-red focus:ring-vivid-red shrink-0"
                                                         />
-                                                        <div className="flex-1">
-                                                            <div className="flex items-center justify-between">
-                                                                <span className="font-extrabold text-sm text-gray-900">
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex flex-wrap items-center justify-between gap-1.5">
+                                                                <span className="font-extrabold text-xs sm:text-sm text-gray-900">
                                                                     Zelle
                                                                     Payment
                                                                 </span>
-                                                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple/10 text-purple uppercase">
+                                                                <span className="text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded bg-purple/10 text-purple uppercase shrink-0">
                                                                     Recommended
                                                                 </span>
                                                             </div>
-                                                            <p className="text-xs text-gray-500 mt-1">
+                                                            <p className="text-[11px] sm:text-xs text-gray-500 mt-1 leading-relaxed">
                                                                 Send payment
                                                                 directly through
                                                                 your banking app
@@ -1267,13 +1271,13 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                                                 transaction
                                                                 fees.
                                                             </p>
-                                                            <div className="mt-2.5 p-2.5 rounded-xl bg-white border border-gray-200 flex items-center justify-between text-xs">
-                                                                <span className="text-gray-500 font-medium">
+                                                            <div className="mt-2.5 p-2 sm:p-2.5 rounded-xl bg-gray-50 sm:bg-white border border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2 text-xs">
+                                                                <span className="text-gray-500 font-medium text-[11px] sm:text-xs">
                                                                     Zelle
                                                                     Recipient
                                                                     Email:
                                                                 </span>
-                                                                <span className="font-mono font-bold text-dark-blue select-all bg-gray-100 px-2 py-0.5 rounded">
+                                                                <span className="font-mono font-bold text-dark-blue select-all bg-white sm:bg-gray-100 px-2 py-1 rounded text-[11px] sm:text-xs break-all sm:break-normal inline-block">
                                                                     contact@wrightfindermotors.com
                                                                 </span>
                                                             </div>
@@ -1283,10 +1287,10 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
 
                                                 {/* Option 2: Cash App */}
                                                 <label
-                                                    className={`block p-4 rounded-2xl border-2 transition-all cursor-pointer ${
+                                                    className={`block p-3.5 sm:p-4 rounded-2xl border-2 transition-all cursor-pointer ${
                                                         paymentMethod ===
                                                         "cashapp"
-                                                            ? "border-vivid-red bg-red-50/40 shadow-sm"
+                                                            ? "border-vivid-red bg-red-50/40 shadow-sm ring-1 ring-vivid-red/20"
                                                             : "border-gray-200 bg-white hover:border-gray-300"
                                                     }`}
                                                 >
@@ -1304,31 +1308,31 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                                                     "cashapp",
                                                                 )
                                                             }
-                                                            className="mt-1 text-vivid-red focus:ring-vivid-red"
+                                                            className="mt-1 text-vivid-red focus:ring-vivid-red shrink-0"
                                                         />
-                                                        <div className="flex-1">
-                                                            <div className="flex items-center justify-between">
-                                                                <span className="font-extrabold text-sm text-gray-900">
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex flex-wrap items-center justify-between gap-1.5">
+                                                                <span className="font-extrabold text-xs sm:text-sm text-gray-900">
                                                                     Cash App
                                                                 </span>
-                                                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 uppercase">
+                                                                <span className="text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 uppercase shrink-0">
                                                                     Fast Mobile
                                                                 </span>
                                                             </div>
-                                                            <p className="text-xs text-gray-500 mt-1">
+                                                            <p className="text-[11px] sm:text-xs text-gray-500 mt-1 leading-relaxed">
                                                                 Pay through Cash
                                                                 App using our
                                                                 verified
                                                                 official
                                                                 business email.
                                                             </p>
-                                                            <div className="mt-2.5 p-2.5 rounded-xl bg-white border border-gray-200 flex items-center justify-between text-xs">
-                                                                <span className="text-gray-500 font-medium">
+                                                            <div className="mt-2.5 p-2 sm:p-2.5 rounded-xl bg-gray-50 sm:bg-white border border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2 text-xs">
+                                                                <span className="text-gray-500 font-medium text-[11px] sm:text-xs">
                                                                     Cash App
                                                                     Recipient
                                                                     Email:
                                                                 </span>
-                                                                <span className="font-mono font-bold text-dark-blue select-all bg-gray-100 px-2 py-0.5 rounded">
+                                                                <span className="font-mono font-bold text-dark-blue select-all bg-white sm:bg-gray-100 px-2 py-1 rounded text-[11px] sm:text-xs break-all sm:break-normal inline-block">
                                                                     contact@wrightfindermotors.com
                                                                 </span>
                                                             </div>
@@ -1338,10 +1342,10 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
 
                                                 {/* Option 3: In Person / Cash */}
                                                 <label
-                                                    className={`block p-4 rounded-2xl border-2 transition-all cursor-pointer ${
+                                                    className={`block p-3.5 sm:p-4 rounded-2xl border-2 transition-all cursor-pointer ${
                                                         paymentMethod ===
                                                         "in_person"
-                                                            ? "border-vivid-red bg-red-50/40 shadow-sm"
+                                                            ? "border-vivid-red bg-red-50/40 shadow-sm ring-1 ring-vivid-red/20"
                                                             : "border-gray-200 bg-white hover:border-gray-300"
                                                     }`}
                                                 >
@@ -1359,20 +1363,20 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                                                     "in_person",
                                                                 )
                                                             }
-                                                            className="mt-1 text-vivid-red focus:ring-vivid-red"
+                                                            className="mt-1 text-vivid-red focus:ring-vivid-red shrink-0"
                                                         />
-                                                        <div className="flex-1">
-                                                            <div className="flex items-center justify-between">
-                                                                <span className="font-extrabold text-sm text-gray-900">
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex flex-wrap items-center justify-between gap-1.5">
+                                                                <span className="font-extrabold text-xs sm:text-sm text-gray-900">
                                                                     In Person /
                                                                     Cash
                                                                 </span>
-                                                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-gray-100 text-gray-700 uppercase">
+                                                                <span className="text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded bg-gray-100 text-gray-700 uppercase shrink-0">
                                                                     Pay At
                                                                     Pickup
                                                                 </span>
                                                             </div>
-                                                            <p className="text-xs text-gray-500 mt-1">
+                                                            <p className="text-[11px] sm:text-xs text-gray-500 mt-1 leading-relaxed">
                                                                 Pay in person
                                                                 with cash or
                                                                 card upon
@@ -1876,12 +1880,12 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                     )}
 
                                     {/* Action Buttons: Next / Back / Reserve */}
-                                    <div className="flex items-center justify-between pt-6 border-t border-gray-100">
+                                    <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-6 border-t border-gray-100">
                                         {currentStep > 1 ? (
                                             <button
                                                 type="button"
                                                 onClick={handleBack}
-                                                className="inline-flex items-center space-x-1.5 px-5 py-2.5 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 text-xs font-bold transition shadow-sm"
+                                                className="w-full sm:w-auto inline-flex items-center justify-center space-x-1.5 px-5 py-2.5 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 text-xs font-bold transition shadow-sm active:scale-95"
                                             >
                                                 <svg
                                                     className="w-3.5 h-3.5"
@@ -1901,7 +1905,7 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                         ) : (
                                             <Link
                                                 href="/rent"
-                                                className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs text-gray-500 hover:text-gray-800 transition font-medium"
+                                                className="w-full sm:w-auto text-center inline-flex items-center justify-center space-x-1.5 px-4 py-2.5 rounded-xl text-xs text-gray-500 hover:text-gray-800 hover:bg-gray-50 transition font-medium"
                                             >
                                                 Cancel
                                             </Link>
@@ -1911,7 +1915,7 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                             <button
                                                 type="button"
                                                 onClick={handleNext}
-                                                className="inline-flex items-center space-x-1.5 px-7 py-3 rounded-xl bg-vivid-red hover:bg-red-600 text-white text-xs font-bold transition shadow-md hover:shadow-red-500/25 active:scale-95"
+                                                className="w-full sm:w-auto inline-flex items-center justify-center space-x-1.5 px-7 py-3 rounded-xl bg-vivid-red hover:bg-red-600 text-white text-xs font-bold transition shadow-md hover:shadow-red-500/25 active:scale-95"
                                             >
                                                 <span>
                                                     Continue to{" "}
@@ -1935,7 +1939,7 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                             <button
                                                 type="submit"
                                                 disabled={isSubmitting}
-                                                className="inline-flex items-center space-x-2 px-9 py-3.5 rounded-xl bg-gradient-to-r from-vivid-red to-red-600 hover:from-red-600 hover:to-red-700 text-white text-sm font-extrabold shadow-xl shadow-red-500/30 transition transform active:scale-95 disabled:opacity-50"
+                                                className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-9 py-3.5 rounded-xl bg-gradient-to-r from-vivid-red to-red-600 hover:from-red-600 hover:to-red-700 text-white text-sm font-extrabold shadow-xl shadow-red-500/30 transition transform active:scale-95 disabled:opacity-50"
                                             >
                                                 {isSubmitting ? (
                                                     <>
@@ -1989,10 +1993,10 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                 </form>
                             </div>
 
-                            {/* RIGHT SIDE: VEHICLE OVERVIEW & SPECIFICATIONS (5 cols on lg) */}
-                            <div className="lg:col-span-5 space-y-6">
+                            {/* RIGHT SIDE: VEHICLE OVERVIEW & SPECIFICATIONS (Full on mobile/tablet, 5 cols on lg) */}
+                            <div className="w-full lg:col-span-5 space-y-6">
                                 {/* Selected Car Card */}
-                                <div className="bg-white rounded-3xl border border-gray-100 shadow-xl overflow-hidden p-6 sm:p-7">
+                                <div className="bg-white rounded-2xl sm:rounded-3xl border border-gray-100 shadow-xl overflow-hidden p-5 sm:p-7">
                                     <div className="flex items-center justify-between mb-4">
                                         <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
                                             {vehicle?.availabilities ||
@@ -2004,7 +2008,7 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                     </div>
 
                                     {/* Car Title */}
-                                    <h3 className="text-2xl font-black text-[#170a3d] tracking-tight">
+                                    <h3 className="text-xl sm:text-2xl font-black text-[#170a3d] tracking-tight">
                                         {vehicle
                                             ? `${vehicle.year ? vehicle.year + " " : ""}${vehicle.make} ${vehicle.model}`
                                             : "Loading Vehicle..."}
@@ -2015,7 +2019,7 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                     </p>
 
                                     {/* Image Carousel */}
-                                    <div className="relative h-56 sm:h-64 rounded-2xl overflow-hidden bg-gray-100 mb-4 group shadow-inner">
+                                    <div className="relative h-48 sm:h-56 md:h-64 rounded-2xl overflow-hidden bg-gray-100 mb-4 group shadow-inner">
                                         {vehicle &&
                                         vehicle.images &&
                                         vehicle.images.length > 0 ? (
@@ -2102,13 +2106,13 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                     </div>
 
                                     {/* Daily Price & Savings Highlight */}
-                                    <div className="p-4 rounded-2xl bg-red-50/70 border border-red-100 flex items-center justify-between">
+                                    <div className="p-3.5 sm:p-4 rounded-2xl bg-red-50/70 border border-red-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                                         <div>
                                             <span className="text-[10px] uppercase font-bold text-gray-500 block">
                                                 Pay Now Daily Rate
                                             </span>
                                             <div className="flex items-baseline gap-2">
-                                                <span className="text-2xl font-black text-[#170a3d]">
+                                                <span className="text-xl sm:text-2xl font-black text-[#170a3d]">
                                                     $
                                                     {baseDailyRate.toLocaleString()}
                                                 </span>
@@ -2126,7 +2130,7 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                         </div>
 
                                         {dailyDiscount > 0 && (
-                                            <div className="text-right">
+                                            <div className="text-left sm:text-right">
                                                 <span className="inline-block px-2.5 py-1 rounded-full bg-emerald-500 text-white text-[10px] font-black shadow-xs">
                                                     Save $
                                                     {dailyDiscount.toLocaleString()}{" "}
@@ -2138,7 +2142,7 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                 </div>
 
                                 {/* Support & Need Help Widget */}
-                                <div className="p-5 rounded-3xl bg-white border border-gray-100 shadow-sm text-xs text-gray-600 flex items-center gap-4">
+                                <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-white border border-gray-100 shadow-sm text-xs text-gray-600 flex items-center gap-3 sm:gap-4">
                                     <div className="w-10 h-10 rounded-2xl bg-red-50 text-vivid-red flex items-center justify-center shrink-0">
                                         <svg
                                             className="w-5 h-5"
@@ -2162,7 +2166,7 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                         coordinator:{" "}
                                         <a
                                             href="tel:+13134606775"
-                                            className="text-vivid-red font-bold hover:underline"
+                                            className="text-vivid-red font-bold hover:underline break-all"
                                         >
                                             contact@wrightfindermotors.com
                                         </a>
