@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'google' => [
+        'apps_script_url' => env('GOOGLE_APPS_SCRIPT_URL', ''),
+    ],
+
 ];

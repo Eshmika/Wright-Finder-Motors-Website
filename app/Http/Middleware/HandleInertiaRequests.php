@@ -34,6 +34,7 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
+            'hasGoogleAppsScriptUrl' => !empty(config('services.google.apps_script_url') ?: env('GOOGLE_APPS_SCRIPT_URL')),
         ];
     }
 }

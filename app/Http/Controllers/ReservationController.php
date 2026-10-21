@@ -59,7 +59,7 @@ class ReservationController extends Controller
         $data['timestamp'] = date('Y-m-d H:i:s') . ' EST';
 
         // Check Webhook / Google Apps Script endpoint URL
-        $scriptUrl = $request->input('scriptUrl') ?: env('GOOGLE_APPS_SCRIPT_URL');
+        $scriptUrl = config('services.google.apps_script_url') ?: env('GOOGLE_APPS_SCRIPT_URL') ?: $request->input('scriptUrl');
 
         $googleSheetSaved = false;
         $googleSheetMessage = '';
