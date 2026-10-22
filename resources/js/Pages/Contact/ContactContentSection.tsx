@@ -1,33 +1,20 @@
 import { useState, useEffect } from "react";
 
 const formatPhoneNumber = (value: string): string => {
-    // Keep only numbers and a single leading '+'
-    const hasLeadingPlus = value.trim().startsWith("+");
-    const digits = value.replace(/\D/g, "");
+    // Keep only numbers up to standard 10-digit US format (XXX) XXX-XXXX
+    const digits = value.replace(/\D/g, "").slice(0, 10);
 
     if (!digits) {
-        return hasLeadingPlus ? "+" : "";
+        return "";
     }
 
-    // Format standard 10-digit US phone numbers: (XXX) XXX-XXXX
-    // Or 11-digit with leading 1: +1 (XXX) XXX-XXXX
-    if (digits.length === 11 && digits.startsWith("1")) {
-        const d = digits.slice(1);
-        return `+1 (${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6, 10)}`;
-    } else if (digits.length <= 10) {
-        if (digits.length <= 3) {
-            return `(${digits}`;
-        }
-        if (digits.length <= 6) {
-            return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
-        }
-        return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+    if (digits.length <= 3) {
+        return `(${digits}`;
     }
-
-    // For international numbers or longer numbers, allow up to 15 digits formatted cleanly
-    const prefix = hasLeadingPlus ? "+" : "";
-    const limited = digits.slice(0, 15);
-    return `${prefix}${limited.replace(/(\d{3})(?=\d)/g, "$1 ").trim()}`;
+    if (digits.length <= 6) {
+        return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+    }
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
 };
 
 export default function ContactContentSection() {
@@ -443,10 +430,10 @@ export default function ContactContentSection() {
                                                 type="tel"
                                                 inputMode="tel"
                                                 autoComplete="tel"
-                                                placeholder="(937) 000-0000 or +1 (937) 000-0000"
+                                                placeholder="(XXX) XXX-XXXX"
                                                 value={formData.phone}
                                                 onChange={handlePhoneChange}
-                                                maxLength={20}
+                                                maxLength={14}
                                                 className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50/50 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-vivid-red/20 focus:border-vivid-red focus:bg-white transition"
                                             />
                                         </div>
@@ -475,11 +462,17 @@ export default function ContactContentSection() {
                                                 <option value="rent">
                                                     Vehicle Rentals
                                                 </option>
+                                                <option value="visit">
+                                                    Schedule a Visit
+                                                </option>
                                                 <option value="repair">
                                                     Maintenance &amp; Repair
                                                 </option>
                                                 <option value="finance">
                                                     Financing &amp; Trade-In
+                                                </option>
+                                                <option value="other">
+                                                    Other
                                                 </option>
                                             </select>
                                         </div>

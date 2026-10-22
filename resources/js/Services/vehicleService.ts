@@ -264,5 +264,18 @@ export async function fetchAllVehicles(): Promise<DetailedVehicle[]> {
         });
     }
 
-    return vehicles;
+    // Status Rank ordering: Available -> Pending -> Sold -> other
+    const statusRank = (status?: string): number => {
+        const s = (status || "").toLowerCase().trim();
+        if (s.startsWith("avail")) return 1;
+        if (s.startsWith("pend")) return 2;
+        if (s.startsWith("sold")) return 3;
+        return 4;
+    };
+
+    // Reverse to get newest rows first, then sort stably by status priority
+    const reversed = vehicles.reverse();
+    return [...reversed].sort((a, b) => {
+        return statusRank(a.availabilities) - statusRank(b.availabilities);
+    });
 }
