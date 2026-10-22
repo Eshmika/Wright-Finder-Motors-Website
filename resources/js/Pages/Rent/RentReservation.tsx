@@ -37,18 +37,34 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
     const [residency, setResidency] = useState("United States");
 
     // Step 2: Location/Date and time (EST)
-    const [pickupLocation, setPickupLocation] = useState(
-        "Main Showroom - Wright Finder Motors",
-    );
+    const [pickupLocationType, setPickupLocationType] = useState<
+        "hub" | "other"
+    >("hub");
+    const [customPickupLocation, setCustomPickupLocation] = useState("");
+    const defaultPickupHub = "Dayton,Ohio: Wright finder motors (primary hub)";
+    const pickupLocation =
+        pickupLocationType === "hub"
+            ? defaultPickupHub
+            : customPickupLocation.trim();
+
     const [pickupDate, setPickupDate] = useState(() => {
         const d = new Date();
         d.setDate(d.getDate() + 1);
         return d.toISOString().split("T")[0];
     });
     const [pickupTime, setPickupTime] = useState("10:00 AM");
-    const [returnLocation, setReturnLocation] = useState(
-        "Main Showroom - Wright Finder Motors",
-    );
+
+    const [returnLocationType, setReturnLocationType] = useState<
+        "same" | "hub" | "other"
+    >("same");
+    const [customReturnLocation, setCustomReturnLocation] = useState("");
+    const returnLocation =
+        returnLocationType === "same"
+            ? pickupLocation || defaultPickupHub
+            : returnLocationType === "hub"
+              ? defaultPickupHub
+              : customReturnLocation.trim();
+
     const [returnDate, setReturnDate] = useState(() => {
         const d = new Date();
         d.setDate(d.getDate() + 4);
@@ -188,9 +204,7 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                 errors.email = "Please enter a valid email address.";
             }
             const phoneDigits = phone.replace(/\D/g, "");
-            if (!phone.trim()) {
-                errors.phone = "Mobile phone number is required.";
-            } else if (phoneDigits.length < 10) {
+            if (phone.trim() && phoneDigits.length < 10) {
                 errors.phone = "Please enter a valid 10-digit mobile number.";
             }
             if (!age.trim())
@@ -200,12 +214,24 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
         }
 
         if (step === 2) {
-            if (!pickupLocation.trim())
+            if (
+                pickupLocationType === "other" &&
+                !customPickupLocation.trim()
+            ) {
+                errors.pickupLocation = "Please specify your pickup location.";
+            } else if (!pickupLocation.trim()) {
                 errors.pickupLocation = "Pickup location is required.";
+            }
             if (!pickupDate) errors.pickupDate = "Pickup date is required.";
             if (!pickupTime) errors.pickupTime = "Pickup time is required.";
-            if (!returnLocation.trim())
+            if (
+                returnLocationType === "other" &&
+                !customReturnLocation.trim()
+            ) {
+                errors.returnLocation = "Please specify your return location.";
+            } else if (!returnLocation.trim()) {
                 errors.returnLocation = "Return location is required.";
+            }
             if (!returnDate) errors.returnDate = "Return date is required.";
             if (!returnTime) errors.returnTime = "Return time is required.";
 
@@ -786,12 +812,12 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                                     )}
                                                 </div>
 
-                                                {/* Mobile Number (Phone format) */}
+                                                {/* Mobile Number (Phone format, Optional) */}
                                                 <div>
                                                     <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
                                                         Mobile Number{" "}
-                                                        <span className="text-vivid-red">
-                                                            *
+                                                        <span className="text-gray-400 font-normal lowercase text-[11px]">
+                                                            (optional)
                                                         </span>
                                                     </label>
                                                     <div className="relative">
@@ -935,32 +961,61 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                                         </span>
                                                     </label>
                                                     <select
-                                                        value={pickupLocation}
-                                                        onChange={(e) =>
-                                                            setPickupLocation(
-                                                                e.target.value,
-                                                            )
+                                                        value={
+                                                            pickupLocationType
                                                         }
+                                                        onChange={(e) => {
+                                                            const val = e.target
+                                                                .value as
+                                                                | "hub"
+                                                                | "other";
+                                                            setPickupLocationType(
+                                                                val,
+                                                            );
+                                                        }}
                                                         className="w-full bg-white border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-vivid-red font-medium"
                                                     >
-                                                        <option value="Main Showroom - Wright Finder Motors">
-                                                            Main Showroom -
-                                                            Wright Finder Motors
-                                                            (Primary Hub)
+                                                        <option value="hub">
+                                                            Dayton,Ohio: Wright
+                                                            finder motors
+                                                            (primary hub)
                                                         </option>
-                                                        <option value="Detroit Metro Airport (DTW) - Terminal Pickup">
-                                                            Detroit Metro
-                                                            Airport (DTW) -
-                                                            Terminal Meet &amp;
-                                                            Greet
-                                                        </option>
-                                                        <option value="Custom Delivery to Hotel/Residence">
-                                                            Custom Delivery to
-                                                            Hotel/Residence
-                                                            (Coordination
-                                                            Required)
+                                                        <option value="other">
+                                                            Other (type custom
+                                                            location)
                                                         </option>
                                                     </select>
+
+                                                    {pickupLocationType ===
+                                                        "other" && (
+                                                        <div className="mt-2.5">
+                                                            <input
+                                                                type="text"
+                                                                value={
+                                                                    customPickupLocation
+                                                                }
+                                                                onChange={(e) =>
+                                                                    setCustomPickupLocation(
+                                                                        e.target
+                                                                            .value,
+                                                                    )
+                                                                }
+                                                                placeholder="Enter your custom pickup address / city..."
+                                                                className={`w-full bg-white border rounded-xl px-3.5 py-2.5 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-500/20 font-medium ${
+                                                                    validationErrors.pickupLocation
+                                                                        ? "border-red-500"
+                                                                        : "border-gray-200 focus:border-vivid-red"
+                                                                }`}
+                                                            />
+                                                            {validationErrors.pickupLocation && (
+                                                                <p className="text-red-500 text-[10px] mt-1 font-semibold">
+                                                                    {
+                                                                        validationErrors.pickupLocation
+                                                                    }
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </div>
 
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1042,29 +1097,66 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                                         </span>
                                                     </label>
                                                     <select
-                                                        value={returnLocation}
-                                                        onChange={(e) =>
-                                                            setReturnLocation(
-                                                                e.target.value,
-                                                            )
+                                                        value={
+                                                            returnLocationType
                                                         }
+                                                        onChange={(e) => {
+                                                            const val = e.target
+                                                                .value as
+                                                                | "same"
+                                                                | "hub"
+                                                                | "other";
+                                                            setReturnLocationType(
+                                                                val,
+                                                            );
+                                                        }}
                                                         className="w-full bg-white border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-vivid-red font-medium"
                                                     >
-                                                        <option value="Main Showroom - Wright Finder Motors">
-                                                            Main Showroom -
-                                                            Wright Finder Motors
-                                                            (Primary Hub)
-                                                        </option>
-                                                        <option value="Detroit Metro Airport (DTW) - Terminal Return">
-                                                            Detroit Metro
-                                                            Airport (DTW) -
-                                                            Terminal Return
-                                                        </option>
-                                                        <option value="Same as Pickup Location">
+                                                        <option value="same">
                                                             Same as Pickup
                                                             Location
                                                         </option>
+                                                        <option value="hub">
+                                                            Dayton,Ohio: Wright
+                                                            finder motors
+                                                            (primary hub)
+                                                        </option>
+                                                        <option value="other">
+                                                            Other (type custom
+                                                            location)
+                                                        </option>
                                                     </select>
+
+                                                    {returnLocationType ===
+                                                        "other" && (
+                                                        <div className="mt-2.5">
+                                                            <input
+                                                                type="text"
+                                                                value={
+                                                                    customReturnLocation
+                                                                }
+                                                                onChange={(e) =>
+                                                                    setCustomReturnLocation(
+                                                                        e.target
+                                                                            .value,
+                                                                    )
+                                                                }
+                                                                placeholder="Enter your custom return address / city..."
+                                                                className={`w-full bg-white border rounded-xl px-3.5 py-2.5 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-500/20 font-medium ${
+                                                                    validationErrors.returnLocation
+                                                                        ? "border-red-500"
+                                                                        : "border-gray-200 focus:border-vivid-red"
+                                                                }`}
+                                                            />
+                                                            {validationErrors.returnLocation && (
+                                                                <p className="text-red-500 text-[10px] mt-1 font-semibold">
+                                                                    {
+                                                                        validationErrors.returnLocation
+                                                                    }
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </div>
 
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
