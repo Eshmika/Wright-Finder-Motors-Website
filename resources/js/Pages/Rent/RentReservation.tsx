@@ -1828,74 +1828,129 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                                     </table>
                                                 </div>
 
-                                                {/* Cancellation Bullet Points */}
-                                                <div className="p-4 sm:p-5 bg-slate-50/70 border-t border-gray-200 text-xs text-gray-700 space-y-3">
-                                                    <ul className="list-disc pl-5 space-y-2 leading-relaxed">
-                                                        <li>
-                                                            At the time of
-                                                            rental, we require a{" "}
-                                                            <strong>
-                                                                hold amount of
-                                                                up to $300 USD
-                                                            </strong>{" "}
-                                                            or the equivalent in
-                                                            your native currency
-                                                            for credit and debit
-                                                            cards.
-                                                        </li>
-                                                        <li>
-                                                            <strong>
-                                                                Prepaid
-                                                                Debit/Gift cards
-                                                                are not
-                                                                acceptable
-                                                                methods of
-                                                                credit
-                                                                identification
-                                                            </strong>{" "}
-                                                            to pick up a vehicle
-                                                            at any location. We
-                                                            only accept Prepaid
-                                                            Debit/Gift cards at
-                                                            time of return.
-                                                        </li>
-                                                        <li>
-                                                            Upon returning the
-                                                            vehicle, Wright
-                                                            Finder Motors will{" "}
-                                                            <strong>
-                                                                process a
-                                                                release of the
-                                                                unused portion
-                                                                of the hold
-                                                                subject to your
-                                                                bank's procedure
-                                                            </strong>
-                                                            . This hold may take
-                                                            up to two weeks to
-                                                            be released by your
-                                                            bank.
-                                                        </li>
-                                                        <li>
-                                                            If you have already
-                                                            paid towards your
-                                                            rental using a debit
-                                                            card, we will{" "}
-                                                            <strong>
-                                                                reverse any hold
-                                                                when the rental
-                                                                is over
-                                                            </strong>
-                                                            . The bank, however,
-                                                            may take time to
-                                                            post it back to your
-                                                            account. While this
-                                                            hold is in place,
-                                                            the funds will not
-                                                            be available for
-                                                            your use.
-                                                        </li>
-                                                    </ul>
+                                                {/* Rental Policies & Terms Bullet Points */}
+                                                <div className="p-4 sm:p-5 bg-slate-50/70 border-t border-gray-200 text-xs text-gray-700 space-y-4">
+                                                    {/* Security Deposit */}
+                                                    <div>
+                                                        <h5 className="font-bold text-dark-blue text-xs uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-vivid-red" />
+                                                            Security Deposit
+                                                        </h5>
+                                                        <ul className="list-disc pl-5 space-y-1 text-[11px] sm:text-xs leading-relaxed text-gray-600">
+                                                            <li>
+                                                                A refundable
+                                                                security deposit
+                                                                of $100-$250 may
+                                                                be required
+                                                                depending on the
+                                                                vehicle.
+                                                            </li>
+                                                            <li>
+                                                                Deposit must be
+                                                                paid using our
+                                                                valid payment
+                                                                methods.
+                                                            </li>
+                                                            <li>
+                                                                Deposits are
+                                                                refunded within
+                                                                3-7 business
+                                                                days after
+                                                                vehicle
+                                                                inspection and
+                                                                return.
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+
+                                                    {/* Payment Policy */}
+                                                    <div>
+                                                        <h5 className="font-bold text-dark-blue text-xs uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-vivid-red" />
+                                                            Payment Policy
+                                                        </h5>
+                                                        <ul className="list-disc pl-5 space-y-1 text-[11px] sm:text-xs leading-relaxed text-gray-600">
+                                                            <li>
+                                                                Rental payment
+                                                                is due before
+                                                                vehicle pickup.
+                                                            </li>
+                                                            <li>
+                                                                Valid driver's
+                                                                license and
+                                                                proof of
+                                                                insurance may be
+                                                                required.
+                                                            </li>
+                                                            <li>
+                                                                Customers are
+                                                                responsible for
+                                                                traffic tickets,
+                                                                tolls, fuel
+                                                                charges, and any
+                                                                damages not
+                                                                covered by
+                                                                insurance.
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+
+                                                    {/* Vehicle Return */}
+                                                    <div>
+                                                        <h5 className="font-bold text-dark-blue text-xs uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-vivid-red" />
+                                                            Vehicle Return
+                                                        </h5>
+                                                        <ul className="list-disc pl-5 space-y-1 text-[11px] sm:text-xs leading-relaxed text-gray-600">
+                                                            <li>
+                                                                Vehicle must be
+                                                                returned on the
+                                                                agreed date and
+                                                                time.
+                                                            </li>
+                                                            <li>
+                                                                Late returns may
+                                                                result in
+                                                                additional
+                                                                charges.
+                                                            </li>
+                                                            <li>
+                                                                Vehicle should
+                                                                be returned in
+                                                                the same
+                                                                condition it was
+                                                                rented.
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+
+                                                    {/* Additional Notes */}
+                                                    <div>
+                                                        <h5 className="font-bold text-dark-blue text-xs uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-vivid-red" />
+                                                            Additional Notes
+                                                        </h5>
+                                                        <ul className="list-disc pl-5 space-y-1 text-[11px] sm:text-xs leading-relaxed text-gray-600">
+                                                            <li>
+                                                                WF Motors
+                                                                reserves the
+                                                                right to refuse
+                                                                service when
+                                                                required
+                                                                documentation
+                                                                cannot be
+                                                                verified.
+                                                            </li>
+                                                            <li>
+                                                                Special
+                                                                circumstances
+                                                                may be reviewed
+                                                                on a
+                                                                case-by-case
+                                                                basis.
+                                                            </li>
+                                                        </ul>
+                                                    </div>
                                                 </div>
                                             </div>
 

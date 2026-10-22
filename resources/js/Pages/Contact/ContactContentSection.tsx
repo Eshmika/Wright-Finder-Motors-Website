@@ -199,12 +199,6 @@ export default function ContactContentSection() {
                                     </h4>
                                     <div className="flex flex-col space-y-1 pt-1 text-sm font-semibold text-gray-700">
                                         <a
-                                            href="tel:+19378388616"
-                                            className="hover:text-vivid-red transition"
-                                        >
-                                            +1937-838-8616
-                                        </a>
-                                        <a
                                             href="tel:+19374754737"
                                             className="hover:text-vivid-red transition"
                                         >
@@ -215,6 +209,12 @@ export default function ContactContentSection() {
                                             className="hover:text-vivid-red transition"
                                         >
                                             +1937-270-6688
+                                        </a>
+                                        <a
+                                            href="tel:+14409079599"
+                                            className="hover:text-vivid-red transition"
+                                        >
+                                            +1440-907-9599
                                         </a>
                                     </div>
                                     <p className="text-xs text-gray-400 pt-1">

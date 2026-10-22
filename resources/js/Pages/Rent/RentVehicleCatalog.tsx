@@ -978,8 +978,7 @@ export default function RentVehicleCatalog() {
     };
 
     const priceStepOptions = [
-        3000, 5000, 7000, 10000, 15000, 20000, 25000, 30000, 40000, 50000,
-        75000, 100000,
+        10, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000,
     ];
 
     const currentYear = new Date().getFullYear();
