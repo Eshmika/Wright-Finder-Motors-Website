@@ -4,6 +4,7 @@ import { Head, Link } from "@inertiajs/react";
 import { useEffect, useMemo, useState } from "react";
 
 type SortOption =
+    | "status-default"
     | "recently"
     | "price-low"
     | "price-high"
@@ -23,7 +24,7 @@ export default function Index({
 
     // Controls
     const [searchTerm, setSearchTerm] = useState<string>("");
-    const [sortBy, setSortBy] = useState<SortOption>("recently");
+    const [sortBy, setSortBy] = useState<SortOption>("status-default");
     const [statusFilter, setStatusFilter] = useState<string>("all");
     const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
@@ -189,7 +190,12 @@ export default function Index({
 
     // Filter & Sort
     const processedVehicles = useMemo(() => {
-        let list = [...vehicles];
+        // Only show Sell and Both vehicles in this admin panel (exclude Rent-only cars)
+        let list = vehicles.filter((v) => {
+            const ros = (v.rentOrSell || "").toLowerCase().trim();
+            // Include if Sell, Both, or not explicitly specified (defaults to sale inventory)
+            return ros !== "rent";
+        });
 
         // Search
         if (searchTerm.trim()) {
@@ -219,11 +225,27 @@ export default function Index({
             );
         }
 
+        // Status Rank helper: Available (1) -> Pending (2) -> Sold (3) -> others (4)
+        const statusRank = (status?: string): number => {
+            const s = (status || "").toLowerCase().trim();
+            if (s.startsWith("avail")) return 1;
+            if (s.startsWith("pend")) return 2;
+            if (s.startsWith("sold")) return 3;
+            return 4;
+        };
+
         // Sorting
         switch (sortBy) {
+            case "status-default":
+                // Group by status (Available -> Pending -> Sold), preserving newest first within each group
+                list.sort(
+                    (a, b) =>
+                        statusRank(a.availabilities) -
+                        statusRank(b.availabilities),
+                );
+                break;
             case "recently":
-                // Reverse order so most recently added vehicle is at the top
-                list.reverse();
+                // Standard reverse order (most recently added overall)
                 break;
             case "price-low":
                 list.sort((a, b) => a.price - b.price);
@@ -290,8 +312,9 @@ export default function Index({
     const availableCategories = useMemo(() => {
         const set = new Set<string>();
         vehicles.forEach((v) => {
-            if (v.rentOrSell && v.rentOrSell.trim()) {
-                set.add(v.rentOrSell.trim());
+            const ros = (v.rentOrSell || "").trim();
+            if (ros && ros.toLowerCase() !== "rent") {
+                set.add(ros);
             }
         });
         return Array.from(set);
@@ -498,6 +521,9 @@ export default function Index({
                                     }
                                     className="appearance-none pl-3.5 pr-8 py-2 text-xs font-semibold bg-slate-50 border border-slate-200 text-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple/40 focus:border-purple cursor-pointer shadow-sm"
                                 >
+                                    <option value="status-default">
+                                        Status (Available → Pending → Sold)
+                                    </option>
                                     <option value="recently">
                                         Recently Added
                                     </option>
