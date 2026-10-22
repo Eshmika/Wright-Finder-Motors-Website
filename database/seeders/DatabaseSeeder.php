@@ -29,7 +29,7 @@ class DatabaseSeeder extends Seeder
         // User::factory(10)->create();
 
         User::firstOrCreate(
-            ['email' => 'wrightfindermotors@gmail.com'],
+            ['email' => 'contact@wrightfindermotors.com'],
             [
                 'name' => 'Wright Finder Motors',
                 'password' => bcrypt('Wright@1234'),

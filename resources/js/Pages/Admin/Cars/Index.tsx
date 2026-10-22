@@ -1018,19 +1018,19 @@ export default function Index({
                                                                 ""
                                                             ).toLowerCase() ===
                                                             "available"
-                                                                ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                                                ? "bg-[#facc15] text-white"
                                                                 : (
                                                                         car.availabilities ||
                                                                         ""
                                                                     ).toLowerCase() ===
                                                                     "sold"
-                                                                  ? "bg-rose-100 text-rose-800 border border-rose-200"
+                                                                  ? "bg-[#22c55e] text-white"
                                                                   : (
                                                                           car.availabilities ||
                                                                           ""
                                                                       ).toLowerCase() ===
                                                                       "pending"
-                                                                    ? "bg-amber-100 text-amber-800 border border-amber-200"
+                                                                    ? "bg-[#9ca3af] text-white"
                                                                     : "bg-slate-100 text-slate-800 border border-slate-200"
                                                         }`}
                                                     >
