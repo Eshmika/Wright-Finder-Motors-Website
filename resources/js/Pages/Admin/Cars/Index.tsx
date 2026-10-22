@@ -850,10 +850,25 @@ export default function Index({
                                                   ? car.originalPrice
                                                   : car.price;
 
+                                        // Status-based light highlight styling for the row
+                                        const statusKey = (
+                                            car.availabilities || ""
+                                        )
+                                            .toLowerCase()
+                                            .trim();
+                                        const rowHighlightClass =
+                                            statusKey.startsWith("avail")
+                                                ? "bg-amber-50/60 hover:bg-amber-100/70 border-l-4 border-l-amber-400"
+                                                : statusKey.startsWith("sold")
+                                                  ? "bg-emerald-50/50 hover:bg-emerald-100/60 border-l-4 border-l-emerald-500"
+                                                  : statusKey.startsWith("pend")
+                                                    ? "bg-slate-100/70 hover:bg-slate-200/60 border-l-4 border-l-slate-400"
+                                                    : "hover:bg-purple/5";
+
                                         return (
                                             <tr
                                                 key={car.id || index}
-                                                className="hover:bg-purple/5 transition-colors group"
+                                                className={`transition-colors group ${rowHighlightClass}`}
                                             >
                                                 {/* 1. NO: Auto increment number */}
                                                 <td className="py-3 px-3 text-center font-bold text-slate-800">
