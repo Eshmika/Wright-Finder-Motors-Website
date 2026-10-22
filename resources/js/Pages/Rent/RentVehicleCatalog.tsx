@@ -734,8 +734,25 @@ export default function RentVehicleCatalog() {
                 }
 
                 if (isMounted) {
-                    // Reverse the order so newly added rows at the bottom of the Google Sheet appear first in the grid
-                    setVehicles(loadedVehicles.reverse());
+                    // Sort order:
+                    // 1st Priority - Status group: "Available" -> "Pending" -> "Sold" -> others
+                    // 2nd Priority - Inside each group: newest added first (reverse insertion/sheet order)
+                    const statusRank = (status?: string): number => {
+                        const s = (status || "").toLowerCase().trim();
+                        if (s.startsWith("avail")) return 1;
+                        if (s.startsWith("pend")) return 2;
+                        if (s.startsWith("sold")) return 3;
+                        return 4;
+                    };
+
+                    const reversed = loadedVehicles.reverse();
+                    const sortedVehicles = [...reversed].sort((a, b) => {
+                        const rankA = statusRank(a.availabilities || a.badge);
+                        const rankB = statusRank(b.availabilities || b.badge);
+                        return rankA - rankB;
+                    });
+
+                    setVehicles(sortedVehicles);
                     setIsLoading(false);
                 }
             } catch (err: any) {
@@ -978,8 +995,7 @@ export default function RentVehicleCatalog() {
     };
 
     const priceStepOptions = [
-        3000, 5000, 7000, 10000, 15000, 20000, 25000, 30000, 40000, 50000,
-        75000, 100000,
+        10, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000,
     ];
 
     const currentYear = new Date().getFullYear();

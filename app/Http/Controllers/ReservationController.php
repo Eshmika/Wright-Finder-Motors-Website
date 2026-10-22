@@ -30,7 +30,7 @@ class ReservationController extends Controller
             'firstName' => 'required|string|max:100',
             'lastName' => 'required|string|max:100',
             'email' => 'required|email|max:255',
-            'phone' => 'required|string|max:30',
+            'phone' => 'nullable|string|max:30',
             'age' => 'required|string|max:20',
             'residency' => 'required|string|max:150',
             'pickupLocation' => 'required|string|max:255',

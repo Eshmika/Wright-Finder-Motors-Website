@@ -836,7 +836,7 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                                         if (!email) {
                                                             const visitMsg = `Hello Wright Finder Motors,\n\nI would like to schedule a visit / test drive to inspect this vehicle in person:\n- Vehicle: ${vehicle.title || carIdentifier}\n- Stock ID: #${vehicle.id}\n- Price: $${vehicle.price?.toLocaleString() || "N/A"}\n- Mileage: ${vehicle.mileage || "N/A"}\n\nPlease let me know your available visiting dates and times.\n\nThank you!`;
                                                             router.visit(
-                                                                `/contact?subject=buy&carId=${encodeURIComponent(vehicle.id)}&carTitle=${encodeURIComponent(vehicle.title || carIdentifier)}&message=${encodeURIComponent(visitMsg)}#contact-form`,
+                                                                `/contact?subject=visit&carId=${encodeURIComponent(vehicle.id)}&carTitle=${encodeURIComponent(vehicle.title || carIdentifier)}&message=${encodeURIComponent(visitMsg)}#contact-form`,
                                                             );
                                                             return;
                                                         }

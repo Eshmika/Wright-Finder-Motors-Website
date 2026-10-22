@@ -37,18 +37,34 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
     const [residency, setResidency] = useState("United States");
 
     // Step 2: Location/Date and time (EST)
-    const [pickupLocation, setPickupLocation] = useState(
-        "Main Showroom - Wright Finder Motors",
-    );
+    const [pickupLocationType, setPickupLocationType] = useState<
+        "hub" | "other"
+    >("hub");
+    const [customPickupLocation, setCustomPickupLocation] = useState("");
+    const defaultPickupHub = "Dayton,Ohio: Wright finder motors (primary hub)";
+    const pickupLocation =
+        pickupLocationType === "hub"
+            ? defaultPickupHub
+            : customPickupLocation.trim();
+
     const [pickupDate, setPickupDate] = useState(() => {
         const d = new Date();
         d.setDate(d.getDate() + 1);
         return d.toISOString().split("T")[0];
     });
     const [pickupTime, setPickupTime] = useState("10:00 AM");
-    const [returnLocation, setReturnLocation] = useState(
-        "Main Showroom - Wright Finder Motors",
-    );
+
+    const [returnLocationType, setReturnLocationType] = useState<
+        "same" | "hub" | "other"
+    >("same");
+    const [customReturnLocation, setCustomReturnLocation] = useState("");
+    const returnLocation =
+        returnLocationType === "same"
+            ? pickupLocation || defaultPickupHub
+            : returnLocationType === "hub"
+              ? defaultPickupHub
+              : customReturnLocation.trim();
+
     const [returnDate, setReturnDate] = useState(() => {
         const d = new Date();
         d.setDate(d.getDate() + 4);
@@ -188,9 +204,7 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                 errors.email = "Please enter a valid email address.";
             }
             const phoneDigits = phone.replace(/\D/g, "");
-            if (!phone.trim()) {
-                errors.phone = "Mobile phone number is required.";
-            } else if (phoneDigits.length < 10) {
+            if (phone.trim() && phoneDigits.length < 10) {
                 errors.phone = "Please enter a valid 10-digit mobile number.";
             }
             if (!age.trim())
@@ -200,12 +214,24 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
         }
 
         if (step === 2) {
-            if (!pickupLocation.trim())
+            if (
+                pickupLocationType === "other" &&
+                !customPickupLocation.trim()
+            ) {
+                errors.pickupLocation = "Please specify your pickup location.";
+            } else if (!pickupLocation.trim()) {
                 errors.pickupLocation = "Pickup location is required.";
+            }
             if (!pickupDate) errors.pickupDate = "Pickup date is required.";
             if (!pickupTime) errors.pickupTime = "Pickup time is required.";
-            if (!returnLocation.trim())
+            if (
+                returnLocationType === "other" &&
+                !customReturnLocation.trim()
+            ) {
+                errors.returnLocation = "Please specify your return location.";
+            } else if (!returnLocation.trim()) {
                 errors.returnLocation = "Return location is required.";
+            }
             if (!returnDate) errors.returnDate = "Return date is required.";
             if (!returnTime) errors.returnTime = "Return time is required.";
 
@@ -283,7 +309,7 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                 paymentMethod === "zelle"
                     ? "Zelle (contact@wrightfindermotors.com)"
                     : paymentMethod === "cashapp"
-                      ? "Cash App (contact@wrightfindermotors.com)"
+                      ? "Cash App (937 475 4737)"
                       : "In Person / Cash at Pickup",
             paymentStatus: "No payment received (Pending Reservation)",
             notes: specialNotes,
@@ -538,7 +564,7 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                         {paymentMethod === "zelle"
                                             ? "Zelle (contact@wrightfindermotors.com)"
                                             : paymentMethod === "cashapp"
-                                              ? "Cash App (contact@wrightfindermotors.com)"
+                                              ? "Cash App (937 475 4737)"
                                               : "In Person / Cash at Pickup"}
                                     </span>
                                 </div>
@@ -786,12 +812,12 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                                     )}
                                                 </div>
 
-                                                {/* Mobile Number (Phone format) */}
+                                                {/* Mobile Number (Phone format, Optional) */}
                                                 <div>
                                                     <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
                                                         Mobile Number{" "}
-                                                        <span className="text-vivid-red">
-                                                            *
+                                                        <span className="text-gray-400 font-normal lowercase text-[11px]">
+                                                            (optional)
                                                         </span>
                                                     </label>
                                                     <div className="relative">
@@ -935,32 +961,61 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                                         </span>
                                                     </label>
                                                     <select
-                                                        value={pickupLocation}
-                                                        onChange={(e) =>
-                                                            setPickupLocation(
-                                                                e.target.value,
-                                                            )
+                                                        value={
+                                                            pickupLocationType
                                                         }
+                                                        onChange={(e) => {
+                                                            const val = e.target
+                                                                .value as
+                                                                | "hub"
+                                                                | "other";
+                                                            setPickupLocationType(
+                                                                val,
+                                                            );
+                                                        }}
                                                         className="w-full bg-white border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-vivid-red font-medium"
                                                     >
-                                                        <option value="Main Showroom - Wright Finder Motors">
-                                                            Main Showroom -
-                                                            Wright Finder Motors
-                                                            (Primary Hub)
+                                                        <option value="hub">
+                                                            Dayton,Ohio: Wright
+                                                            finder motors
+                                                            (primary hub)
                                                         </option>
-                                                        <option value="Detroit Metro Airport (DTW) - Terminal Pickup">
-                                                            Detroit Metro
-                                                            Airport (DTW) -
-                                                            Terminal Meet &amp;
-                                                            Greet
-                                                        </option>
-                                                        <option value="Custom Delivery to Hotel/Residence">
-                                                            Custom Delivery to
-                                                            Hotel/Residence
-                                                            (Coordination
-                                                            Required)
+                                                        <option value="other">
+                                                            Other (type custom
+                                                            location)
                                                         </option>
                                                     </select>
+
+                                                    {pickupLocationType ===
+                                                        "other" && (
+                                                        <div className="mt-2.5">
+                                                            <input
+                                                                type="text"
+                                                                value={
+                                                                    customPickupLocation
+                                                                }
+                                                                onChange={(e) =>
+                                                                    setCustomPickupLocation(
+                                                                        e.target
+                                                                            .value,
+                                                                    )
+                                                                }
+                                                                placeholder="Enter your custom pickup address / city..."
+                                                                className={`w-full bg-white border rounded-xl px-3.5 py-2.5 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-500/20 font-medium ${
+                                                                    validationErrors.pickupLocation
+                                                                        ? "border-red-500"
+                                                                        : "border-gray-200 focus:border-vivid-red"
+                                                                }`}
+                                                            />
+                                                            {validationErrors.pickupLocation && (
+                                                                <p className="text-red-500 text-[10px] mt-1 font-semibold">
+                                                                    {
+                                                                        validationErrors.pickupLocation
+                                                                    }
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </div>
 
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1042,29 +1097,66 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                                         </span>
                                                     </label>
                                                     <select
-                                                        value={returnLocation}
-                                                        onChange={(e) =>
-                                                            setReturnLocation(
-                                                                e.target.value,
-                                                            )
+                                                        value={
+                                                            returnLocationType
                                                         }
+                                                        onChange={(e) => {
+                                                            const val = e.target
+                                                                .value as
+                                                                | "same"
+                                                                | "hub"
+                                                                | "other";
+                                                            setReturnLocationType(
+                                                                val,
+                                                            );
+                                                        }}
                                                         className="w-full bg-white border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-vivid-red font-medium"
                                                     >
-                                                        <option value="Main Showroom - Wright Finder Motors">
-                                                            Main Showroom -
-                                                            Wright Finder Motors
-                                                            (Primary Hub)
-                                                        </option>
-                                                        <option value="Detroit Metro Airport (DTW) - Terminal Return">
-                                                            Detroit Metro
-                                                            Airport (DTW) -
-                                                            Terminal Return
-                                                        </option>
-                                                        <option value="Same as Pickup Location">
+                                                        <option value="same">
                                                             Same as Pickup
                                                             Location
                                                         </option>
+                                                        <option value="hub">
+                                                            Dayton,Ohio: Wright
+                                                            finder motors
+                                                            (primary hub)
+                                                        </option>
+                                                        <option value="other">
+                                                            Other (type custom
+                                                            location)
+                                                        </option>
                                                     </select>
+
+                                                    {returnLocationType ===
+                                                        "other" && (
+                                                        <div className="mt-2.5">
+                                                            <input
+                                                                type="text"
+                                                                value={
+                                                                    customReturnLocation
+                                                                }
+                                                                onChange={(e) =>
+                                                                    setCustomReturnLocation(
+                                                                        e.target
+                                                                            .value,
+                                                                    )
+                                                                }
+                                                                placeholder="Enter your custom return address / city..."
+                                                                className={`w-full bg-white border rounded-xl px-3.5 py-2.5 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-500/20 font-medium ${
+                                                                    validationErrors.returnLocation
+                                                                        ? "border-red-500"
+                                                                        : "border-gray-200 focus:border-vivid-red"
+                                                                }`}
+                                                            />
+                                                            {validationErrors.returnLocation && (
+                                                                <p className="text-red-500 text-[10px] mt-1 font-semibold">
+                                                                    {
+                                                                        validationErrors.returnLocation
+                                                                    }
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </div>
 
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1316,17 +1408,18 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                                                 Pay through Cash
                                                                 App using our
                                                                 verified
-                                                                official
-                                                                business email.
+                                                                recipient phone
+                                                                number.
                                                             </p>
                                                             <div className="mt-2.5 p-2 sm:p-2.5 rounded-xl bg-gray-50 sm:bg-white border border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2 text-xs">
                                                                 <span className="text-gray-500 font-medium text-[11px] sm:text-xs">
                                                                     Cash App
                                                                     Recipient
-                                                                    Email:
+                                                                    Phone:
                                                                 </span>
                                                                 <span className="font-mono font-bold text-dark-blue select-all bg-white sm:bg-gray-100 px-2 py-1 rounded text-[11px] sm:text-xs break-all sm:break-normal inline-block">
-                                                                    contact@wrightfindermotors.com
+                                                                    (937)
+                                                                    475-4737
                                                                 </span>
                                                             </div>
                                                         </div>
@@ -1500,7 +1593,7 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
 
                                                 {/* Pickup Details */}
                                                 <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200/80 text-xs space-y-1.5">
-                                                    <div className="font-bold text-[#170a3d] uppercase tracking-wider text-[11px] mb-2 flex items-center gap-1.5 text-emerald-700">
+                                                    <div className="font-bold uppercase tracking-wider text-[11px] mb-2 flex items-center gap-1.5 text-emerald-700">
                                                         <span>📍</span> Pickup
                                                         Details (EST)
                                                     </div>
@@ -1532,7 +1625,7 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
 
                                                 {/* Return Details */}
                                                 <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200/80 text-xs space-y-1.5">
-                                                    <div className="font-bold text-[#170a3d] uppercase tracking-wider text-[11px] mb-2 flex items-center gap-1.5 text-vivid-red">
+                                                    <div className="font-bold uppercase tracking-wider text-[11px] mb-2 flex items-center gap-1.5 text-vivid-red">
                                                         <span>🏁</span> Return
                                                         Details (EST)
                                                     </div>
@@ -1661,7 +1754,6 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                                             <tr>
                                                                 <th className="py-2.5 px-4 w-1/2">
                                                                     Cancellation
-                                                                    and No-Show
                                                                     Policy
                                                                 </th>
                                                                 <th className="py-2.5 px-4 w-1/2">
@@ -1673,150 +1765,192 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                                         <tbody className="divide-y divide-gray-100 text-gray-700">
                                                             <tr className="hover:bg-gray-50/50">
                                                                 <td className="py-2.5 px-4 font-medium">
-                                                                    Cancelling
-                                                                    up to 24
-                                                                    hours prior
-                                                                    to scheduled
-                                                                    pickup time
+                                                                    Cancellation
+                                                                    more than 48
+                                                                    hours before
+                                                                    pickup
                                                                 </td>
                                                                 <td className="py-2.5 px-4">
-                                                                    You will
-                                                                    receive a
-                                                                    refund of
-                                                                    your prepaid
-                                                                    amount,
-                                                                    minus a
-                                                                    $50.00
-                                                                    cancellation
-                                                                    fee.
+                                                                    Full refund
                                                                 </td>
                                                             </tr>
                                                             <tr className="hover:bg-gray-50/50">
                                                                 <td className="py-2.5 px-4 font-medium">
-                                                                    Cancelling
-                                                                    within 24
-                                                                    hours prior
-                                                                    to the
-                                                                    scheduled
-                                                                    pickup time.
+                                                                    Cancellation
+                                                                    24-48 hours
+                                                                    before
+                                                                    pickup
                                                                 </td>
                                                                 <td className="py-2.5 px-4">
-                                                                    You will
-                                                                    receive a
-                                                                    refund of
-                                                                    your prepaid
-                                                                    amount,
-                                                                    minus a
-                                                                    $150.00
+                                                                    Refund minus
+                                                                    a $35
+                                                                    processing
+                                                                    fee
+                                                                </td>
+                                                            </tr>{" "}
+                                                            <tr className="hover:bg-gray-50/50">
+                                                                <td className="py-2.5 px-4 font-medium">
+                                                                    Cancellation
+                                                                    less than 24
+                                                                    hours before
+                                                                    pickup
+                                                                </td>
+                                                                <td className="py-2.5 px-4">
+                                                                    Refund minus
+                                                                    a $ 65
                                                                     cancellation
-                                                                    fee. If your
-                                                                    prepaid
-                                                                    amount is
-                                                                    less than
-                                                                    $150.00 no
-                                                                    refund will
-                                                                    be issued.
+                                                                    fee
                                                                 </td>
                                                             </tr>
                                                             <tr className="hover:bg-gray-50/50">
                                                                 <td className="py-2.5 px-4 font-medium">
-                                                                    No show, or
+                                                                    No-show or
                                                                     failure to
-                                                                    pick-up your
-                                                                    rental
+                                                                    pick up
                                                                     vehicle
                                                                 </td>
                                                                 <td className="py-2.5 px-4 font-semibold text-vivid-red">
                                                                     No refund
-                                                                    will be
-                                                                    issued.
                                                                 </td>
                                                             </tr>
                                                             <tr className="hover:bg-gray-50/50">
                                                                 <td className="py-2.5 px-4 font-medium">
-                                                                    Rental is
-                                                                    picked up,
-                                                                    but returned
-                                                                    early
+                                                                    Early return
+                                                                    of vehicle
                                                                 </td>
                                                                 <td className="py-2.5 px-4 font-semibold text-vivid-red">
                                                                     No refund
-                                                                    will be
-                                                                    issued.
+                                                                    for unused
+                                                                    rental days
                                                                 </td>
                                                             </tr>
                                                         </tbody>
                                                     </table>
                                                 </div>
 
-                                                {/* Attached Image Bullet Points */}
-                                                <div className="p-4 sm:p-5 bg-slate-50/70 border-t border-gray-200 text-xs text-gray-700 space-y-3">
-                                                    <ul className="list-disc pl-5 space-y-2 leading-relaxed">
-                                                        <li>
-                                                            At the time of
-                                                            rental, we require a{" "}
-                                                            <strong>
-                                                                hold amount of
-                                                                up to $300 USD
-                                                            </strong>{" "}
-                                                            or the equivalent in
-                                                            your native currency
-                                                            for credit and debit
-                                                            cards.
-                                                        </li>
-                                                        <li>
-                                                            <strong>
-                                                                Prepaid
-                                                                Debit/Gift cards
-                                                                are not
-                                                                acceptable
-                                                                methods of
-                                                                credit
-                                                                identification
-                                                            </strong>{" "}
-                                                            to pick up a vehicle
-                                                            at any location. We
-                                                            only accept Prepaid
-                                                            Debit/Gift cards at
-                                                            time of return.
-                                                        </li>
-                                                        <li>
-                                                            Upon returning the
-                                                            vehicle, Wright
-                                                            Finder Motors will{" "}
-                                                            <strong>
-                                                                process a
-                                                                release of the
-                                                                unused portion
-                                                                of the hold
-                                                                subject to your
-                                                                bank's procedure
-                                                            </strong>
-                                                            . This hold may take
-                                                            up to two weeks to
-                                                            be released by your
-                                                            bank.
-                                                        </li>
-                                                        <li>
-                                                            If you have already
-                                                            paid towards your
-                                                            rental using a debit
-                                                            card, we will{" "}
-                                                            <strong>
-                                                                reverse any hold
-                                                                when the rental
-                                                                is over
-                                                            </strong>
-                                                            . The bank, however,
-                                                            may take time to
-                                                            post it back to your
-                                                            account. While this
-                                                            hold is in place,
-                                                            the funds will not
-                                                            be available for
-                                                            your use.
-                                                        </li>
-                                                    </ul>
+                                                {/* Rental Policies & Terms Bullet Points */}
+                                                <div className="p-4 sm:p-5 bg-slate-50/70 border-t border-gray-200 text-xs text-gray-700 space-y-4">
+                                                    {/* Security Deposit */}
+                                                    <div>
+                                                        <h5 className="font-bold text-dark-blue text-xs uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-vivid-red" />
+                                                            Security Deposit
+                                                        </h5>
+                                                        <ul className="list-disc pl-5 space-y-1 text-[11px] sm:text-xs leading-relaxed text-gray-600">
+                                                            <li>
+                                                                A refundable
+                                                                security deposit
+                                                                of $100-$250 may
+                                                                be required
+                                                                depending on the
+                                                                vehicle.
+                                                            </li>
+                                                            <li>
+                                                                Deposit must be
+                                                                paid using our
+                                                                valid payment
+                                                                methods.
+                                                            </li>
+                                                            <li>
+                                                                Deposits are
+                                                                refunded within
+                                                                3-7 business
+                                                                days after
+                                                                vehicle
+                                                                inspection and
+                                                                return.
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+
+                                                    {/* Payment Policy */}
+                                                    <div>
+                                                        <h5 className="font-bold text-dark-blue text-xs uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-vivid-red" />
+                                                            Payment Policy
+                                                        </h5>
+                                                        <ul className="list-disc pl-5 space-y-1 text-[11px] sm:text-xs leading-relaxed text-gray-600">
+                                                            <li>
+                                                                Rental payment
+                                                                is due before
+                                                                vehicle pickup.
+                                                            </li>
+                                                            <li>
+                                                                Valid driver's
+                                                                license and
+                                                                proof of
+                                                                insurance may be
+                                                                required.
+                                                            </li>
+                                                            <li>
+                                                                Customers are
+                                                                responsible for
+                                                                traffic tickets,
+                                                                tolls, fuel
+                                                                charges, and any
+                                                                damages not
+                                                                covered by
+                                                                insurance.
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+
+                                                    {/* Vehicle Return */}
+                                                    <div>
+                                                        <h5 className="font-bold text-dark-blue text-xs uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-vivid-red" />
+                                                            Vehicle Return
+                                                        </h5>
+                                                        <ul className="list-disc pl-5 space-y-1 text-[11px] sm:text-xs leading-relaxed text-gray-600">
+                                                            <li>
+                                                                Vehicle must be
+                                                                returned on the
+                                                                agreed date and
+                                                                time.
+                                                            </li>
+                                                            <li>
+                                                                Late returns may
+                                                                result in
+                                                                additional
+                                                                charges.
+                                                            </li>
+                                                            <li>
+                                                                Vehicle should
+                                                                be returned in
+                                                                the same
+                                                                condition it was
+                                                                rented.
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+
+                                                    {/* Additional Notes */}
+                                                    <div>
+                                                        <h5 className="font-bold text-dark-blue text-xs uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-vivid-red" />
+                                                            Additional Notes
+                                                        </h5>
+                                                        <ul className="list-disc pl-5 space-y-1 text-[11px] sm:text-xs leading-relaxed text-gray-600">
+                                                            <li>
+                                                                WF Motors
+                                                                reserves the
+                                                                right to refuse
+                                                                service when
+                                                                required
+                                                                documentation
+                                                                cannot be
+                                                                verified.
+                                                            </li>
+                                                            <li>
+                                                                Special
+                                                                circumstances
+                                                                may be reviewed
+                                                                on a
+                                                                case-by-case
+                                                                basis.
+                                                            </li>
+                                                        </ul>
+                                                    </div>
                                                 </div>
                                             </div>
 
@@ -1854,11 +1988,10 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                                         className="mt-0.5 w-4 h-4 text-vivid-red rounded border-gray-300 focus:ring-vivid-red"
                                                     />
                                                     <span className="text-xs text-gray-800 font-semibold leading-relaxed">
-                                                        I have read and accept
-                                                        policy and terms and
-                                                        conditions and
-                                                        understand that rate is
-                                                        prepaid.
+                                                        I have read and agree to
+                                                        the Reservation,
+                                                        Cancellation, and Rental
+                                                        Policies of WF Motors
                                                     </span>
                                                 </label>
                                                 {validationErrors.acceptedTerms && (
@@ -2131,6 +2264,63 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                                 </span>
                                             </div>
                                         )}
+                                    </div>
+
+                                    {/* Live Total Estimated Price Breakdown Based on Selected Dates */}
+                                    <div className="mt-3 p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-[#170a3d] text-white shadow-md">
+                                        <div className="flex items-center justify-between mb-2 pb-2 border-b border-white/10">
+                                            <div className="flex items-center space-x-1.5">
+                                                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                                                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-300">
+                                                    Estimated Rental Total
+                                                </span>
+                                            </div>
+                                            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-white/10 text-slate-200">
+                                                {rentalDays}{" "}
+                                                {rentalDays === 1
+                                                    ? "day"
+                                                    : "days"}
+                                            </span>
+                                        </div>
+
+                                        <div className="space-y-1.5 text-xs text-slate-300">
+                                            <div className="flex justify-between items-center">
+                                                <span>
+                                                    $
+                                                    {baseDailyRate.toLocaleString()}{" "}
+                                                    × {rentalDays}{" "}
+                                                    {rentalDays === 1
+                                                        ? "day"
+                                                        : "days"}
+                                                </span>
+                                                <span className="font-semibold text-white">
+                                                    $
+                                                    {totalEstimate.toLocaleString()}
+                                                </span>
+                                            </div>
+
+                                            {totalSavings > 0 && (
+                                                <div className="flex justify-between items-center text-emerald-400 text-[11px]">
+                                                    <span>Total Savings</span>
+                                                    <span className="font-bold">
+                                                        - $
+                                                        {totalSavings.toLocaleString()}
+                                                    </span>
+                                                </div>
+                                            )}
+
+                                            <div className="pt-2 border-t border-white/10 flex justify-between items-baseline">
+                                                <span className="text-xs font-bold text-white uppercase tracking-wider">
+                                                    Estimated Total
+                                                </span>
+                                                <div className="text-right">
+                                                    <span className="text-2xl font-black text-white tracking-tight">
+                                                        $
+                                                        {totalEstimate.toLocaleString()}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 

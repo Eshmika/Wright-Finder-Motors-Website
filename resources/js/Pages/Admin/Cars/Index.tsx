@@ -4,6 +4,7 @@ import { Head, Link } from "@inertiajs/react";
 import { useEffect, useMemo, useState } from "react";
 
 type SortOption =
+    | "status-default"
     | "recently"
     | "price-low"
     | "price-high"
@@ -23,7 +24,7 @@ export default function Index({
 
     // Controls
     const [searchTerm, setSearchTerm] = useState<string>("");
-    const [sortBy, setSortBy] = useState<SortOption>("recently");
+    const [sortBy, setSortBy] = useState<SortOption>("status-default");
     const [statusFilter, setStatusFilter] = useState<string>("all");
     const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
@@ -189,7 +190,12 @@ export default function Index({
 
     // Filter & Sort
     const processedVehicles = useMemo(() => {
-        let list = [...vehicles];
+        // Only show Sell and Both vehicles in this admin panel (exclude Rent-only cars)
+        let list = vehicles.filter((v) => {
+            const ros = (v.rentOrSell || "").toLowerCase().trim();
+            // Include if Sell, Both, or not explicitly specified (defaults to sale inventory)
+            return ros !== "rent";
+        });
 
         // Search
         if (searchTerm.trim()) {
@@ -219,11 +225,27 @@ export default function Index({
             );
         }
 
+        // Status Rank helper: Available (1) -> Pending (2) -> Sold (3) -> others (4)
+        const statusRank = (status?: string): number => {
+            const s = (status || "").toLowerCase().trim();
+            if (s.startsWith("avail")) return 1;
+            if (s.startsWith("pend")) return 2;
+            if (s.startsWith("sold")) return 3;
+            return 4;
+        };
+
         // Sorting
         switch (sortBy) {
+            case "status-default":
+                // Group by status (Available -> Pending -> Sold), preserving newest first within each group
+                list.sort(
+                    (a, b) =>
+                        statusRank(a.availabilities) -
+                        statusRank(b.availabilities),
+                );
+                break;
             case "recently":
-                // Reverse order so most recently added vehicle is at the top
-                list.reverse();
+                // Standard reverse order (most recently added overall)
                 break;
             case "price-low":
                 list.sort((a, b) => a.price - b.price);
@@ -290,8 +312,9 @@ export default function Index({
     const availableCategories = useMemo(() => {
         const set = new Set<string>();
         vehicles.forEach((v) => {
-            if (v.rentOrSell && v.rentOrSell.trim()) {
-                set.add(v.rentOrSell.trim());
+            const ros = (v.rentOrSell || "").trim();
+            if (ros && ros.toLowerCase() !== "rent") {
+                set.add(ros);
             }
         });
         return Array.from(set);
@@ -498,6 +521,9 @@ export default function Index({
                                     }
                                     className="appearance-none pl-3.5 pr-8 py-2 text-xs font-semibold bg-slate-50 border border-slate-200 text-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple/40 focus:border-purple cursor-pointer shadow-sm"
                                 >
+                                    <option value="status-default">
+                                        Status (Available → Pending → Sold)
+                                    </option>
                                     <option value="recently">
                                         Recently Added
                                     </option>
@@ -824,10 +850,25 @@ export default function Index({
                                                   ? car.originalPrice
                                                   : car.price;
 
+                                        // Status-based light highlight styling for the row
+                                        const statusKey = (
+                                            car.availabilities || ""
+                                        )
+                                            .toLowerCase()
+                                            .trim();
+                                        const rowHighlightClass =
+                                            statusKey.startsWith("avail")
+                                                ? "bg-amber-50/60 hover:bg-amber-100/70 border-l-4 border-l-amber-400"
+                                                : statusKey.startsWith("sold")
+                                                  ? "bg-emerald-50/50 hover:bg-emerald-100/60 border-l-4 border-l-emerald-500"
+                                                  : statusKey.startsWith("pend")
+                                                    ? "bg-slate-100/70 hover:bg-slate-200/60 border-l-4 border-l-slate-400"
+                                                    : "hover:bg-purple/5";
+
                                         return (
                                             <tr
                                                 key={car.id || index}
-                                                className="hover:bg-purple/5 transition-colors group"
+                                                className={`transition-colors group ${rowHighlightClass}`}
                                             >
                                                 {/* 1. NO: Auto increment number */}
                                                 <td className="py-3 px-3 text-center font-bold text-slate-800">
@@ -1018,19 +1059,19 @@ export default function Index({
                                                                 ""
                                                             ).toLowerCase() ===
                                                             "available"
-                                                                ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                                                ? "bg-[#facc15] text-white"
                                                                 : (
                                                                         car.availabilities ||
                                                                         ""
                                                                     ).toLowerCase() ===
                                                                     "sold"
-                                                                  ? "bg-rose-100 text-rose-800 border border-rose-200"
+                                                                  ? "bg-[#22c55e] text-white"
                                                                   : (
                                                                           car.availabilities ||
                                                                           ""
                                                                       ).toLowerCase() ===
                                                                       "pending"
-                                                                    ? "bg-amber-100 text-amber-800 border border-amber-200"
+                                                                    ? "bg-[#9ca3af] text-white"
                                                                     : "bg-slate-100 text-slate-800 border border-slate-200"
                                                         }`}
                                                     >
