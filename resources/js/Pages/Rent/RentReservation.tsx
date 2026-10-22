@@ -309,7 +309,7 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                 paymentMethod === "zelle"
                     ? "Zelle (contact@wrightfindermotors.com)"
                     : paymentMethod === "cashapp"
-                      ? "Cash App (contact@wrightfindermotors.com)"
+                      ? "Cash App (937 475 4737)"
                       : "In Person / Cash at Pickup",
             paymentStatus: "No payment received (Pending Reservation)",
             notes: specialNotes,
@@ -564,7 +564,7 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                         {paymentMethod === "zelle"
                                             ? "Zelle (contact@wrightfindermotors.com)"
                                             : paymentMethod === "cashapp"
-                                              ? "Cash App (contact@wrightfindermotors.com)"
+                                              ? "Cash App (937 475 4737)"
                                               : "In Person / Cash at Pickup"}
                                     </span>
                                 </div>
@@ -1408,17 +1408,18 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                                                 Pay through Cash
                                                                 App using our
                                                                 verified
-                                                                official
-                                                                business email.
+                                                                recipient phone
+                                                                number.
                                                             </p>
                                                             <div className="mt-2.5 p-2 sm:p-2.5 rounded-xl bg-gray-50 sm:bg-white border border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2 text-xs">
                                                                 <span className="text-gray-500 font-medium text-[11px] sm:text-xs">
                                                                     Cash App
                                                                     Recipient
-                                                                    Email:
+                                                                    Phone:
                                                                 </span>
                                                                 <span className="font-mono font-bold text-dark-blue select-all bg-white sm:bg-gray-100 px-2 py-1 rounded text-[11px] sm:text-xs break-all sm:break-normal inline-block">
-                                                                    contact@wrightfindermotors.com
+                                                                    (937)
+                                                                    475-4737
                                                                 </span>
                                                             </div>
                                                         </div>
@@ -1592,7 +1593,7 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
 
                                                 {/* Pickup Details */}
                                                 <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200/80 text-xs space-y-1.5">
-                                                    <div className="font-bold text-[#170a3d] uppercase tracking-wider text-[11px] mb-2 flex items-center gap-1.5 text-emerald-700">
+                                                    <div className="font-bold uppercase tracking-wider text-[11px] mb-2 flex items-center gap-1.5 text-emerald-700">
                                                         <span>📍</span> Pickup
                                                         Details (EST)
                                                     </div>
@@ -1624,7 +1625,7 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
 
                                                 {/* Return Details */}
                                                 <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200/80 text-xs space-y-1.5">
-                                                    <div className="font-bold text-[#170a3d] uppercase tracking-wider text-[11px] mb-2 flex items-center gap-1.5 text-vivid-red">
+                                                    <div className="font-bold uppercase tracking-wider text-[11px] mb-2 flex items-center gap-1.5 text-vivid-red">
                                                         <span>🏁</span> Return
                                                         Details (EST)
                                                     </div>
@@ -1753,7 +1754,6 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                                             <tr>
                                                                 <th className="py-2.5 px-4 w-1/2">
                                                                     Cancellation
-                                                                    and No-Show
                                                                     Policy
                                                                 </th>
                                                                 <th className="py-2.5 px-4 w-1/2">
@@ -1765,83 +1765,70 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                                         <tbody className="divide-y divide-gray-100 text-gray-700">
                                                             <tr className="hover:bg-gray-50/50">
                                                                 <td className="py-2.5 px-4 font-medium">
-                                                                    Cancelling
-                                                                    up to 24
-                                                                    hours prior
-                                                                    to scheduled
-                                                                    pickup time
+                                                                    Cancellation
+                                                                    more than 48
+                                                                    hours before
+                                                                    pickup
                                                                 </td>
                                                                 <td className="py-2.5 px-4">
-                                                                    You will
-                                                                    receive a
-                                                                    refund of
-                                                                    your prepaid
-                                                                    amount,
-                                                                    minus a
-                                                                    $50.00
-                                                                    cancellation
-                                                                    fee.
+                                                                    Full refund
                                                                 </td>
                                                             </tr>
                                                             <tr className="hover:bg-gray-50/50">
                                                                 <td className="py-2.5 px-4 font-medium">
-                                                                    Cancelling
-                                                                    within 24
-                                                                    hours prior
-                                                                    to the
-                                                                    scheduled
-                                                                    pickup time.
+                                                                    Cancellation
+                                                                    24-48 hours
+                                                                    before
+                                                                    pickup
                                                                 </td>
                                                                 <td className="py-2.5 px-4">
-                                                                    You will
-                                                                    receive a
-                                                                    refund of
-                                                                    your prepaid
-                                                                    amount,
-                                                                    minus a
-                                                                    $150.00
+                                                                    Refund minus
+                                                                    a $35
+                                                                    processing
+                                                                    fee
+                                                                </td>
+                                                            </tr>{" "}
+                                                            <tr className="hover:bg-gray-50/50">
+                                                                <td className="py-2.5 px-4 font-medium">
+                                                                    Cancellation
+                                                                    less than 24
+                                                                    hours before
+                                                                    pickup
+                                                                </td>
+                                                                <td className="py-2.5 px-4">
+                                                                    Refund minus
+                                                                    a $ 65
                                                                     cancellation
-                                                                    fee. If your
-                                                                    prepaid
-                                                                    amount is
-                                                                    less than
-                                                                    $150.00 no
-                                                                    refund will
-                                                                    be issued.
+                                                                    fee
                                                                 </td>
                                                             </tr>
                                                             <tr className="hover:bg-gray-50/50">
                                                                 <td className="py-2.5 px-4 font-medium">
-                                                                    No show, or
+                                                                    No-show or
                                                                     failure to
-                                                                    pick-up your
-                                                                    rental
+                                                                    pick up
                                                                     vehicle
                                                                 </td>
                                                                 <td className="py-2.5 px-4 font-semibold text-vivid-red">
                                                                     No refund
-                                                                    will be
-                                                                    issued.
                                                                 </td>
                                                             </tr>
                                                             <tr className="hover:bg-gray-50/50">
                                                                 <td className="py-2.5 px-4 font-medium">
-                                                                    Rental is
-                                                                    picked up,
-                                                                    but returned
-                                                                    early
+                                                                    Early return
+                                                                    of vehicle
                                                                 </td>
                                                                 <td className="py-2.5 px-4 font-semibold text-vivid-red">
                                                                     No refund
-                                                                    will be
-                                                                    issued.
+                                                                    for unused
+                                                                    rental days
                                                                 </td>
                                                             </tr>
                                                         </tbody>
                                                     </table>
                                                 </div>
 
-                                                {/* Attached Image Bullet Points */}
+                                                {/* Cancellation Bullet Points */}
                                                 <div className="p-4 sm:p-5 bg-slate-50/70 border-t border-gray-200 text-xs text-gray-700 space-y-3">
                                                     <ul className="list-disc pl-5 space-y-2 leading-relaxed">
                                                         <li>
@@ -1946,11 +1933,10 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                                         className="mt-0.5 w-4 h-4 text-vivid-red rounded border-gray-300 focus:ring-vivid-red"
                                                     />
                                                     <span className="text-xs text-gray-800 font-semibold leading-relaxed">
-                                                        I have read and accept
-                                                        policy and terms and
-                                                        conditions and
-                                                        understand that rate is
-                                                        prepaid.
+                                                        I have read and agree to
+                                                        the Reservation,
+                                                        Cancellation, and Rental
+                                                        Policies of WF Motors
                                                     </span>
                                                 </label>
                                                 {validationErrors.acceptedTerms && (
@@ -2223,6 +2209,63 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                                 </span>
                                             </div>
                                         )}
+                                    </div>
+
+                                    {/* Live Total Estimated Price Breakdown Based on Selected Dates */}
+                                    <div className="mt-3 p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-[#170a3d] text-white shadow-md">
+                                        <div className="flex items-center justify-between mb-2 pb-2 border-b border-white/10">
+                                            <div className="flex items-center space-x-1.5">
+                                                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                                                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-300">
+                                                    Estimated Rental Total
+                                                </span>
+                                            </div>
+                                            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-white/10 text-slate-200">
+                                                {rentalDays}{" "}
+                                                {rentalDays === 1
+                                                    ? "day"
+                                                    : "days"}
+                                            </span>
+                                        </div>
+
+                                        <div className="space-y-1.5 text-xs text-slate-300">
+                                            <div className="flex justify-between items-center">
+                                                <span>
+                                                    $
+                                                    {baseDailyRate.toLocaleString()}{" "}
+                                                    × {rentalDays}{" "}
+                                                    {rentalDays === 1
+                                                        ? "day"
+                                                        : "days"}
+                                                </span>
+                                                <span className="font-semibold text-white">
+                                                    $
+                                                    {totalEstimate.toLocaleString()}
+                                                </span>
+                                            </div>
+
+                                            {totalSavings > 0 && (
+                                                <div className="flex justify-between items-center text-emerald-400 text-[11px]">
+                                                    <span>Total Savings</span>
+                                                    <span className="font-bold">
+                                                        - $
+                                                        {totalSavings.toLocaleString()}
+                                                    </span>
+                                                </div>
+                                            )}
+
+                                            <div className="pt-2 border-t border-white/10 flex justify-between items-baseline">
+                                                <span className="text-xs font-bold text-white uppercase tracking-wider">
+                                                    Estimated Total
+                                                </span>
+                                                <div className="text-right">
+                                                    <span className="text-2xl font-black text-white tracking-tight">
+                                                        $
+                                                        {totalEstimate.toLocaleString()}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 

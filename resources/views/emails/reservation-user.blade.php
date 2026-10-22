@@ -170,7 +170,8 @@
                                             Payment &amp; Pickup Instructions
                                         </h4>
                                         <p style="margin: 0; font-size: 12px; color: #475569; line-height: 1.6;">
-                                            &bull; <strong>For Zelle or Cash App:</strong> Please transfer your payment to our official business email: <span style="font-family: monospace; font-weight: 700; color: #170a3d;">contact@wrightfindermotors.com</span><br>
+                                            &bull; <strong>For Zelle:</strong> Please transfer your payment to our email: <span style="font-family: monospace; font-weight: 700; color: #170a3d;">contact@wrightfindermotors.com</span><br>
+                                            &bull; <strong>For Cash App:</strong> Please transfer your payment to recipient phone: <span style="font-family: monospace; font-weight: 700; color: #170a3d;">(937) 475-4737</span><br>
                                             &bull; <strong>At Pickup:</strong> Please bring your valid Driver's License and debit/credit card for the refundable hold.
                                         </p>
                                     </td>
