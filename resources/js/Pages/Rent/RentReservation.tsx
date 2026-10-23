@@ -189,6 +189,7 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
               ? originalDailyRate - baseDailyRate
               : 0;
     const totalSavings = dailyDiscount * rentalDays;
+    const totalBeforeDiscount = originalDailyRate * rentalDays;
     const totalEstimate = baseDailyRate * rentalDays;
 
     // Step Validation
@@ -1721,15 +1722,37 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                                     )}
 
                                                     <div className="flex justify-between items-baseline pt-3 border-t border-white/15">
-                                                        <span className="text-sm font-extrabold">
-                                                            Estimated Total:
-                                                        </span>
-                                                        <div className="text-right">
-                                                            <div className="text-2xl font-black text-white tracking-tight">
-                                                                $
-                                                                {totalEstimate.toLocaleString()}
+                                                        <div className="flex flex-col">
+                                                            <span className="text-sm font-extrabold text-white">
+                                                                Estimated Total:
+                                                            </span>
+                                                            {totalBeforeDiscount >
+                                                                totalEstimate && (
+                                                                <span className="text-[11px] text-slate-400 font-medium">
+                                                                    Total before
+                                                                    discount:{" "}
+                                                                    <span className="line-through decoration-vivid-red/70 decoration-1 text-slate-400">
+                                                                        $
+                                                                        {totalBeforeDiscount.toLocaleString()}
+                                                                    </span>
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div className="text-right flex flex-col items-end">
+                                                            <div className="flex items-baseline gap-2">
+                                                                {totalBeforeDiscount >
+                                                                    totalEstimate && (
+                                                                    <span className="text-sm font-bold text-slate-400 line-through decoration-vivid-red/80 decoration-2">
+                                                                        $
+                                                                        {totalBeforeDiscount.toLocaleString()}
+                                                                    </span>
+                                                                )}
+                                                                <div className="text-2xl font-black text-white tracking-tight">
+                                                                    $
+                                                                    {totalEstimate.toLocaleString()}
+                                                                </div>
                                                             </div>
-                                                            <span className="text-[10px] text-slate-400">
+                                                            <span className="text-[10px] text-slate-400 mt-0.5">
                                                                 Taxes and
                                                                 refundable hold
                                                                 calculated at
@@ -2310,10 +2333,29 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                             )}
 
                                             <div className="pt-2 border-t border-white/10 flex justify-between items-baseline">
-                                                <span className="text-xs font-bold text-white uppercase tracking-wider">
-                                                    Estimated Total
-                                                </span>
-                                                <div className="text-right">
+                                                <div className="flex flex-col">
+                                                    <span className="text-xs font-bold text-white uppercase tracking-wider">
+                                                        Estimated Total
+                                                    </span>
+                                                    {totalBeforeDiscount >
+                                                        totalEstimate && (
+                                                        <span className="text-[10px] text-slate-400 font-medium">
+                                                            Was:{" "}
+                                                            <span className="line-through decoration-vivid-red/70 decoration-1">
+                                                                $
+                                                                {totalBeforeDiscount.toLocaleString()}
+                                                            </span>
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="text-right flex items-baseline gap-2">
+                                                    {totalBeforeDiscount >
+                                                        totalEstimate && (
+                                                        <span className="text-xs font-bold text-slate-400 line-through decoration-vivid-red/80 decoration-1">
+                                                            $
+                                                            {totalBeforeDiscount.toLocaleString()}
+                                                        </span>
+                                                    )}
                                                     <span className="text-2xl font-black text-white tracking-tight">
                                                         $
                                                         {totalEstimate.toLocaleString()}
