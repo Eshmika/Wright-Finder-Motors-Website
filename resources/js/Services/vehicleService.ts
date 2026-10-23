@@ -29,6 +29,8 @@ export interface DetailedVehicle {
     price: number;
     originalPrice: number;
     discount: number;
+    rentPrice?: number;
+    rentDiscount?: number;
     rentOrSell?: string;
     mainImageUrl?: string;
     images: string[];
@@ -121,6 +123,8 @@ export async function fetchAllVehicles(): Promise<DetailedVehicle[]> {
     const mileageIdx = getIndex("Mileage");
     const priceIdx = getIndex("Price");
     const discountIdx = getIndex("Discount");
+    const rentPriceIdx = getIndex("Rent Price");
+    const rentDiscountIdx = getIndex("Rent Discount");
     const vinIdx = getIndex("VIN") !== -1 ? getIndex("VIN") : 8; // Column I is index 8 (0-indexed: A=0, B=1, ... I=8)
     const statusIdx = getIndex("Status");
     const titleIdx = getIndex("Title");
@@ -257,6 +261,18 @@ export async function fetchAllVehicles(): Promise<DetailedVehicle[]> {
             price: finalPrice,
             originalPrice,
             discount,
+            rentPrice:
+                rentPriceIdx !== -1
+                    ? parseFloat(
+                          row[rentPriceIdx]?.replace(/[^0-9.]/g, "") || "0",
+                      ) || undefined
+                    : undefined,
+            rentDiscount:
+                rentDiscountIdx !== -1
+                    ? parseFloat(
+                          row[rentDiscountIdx]?.replace(/[^0-9.]/g, "") || "0",
+                      ) || undefined
+                    : undefined,
             rentOrSell:
                 rentOrSellIdx !== -1 ? row[rentOrSellIdx]?.trim() || "" : "",
             mainImageUrl: images.length > 0 ? images[0] : "",

@@ -373,6 +373,10 @@ export default function Edit({ id, hasGoogleAppsScriptUrl }: EditProps) {
     const [price, setPrice] = useState<string>("");
     const [discount, setDiscount] = useState<string>("");
 
+    // Rental Pricing
+    const [rentPrice, setRentPrice] = useState<string>("");
+    const [rentDiscount, setRentDiscount] = useState<string>("");
+
     // Notes
     const [notes, setNotes] = useState("");
 
@@ -516,6 +520,17 @@ export default function Edit({ id, hasGoogleAppsScriptUrl }: EditProps) {
                     );
                     setDiscount(
                         found.discount > 0 ? String(found.discount) : "",
+                    );
+                    setRentPrice(
+                        found.rentPrice !== undefined && found.rentPrice > 0
+                            ? String(found.rentPrice)
+                            : "",
+                    );
+                    setRentDiscount(
+                        found.rentDiscount !== undefined &&
+                            found.rentDiscount > 0
+                            ? String(found.rentDiscount)
+                            : "",
                     );
 
                     setExistingMainImageUrl(found.mainImageUrl || "");
@@ -767,7 +782,7 @@ export default function Edit({ id, hasGoogleAppsScriptUrl }: EditProps) {
         setModel(nextModel);
     };
 
-    // Calculate creative Discount preview
+    // Calculate creative Discount preview (Sale)
     const numPrice = parseFloat(price.replace(/[^0-9.]/g, "")) || 0;
     const numDiscount = parseFloat(discount.replace(/[^0-9.]/g, "")) || 0;
     const finalCalculatedPrice =
@@ -775,6 +790,17 @@ export default function Edit({ id, hasGoogleAppsScriptUrl }: EditProps) {
     const discountPercentage =
         numPrice > 0 && numDiscount > 0
             ? Math.round((numDiscount / numPrice) * 100)
+            : 0;
+
+    // Calculate creative Discount preview (Rental)
+    const numRentPrice = parseFloat(rentPrice.replace(/[^0-9.]/g, "")) || 0;
+    const numRentDiscount =
+        parseFloat(rentDiscount.replace(/[^0-9.]/g, "")) || 0;
+    const finalCalculatedRentPrice =
+        numRentPrice > 0 ? Math.max(0, numRentPrice - numRentDiscount) : 0;
+    const rentDiscountPercentage =
+        numRentPrice > 0 && numRentDiscount > 0
+            ? Math.round((numRentDiscount / numRentPrice) * 100)
             : 0;
 
     // Handle Mileage formatting (Max 6 digits e.g. 016,325)
@@ -934,6 +960,8 @@ export default function Edit({ id, hasGoogleAppsScriptUrl }: EditProps) {
                 mileage,
                 price: numPrice ? numPrice.toString() : "",
                 discount: numDiscount ? numDiscount.toString() : "",
+                rentPrice: numRentPrice ? numRentPrice.toString() : "",
+                rentDiscount: numRentDiscount ? numRentDiscount.toString() : "",
                 vin,
                 status,
                 title: resolvedTitle,
@@ -1561,33 +1589,75 @@ export default function Edit({ id, hasGoogleAppsScriptUrl }: EditProps) {
                                     </div>
 
                                     {/* Pricing Banner */}
-                                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-baseline justify-between">
-                                        <div>
-                                            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
-                                                Calculated Selling Price
-                                            </span>
-                                            <div className="flex items-baseline space-x-3 mt-1">
-                                                <span className="text-3xl font-black text-emerald-600 tracking-tight">
-                                                    $
-                                                    {finalCalculatedPrice.toLocaleString()}
-                                                </span>
-                                                {numDiscount > 0 &&
-                                                    numPrice > 0 && (
-                                                        <>
-                                                            <span className="text-sm text-slate-400 line-through">
-                                                                $
-                                                                {numPrice.toLocaleString()}
-                                                            </span>
-                                                            <span className="text-xs font-bold bg-rose-50 text-vivid-red border border-rose-200 px-2 py-0.5 rounded">
-                                                                -
-                                                                {
-                                                                    discountPercentage
-                                                                }
-                                                                %
-                                                            </span>
-                                                        </>
-                                                    )}
-                                            </div>
+                                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-wrap items-baseline justify-between gap-4">
+                                        <div className="flex flex-wrap items-baseline gap-6">
+                                            {/* Show selling calculated price if Sell or Both */}
+                                            {(rentOrSell === "Sell" ||
+                                                rentOrSell === "Both") && (
+                                                <div>
+                                                    <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
+                                                        Calculated Selling Price
+                                                    </span>
+                                                    <div className="flex items-baseline space-x-3 mt-1">
+                                                        <span className="text-3xl font-black text-emerald-600 tracking-tight">
+                                                            $
+                                                            {finalCalculatedPrice.toLocaleString()}
+                                                        </span>
+                                                        {numDiscount > 0 &&
+                                                            numPrice > 0 && (
+                                                                <>
+                                                                    <span className="text-sm text-slate-400 line-through">
+                                                                        $
+                                                                        {numPrice.toLocaleString()}
+                                                                    </span>
+                                                                    <span className="text-xs font-bold bg-rose-50 text-vivid-red border border-rose-200 px-2 py-0.5 rounded">
+                                                                        -
+                                                                        {
+                                                                            discountPercentage
+                                                                        }
+                                                                        %
+                                                                    </span>
+                                                                </>
+                                                            )}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Show rental calculated price if Rent or Both */}
+                                            {(rentOrSell === "Rent" ||
+                                                rentOrSell === "Both") && (
+                                                <div>
+                                                    <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
+                                                        Daily Rental Rate
+                                                    </span>
+                                                    <div className="flex items-baseline space-x-2 mt-1">
+                                                        <span className="text-3xl font-black text-purple tracking-tight">
+                                                            $
+                                                            {finalCalculatedRentPrice.toLocaleString()}
+                                                        </span>
+                                                        <span className="text-xs text-slate-500 font-semibold">
+                                                            / day
+                                                        </span>
+                                                        {numRentDiscount > 0 &&
+                                                            numRentPrice >
+                                                                0 && (
+                                                                <>
+                                                                    <span className="text-sm text-slate-400 line-through">
+                                                                        $
+                                                                        {numRentPrice.toLocaleString()}
+                                                                    </span>
+                                                                    <span className="text-xs font-bold bg-rose-50 text-vivid-red border border-rose-200 px-2 py-0.5 rounded">
+                                                                        -
+                                                                        {
+                                                                            rentDiscountPercentage
+                                                                        }
+                                                                        %
+                                                                    </span>
+                                                                </>
+                                                            )}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                         <div className="text-right">
                                             <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
@@ -2325,99 +2395,228 @@ export default function Edit({ id, hasGoogleAppsScriptUrl }: EditProps) {
                         </div>
                     </div>
 
-                    {/* SECTION 5: PRICING & DISCOUNT SECTION */}
-                    <div className="bg-white border border-gray-200 rounded-3xl p-6 sm:p-8 shadow-sm">
-                        <div className="flex items-center space-x-3 mb-6 pb-4 border-b border-gray-100">
-                            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                                <svg
-                                    className="w-5 h-5"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                    />
-                                </svg>
-                            </div>
-                            <div>
-                                <h3 className="text-base font-bold text-slate-900">
-                                    Pricing & Valuation
-                                </h3>
-                                <p className="text-xs text-slate-500">
-                                    Enter price and discount to see real-time
-                                    showroom calculations.
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-                            {/* Price */}
-                            <div>
-                                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                                    Price ($){" "}
-                                    <span className="text-vivid-red">*</span>
-                                </label>
-                                <input
-                                    type="number"
-                                    value={price}
-                                    onChange={(e) => setPrice(e.target.value)}
-                                    placeholder="7000"
-                                    required
-                                    min="0"
-                                    step="any"
-                                    className="w-full bg-white border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-vivid-red transition font-medium shadow-sm"
-                                />
-                            </div>
-
-                            {/* Discount */}
-                            <div>
-                                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                                    Discount ($)
-                                </label>
-                                <input
-                                    type="number"
-                                    value={discount}
-                                    onChange={(e) =>
-                                        setDiscount(e.target.value)
-                                    }
-                                    placeholder="2000"
-                                    min="0"
-                                    step="any"
-                                    className="w-full bg-white border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-vivid-red transition font-medium shadow-sm"
-                                />
-                            </div>
-
-                            {/* Discount Preview Display */}
-                            <div className="bg-slate-50 border border-gray-200 rounded-2xl p-4 shadow-inner">
-                                <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider block">
-                                    Showroom Selling Price (Price - Discount)
-                                </span>
-                                <div className="flex items-baseline space-x-3 mt-1.5">
-                                    <span className="text-2xl font-black text-emerald-600 tracking-tight">
-                                        ${finalCalculatedPrice.toLocaleString()}
-                                    </span>
-                                    {numDiscount > 0 && numPrice > 0 && (
-                                        <>
-                                            <span className="text-xs text-slate-400 line-through">
-                                                ${numPrice.toLocaleString()}
-                                            </span>
-                                            <span className="text-[10px] font-bold bg-rose-50 text-vivid-red border border-rose-200 px-1.5 py-0.5 rounded">
-                                                -{discountPercentage}%
-                                            </span>
-                                        </>
-                                    )}
+                    {/* SECTION 5A: SELLING PRICING & VALUATION (Shown for Sell & Both) */}
+                    {(rentOrSell === "Sell" || rentOrSell === "Both") && (
+                        <div className="bg-white border border-gray-200 rounded-3xl p-6 sm:p-8 shadow-sm">
+                            <div className="flex items-center space-x-3 mb-6 pb-4 border-b border-gray-100">
+                                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                                    <svg
+                                        className="w-5 h-5"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                        />
+                                    </svg>
                                 </div>
-                                <span className="text-[10px] text-slate-500 mt-1 block">
-                                    Saves ${numDiscount.toLocaleString()} for
-                                    the customer
-                                </span>
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="text-base font-bold text-slate-900">
+                                            Pricing & Valuation
+                                        </h3>
+                                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                            Vehicle Sale
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-slate-500">
+                                        Enter selling price and discount to see
+                                        real-time showroom calculations.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+                                {/* Price */}
+                                <div>
+                                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                                        Selling Price ($){" "}
+                                        <span className="text-vivid-red">
+                                            *
+                                        </span>
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={price}
+                                        onChange={(e) =>
+                                            setPrice(e.target.value)
+                                        }
+                                        placeholder="7000"
+                                        required={rentOrSell === "Sell"}
+                                        min="0"
+                                        step="any"
+                                        className="w-full bg-white border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-vivid-red transition font-medium shadow-sm"
+                                    />
+                                </div>
+
+                                {/* Discount */}
+                                <div>
+                                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                                        Discount ($)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={discount}
+                                        onChange={(e) =>
+                                            setDiscount(e.target.value)
+                                        }
+                                        placeholder="2000"
+                                        min="0"
+                                        step="any"
+                                        className="w-full bg-white border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-vivid-red transition font-medium shadow-sm"
+                                    />
+                                </div>
+
+                                {/* Discount Preview Display */}
+                                <div className="bg-slate-50 border border-gray-200 rounded-2xl p-4 shadow-inner">
+                                    <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider block">
+                                        Showroom Selling Price (Price -
+                                        Discount)
+                                    </span>
+                                    <div className="flex items-baseline space-x-3 mt-1.5">
+                                        <span className="text-2xl font-black text-emerald-600 tracking-tight">
+                                            $
+                                            {finalCalculatedPrice.toLocaleString()}
+                                        </span>
+                                        {numDiscount > 0 && numPrice > 0 && (
+                                            <>
+                                                <span className="text-xs text-slate-400 line-through">
+                                                    ${numPrice.toLocaleString()}
+                                                </span>
+                                                <span className="text-[10px] font-bold bg-rose-50 text-vivid-red border border-rose-200 px-1.5 py-0.5 rounded">
+                                                    -{discountPercentage}%
+                                                </span>
+                                            </>
+                                        )}
+                                    </div>
+                                    <span className="text-[10px] text-slate-500 mt-1 block">
+                                        Saves ${numDiscount.toLocaleString()}{" "}
+                                        for the customer
+                                    </span>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    )}
+
+                    {/* SECTION 5B: RENTAL PRICING & DISCOUNT SECTION (Shown for Rent & Both) */}
+                    {(rentOrSell === "Rent" || rentOrSell === "Both") && (
+                        <div className="bg-white border border-gray-200 rounded-3xl p-6 sm:p-8 shadow-sm">
+                            <div className="flex items-center space-x-3 mb-6 pb-4 border-b border-gray-100">
+                                <div className="w-10 h-10 rounded-xl bg-purple/10 text-purple flex items-center justify-center">
+                                    <svg
+                                        className="w-5 h-5"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                        />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="text-base font-bold text-slate-900">
+                                            Rental Pricing & Valuation
+                                        </h3>
+                                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple/10 text-purple border border-purple/20">
+                                            Vehicle Rental
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-slate-500">
+                                        Enter daily rental rate and discount.
+                                        Saved to Google Sheet columns &apos;Rent
+                                        Price&apos; and &apos;Rent
+                                        Discount&apos;.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+                                {/* Rent Price */}
+                                <div>
+                                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                                        Rent Price ($ / day){" "}
+                                        <span className="text-vivid-red">
+                                            *
+                                        </span>
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={rentPrice}
+                                        onChange={(e) =>
+                                            setRentPrice(e.target.value)
+                                        }
+                                        placeholder="150"
+                                        required={rentOrSell === "Rent"}
+                                        min="0"
+                                        step="any"
+                                        className="w-full bg-white border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-vivid-red transition font-medium shadow-sm"
+                                    />
+                                </div>
+
+                                {/* Rent Discount */}
+                                <div>
+                                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                                        Rent Discount ($ / day)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={rentDiscount}
+                                        onChange={(e) =>
+                                            setRentDiscount(e.target.value)
+                                        }
+                                        placeholder="25"
+                                        min="0"
+                                        step="any"
+                                        className="w-full bg-white border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-vivid-red transition font-medium shadow-sm"
+                                    />
+                                </div>
+
+                                {/* Creative Rental Discount Preview Display */}
+                                <div className="bg-purple/5 border border-purple/20 rounded-2xl p-4 shadow-inner">
+                                    <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider block">
+                                        Effective Daily Rental Rate
+                                    </span>
+                                    <div className="flex items-baseline space-x-3 mt-1.5">
+                                        <span className="text-2xl font-black text-purple tracking-tight">
+                                            $
+                                            {finalCalculatedRentPrice.toLocaleString()}
+                                        </span>
+                                        <span className="text-xs text-slate-500">
+                                            / day
+                                        </span>
+                                        {numRentDiscount > 0 &&
+                                            numRentPrice > 0 && (
+                                                <>
+                                                    <span className="text-xs text-slate-400 line-through">
+                                                        $
+                                                        {numRentPrice.toLocaleString()}
+                                                    </span>
+                                                    <span className="text-[10px] font-bold bg-rose-50 text-vivid-red border border-rose-200 px-1.5 py-0.5 rounded">
+                                                        -
+                                                        {rentDiscountPercentage}
+                                                        %
+                                                    </span>
+                                                </>
+                                            )}
+                                    </div>
+                                    <span className="text-[10px] text-slate-500 mt-1 block">
+                                        Saves $
+                                        {numRentDiscount.toLocaleString()} per
+                                        rental day for customer
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {/* SECTION 6: GOOGLE DRIVE IMAGE UPLOADS & MANAGEMENT */}
                     <div className="bg-white border border-gray-200 rounded-3xl p-6 sm:p-8 shadow-sm">
