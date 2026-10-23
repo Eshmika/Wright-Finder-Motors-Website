@@ -17,6 +17,16 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
     const [error, setError] = useState<string | null>(null);
     const [activeImageIndex, setActiveImageIndex] = useState(0);
 
+    // Read previous catalog page from URL parameter if provided (e.g. ?page=2)
+    const catalogPageParam =
+        typeof window !== "undefined"
+            ? new URLSearchParams(window.location.search).get("page")
+            : null;
+    const backToCatalogUrl =
+        catalogPageParam && parseInt(catalogPageParam, 10) > 1
+            ? `/buy?page=${catalogPageParam}#catalog`
+            : "/buy#catalog";
+
     useEffect(() => {
         let isMounted = true;
 
@@ -143,9 +153,16 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 print:px-0 print:space-y-6">
                     {/* Bottom Navigation Buttons */}
                     <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 print:hidden">
-                        <Link
-                            href="/buy"
-                            className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-6 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs uppercase tracking-wider transition border border-slate-700"
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if (window.history.length > 1) {
+                                    window.history.back();
+                                } else {
+                                    router.visit(backToCatalogUrl);
+                                }
+                            }}
+                            className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-6 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs uppercase tracking-wider transition border border-slate-700 cursor-pointer shadow-sm active:scale-95"
                         >
                             <svg
                                 className="w-4 h-4"
@@ -161,7 +178,7 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                 />
                             </svg>
                             <span>Back to Vehicle Catalog</span>
-                        </Link>
+                        </button>
                     </div>
                     {/* Breadcrumbs Navigation */}
                     <nav className="flex items-center space-x-2 text-xs md:text-sm text-slate-300 print:hidden">
@@ -173,7 +190,7 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                         </Link>
                         <span>/</span>
                         <Link
-                            href="/buy"
+                            href={backToCatalogUrl}
                             className="hover:text-vivid-red transition-colors"
                         >
                             Inventory
@@ -214,7 +231,7 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                 longer available or the link is incorrect.
                             </p>
                             <Link
-                                href="/buy"
+                                href={backToCatalogUrl}
                                 className="mt-4 inline-flex items-center space-x-2 px-6 py-3 rounded-xl bg-vivid-red text-white text-sm font-bold shadow-lg hover:bg-red-600 transition"
                             >
                                 <svg

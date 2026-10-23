@@ -94,7 +94,13 @@ function parseCsv(text: string): string[][] {
     return rows;
 }
 
-function VehicleCard({ car }: { car: Vehicle }) {
+function VehicleCard({
+    car,
+    currentPage,
+}: {
+    car: Vehicle;
+    currentPage: number;
+}) {
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
     const prevImage = (e: React.MouseEvent) => {
@@ -591,9 +597,16 @@ function VehicleCard({ car }: { car: Vehicle }) {
                             type="button"
                             onClick={(e) => {
                                 e.preventDefault();
-                                router.visit(
-                                    `/vehicles/${encodeURIComponent(car.id)}`,
-                                );
+                                const queryParams = new URLSearchParams();
+                                if (currentPage > 1) {
+                                    queryParams.set(
+                                        "page",
+                                        String(currentPage),
+                                    );
+                                }
+                                const qs = queryParams.toString();
+                                const url = `/vehicles/${encodeURIComponent(car.id)}${qs ? `?${qs}` : ""}`;
+                                router.visit(url);
                             }}
                             className="inline-flex items-center justify-center space-x-1.5 py-3 px-3 rounded-xl bg-vivid-red hover:bg-red-600 text-white text-xs font-bold transition-all duration-200 shadow-md hover:shadow-red-500/30 active:scale-95"
                         >
@@ -623,7 +636,16 @@ export default function VehicleCatalog() {
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [currentPage, setCurrentPage] = useState(1);
+
+    // Initial page from URL query param (e.g. /buy?page=2) or fallback to 1
+    const [currentPage, setCurrentPage] = useState<number>(() => {
+        if (typeof window !== "undefined") {
+            const p = new URLSearchParams(window.location.search).get("page");
+            const parsed = parseInt(p || "1", 10);
+            return isNaN(parsed) || parsed < 1 ? 1 : parsed;
+        }
+        return 1;
+    });
 
     const SHEET_CSV_URL =
         "https://docs.google.com/spreadsheets/d/16dhtw1POBIeifrAEk0ZqmH3jV8s20quo9Si3GfebifE/gviz/tq?tqx=out:csv&sheet=Vehicle%20details";
@@ -907,34 +929,47 @@ export default function VehicleCatalog() {
         condition: urlCondition,
     });
 
-    // Sync if URL search changes
+    // Sync if URL search changes (including back/forward browser navigation)
     useEffect(() => {
-        const params = new URLSearchParams(window.location.search);
-        const nextCondition = params.get("condition") || "";
-        const nextBodyStyle =
-            params.get("bodyStyle") ||
-            params.get("body_type") ||
-            params.get("body") ||
-            params.get("category") ||
-            "";
-        const nextSearch = params.get("search") || params.get("q") || "";
+        const handleLocationChange = () => {
+            const params = new URLSearchParams(window.location.search);
+            const nextCondition = params.get("condition") || "";
+            const nextBodyStyle =
+                params.get("bodyStyle") ||
+                params.get("body_type") ||
+                params.get("body") ||
+                params.get("category") ||
+                "";
+            const nextSearch = params.get("search") || params.get("q") || "";
+            const pageParam = params.get("page");
+            const parsedPage = parseInt(pageParam || "1", 10);
 
-        if (nextCondition) {
-            setSelectedCondition(nextCondition);
-        }
-        if (nextBodyStyle) {
-            setSelectedCategory(nextBodyStyle);
-        }
-        if (nextSearch) {
-            setSearchKeyword(nextSearch);
-        }
+            if (nextCondition) {
+                setSelectedCondition(nextCondition);
+            }
+            if (nextBodyStyle) {
+                setSelectedCategory(nextBodyStyle);
+            }
+            if (nextSearch) {
+                setSearchKeyword(nextSearch);
+            }
 
-        setAppliedFilters((prev) => ({
-            ...prev,
-            condition: nextCondition,
-            category: nextBodyStyle,
-            search: nextSearch,
-        }));
+            setAppliedFilters((prev) => ({
+                ...prev,
+                condition: nextCondition,
+                category: nextBodyStyle,
+                search: nextSearch,
+            }));
+
+            if (!isNaN(parsedPage) && parsedPage >= 1) {
+                setCurrentPage(parsedPage);
+            }
+        };
+
+        handleLocationChange();
+        window.addEventListener("popstate", handleLocationChange);
+        return () =>
+            window.removeEventListener("popstate", handleLocationChange);
     }, [urlCondition, urlBodyStyle, urlSearchQuery]);
 
     // Unique options derived from vehicles data
@@ -980,6 +1015,11 @@ export default function VehicleCatalog() {
             condition: selectedCondition,
         });
         setCurrentPage(1);
+        if (typeof window !== "undefined") {
+            const currentUrl = new URL(window.location.href);
+            currentUrl.searchParams.delete("page");
+            window.history.pushState({}, "", currentUrl.toString());
+        }
     };
 
     const handleResetFilters = () => {
@@ -1004,6 +1044,11 @@ export default function VehicleCatalog() {
             condition: "",
         });
         setCurrentPage(1);
+        if (typeof window !== "undefined") {
+            const currentUrl = new URL(window.location.href);
+            currentUrl.searchParams.delete("page");
+            window.history.pushState({}, "", currentUrl.toString());
+        }
     };
 
     // Filter vehicles by applied filters
@@ -1080,6 +1125,18 @@ export default function VehicleCatalog() {
 
     const handlePageChange = (page: number) => {
         setCurrentPage(page);
+
+        // Update URL query string with the current page without full reload
+        if (typeof window !== "undefined") {
+            const currentUrl = new URL(window.location.href);
+            if (page > 1) {
+                currentUrl.searchParams.set("page", String(page));
+            } else {
+                currentUrl.searchParams.delete("page");
+            }
+            window.history.pushState({}, "", currentUrl.toString());
+        }
+
         const section = document.getElementById("catalog");
         if (section) {
             section.scrollIntoView({ behavior: "smooth" });
@@ -1526,7 +1583,11 @@ export default function VehicleCatalog() {
                                 /* Vehicle Cards Grid: 2 columns on iPad (md/lg), 3 columns on desktop (xl) */
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                                     {currentVehicles.map((car) => (
-                                        <VehicleCard key={car.id} car={car} />
+                                        <VehicleCard
+                                            key={car.id}
+                                            car={car}
+                                            currentPage={currentPage}
+                                        />
                                     ))}
                                 </div>
                             )}
