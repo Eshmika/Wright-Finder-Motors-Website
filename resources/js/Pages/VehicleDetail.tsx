@@ -846,7 +846,7 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
 
                                             <div className="grid grid-cols-2 gap-3">
                                                 <a
-                                                    href={`tel:${vehicle.clientPhone || "+19378388616"}`}
+                                                    href={`tel:${vehicle.clientPhone || "+19374754737"}`}
                                                     className="py-3 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs transition border border-slate-700 flex items-center justify-center gap-1.5"
                                                 >
                                                     <svg
@@ -1242,7 +1242,7 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                 <div className="hidden print:block pt-8 mt-8 border-t border-slate-300 text-center text-xs text-slate-500">
                     <p className="font-semibold text-slate-700">
                         Wright Finder Motors • 1121 S Main St, Dayton, OH 45409
-                        • Phone: (937) 838-8616
+                        • Phone: 937-475-4737
                     </p>
                     <p className="mt-1">
                         All vehicle details, specifications, and availability

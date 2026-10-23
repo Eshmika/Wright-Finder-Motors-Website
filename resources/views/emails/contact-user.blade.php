@@ -143,8 +143,8 @@
                                         <table role="presentation" border="0" cellpadding="0" cellspacing="0">
                                             <tr>
                                                 <td style="padding-right: 12px;">
-                                                    <a href="tel:+19378388616" style="display: inline-block; background-color: #fd2a29; color: #ffffff; font-size: 13px; font-weight: 700; padding: 10px 20px; border-radius: 9999px; text-decoration: none;">
-                                                        📞 Call +1 937-838-8616
+                                                    <a href="tel:+19374754737" style="display: inline-block; background-color: #fd2a29; color: #ffffff; font-size: 13px; font-weight: 700; padding: 10px 20px; border-radius: 9999px; text-decoration: none;">
+                                                        📞 Call +1 937-475-4737
                                                     </a>
                                                 </td>
                                                 <td>
@@ -174,7 +174,7 @@
                                 &copy; {{ date('Y') }} Wright Finder Motors. All rights reserved.
                             </p>
                             <p style="margin: 0; color: #94a3b8; font-size: 11px;">
-                                Dayton, OH, United States &bull; Contact: +1 937-838-8616 | +1 937-475-4737
+                                Dayton, OH, United States &bull; Contact: +1 937-475-4737
                             </p>
                         </td>
                     </tr>
