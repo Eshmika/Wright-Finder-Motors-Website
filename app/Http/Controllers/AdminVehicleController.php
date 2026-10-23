@@ -43,6 +43,8 @@ class AdminVehicleController extends Controller
             'interiorFeatures' => 'nullable|string',
             'price' => 'nullable',
             'discount' => 'nullable',
+            'rentPrice' => 'nullable',
+            'rentDiscount' => 'nullable',
             'notes' => 'nullable|string',
             'timestamp' => 'nullable|string',
             'mainImage' => 'nullable',
