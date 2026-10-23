@@ -176,18 +176,25 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
     };
 
     const rentalDays = calculateRentalDays();
-    const baseDailyRate = vehicle ? vehicle.price : 0;
-    const originalDailyRate =
-        vehicle && vehicle.originalPrice > 0
-            ? vehicle.originalPrice
-            : baseDailyRate;
-    const hasDiscount = vehicle && vehicle.discount > 0;
-    const dailyDiscount =
-        hasDiscount && vehicle
-            ? vehicle.discount
-            : originalDailyRate > baseDailyRate
-              ? originalDailyRate - baseDailyRate
+    // Prefer Rent Price & Rent Discount if present; otherwise fallback to standard price & discount
+    const rentRate =
+        vehicle && vehicle.rentPrice !== undefined && vehicle.rentPrice > 0
+            ? vehicle.rentPrice
+            : vehicle
+              ? vehicle.originalPrice || vehicle.price
               : 0;
+    const rentDisc =
+        vehicle && vehicle.rentDiscount !== undefined
+            ? vehicle.rentDiscount
+            : vehicle
+              ? vehicle.discount || 0
+              : 0;
+
+    const baseDailyRate =
+        rentDisc > 0 && rentRate >= rentDisc ? rentRate - rentDisc : rentRate;
+    const originalDailyRate = rentRate;
+    const hasDiscount = rentDisc > 0;
+    const dailyDiscount = rentDisc;
     const totalSavings = dailyDiscount * rentalDays;
     const totalBeforeDiscount = originalDailyRate * rentalDays;
     const totalEstimate = baseDailyRate * rentalDays;

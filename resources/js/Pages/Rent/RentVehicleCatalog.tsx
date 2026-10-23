@@ -569,8 +569,14 @@ export default function RentVehicleCatalog() {
                 const modelIdx = getIndex("Model");
                 const yearIdx = getIndex("Year");
                 const bodyStyleIdx = getIndex("Body Style");
-                const priceIdx = getIndex("Price");
-                const discountIdx = getIndex("Discount");
+                const priceIdx =
+                    getIndex("Rent Price") !== -1
+                        ? getIndex("Rent Price")
+                        : getIndex("Price");
+                const discountIdx =
+                    getIndex("Rent Discount") !== -1
+                        ? getIndex("Rent Discount")
+                        : getIndex("Discount");
                 const fuelTypeIdx = getIndex("Fuel Type");
                 const powerOptionsIdx = getIndex("Power Options");
                 const drivelineIdx = getIndex("Driveline");
@@ -617,20 +623,47 @@ export default function RentVehicleCatalog() {
                             ? row[bodyStyleIdx]?.trim() || "Sedan"
                             : "Sedan";
 
-                    // originalPrice = Price
-                    const originalPriceRaw =
+                    // Prefer Rent Price & Rent Discount, fallback to Price & Discount
+                    const rentPriceColIdx = getIndex("Rent Price");
+                    const rentDiscountColIdx = getIndex("Rent Discount");
+
+                    const rawRentPrice =
+                        rentPriceColIdx !== -1
+                            ? parseFloat(
+                                  row[rentPriceColIdx]?.replace(
+                                      /[^0-9.]/g,
+                                      "",
+                                  ) || "0",
+                              )
+                            : 0;
+                    const rawRentDiscount =
+                        rentDiscountColIdx !== -1
+                            ? parseFloat(
+                                  row[rentDiscountColIdx]?.replace(
+                                      /[^0-9.]/g,
+                                      "",
+                                  ) || "0",
+                              )
+                            : 0;
+
+                    const rawBasePrice =
                         priceIdx !== -1
                             ? parseFloat(
                                   row[priceIdx]?.replace(/[^0-9.]/g, "") || "0",
                               )
                             : 0;
-                    const discountRaw =
+                    const rawBaseDiscount =
                         discountIdx !== -1
                             ? parseFloat(
                                   row[discountIdx]?.replace(/[^0-9.]/g, "") ||
                                       "0",
                               )
                             : 0;
+
+                    const originalPriceRaw =
+                        rawRentPrice > 0 ? rawRentPrice : rawBasePrice;
+                    const discountRaw =
+                        rawRentPrice > 0 ? rawRentDiscount : rawBaseDiscount;
 
                     // price = Discount reduced from originalPrice
                     // i.e. if originalPrice is 7000 and discount is 2000 => price is 5000. If no discount, price = originalPrice.
