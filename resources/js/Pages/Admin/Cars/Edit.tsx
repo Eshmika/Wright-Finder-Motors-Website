@@ -13,6 +13,7 @@ import {
     fetchAllVehicles,
     formatDriveImageUrl,
 } from "@/Services/vehicleService";
+import { parseMileage } from "@/Utils/mileage";
 
 interface EditProps {
     id: string;
@@ -1590,11 +1591,26 @@ export default function Edit({ id, hasGoogleAppsScriptUrl }: EditProps) {
                                         </div>
                                         <div className="text-right">
                                             <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
-                                                Odometer
+                                                Mileage (Odometer)
                                             </span>
-                                            <span className="text-base font-bold text-slate-800">
-                                                {mileage || "0"} mi
-                                            </span>
+                                            {(() => {
+                                                const m = parseMileage(mileage);
+                                                return (
+                                                    <div className="flex flex-col items-end">
+                                                        <span className="text-base font-bold text-slate-800 leading-tight">
+                                                            {m.hasValue
+                                                                ? m.milesText
+                                                                : "0 miles"}
+                                                        </span>
+                                                        {m.hasValue &&
+                                                            m.kmText && (
+                                                                <span className="text-[11px] font-medium text-slate-500 leading-tight mt-0.5">
+                                                                    {m.kmText}
+                                                                </span>
+                                                            )}
+                                                    </div>
+                                                );
+                                            })()}
                                         </div>
                                     </div>
                                 </div>
@@ -1873,10 +1889,10 @@ export default function Edit({ id, hasGoogleAppsScriptUrl }: EditProps) {
                             <div>
                                 <div className="flex justify-between items-center mb-2">
                                     <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                                        Mileage
+                                        Mileage (Miles)
                                     </label>
                                     <span className="text-[10px] text-slate-400">
-                                        Ex: 016,325
+                                        Ex: 016,325 miles
                                     </span>
                                 </div>
                                 <input
@@ -1887,6 +1903,18 @@ export default function Edit({ id, hasGoogleAppsScriptUrl }: EditProps) {
                                     maxLength={7}
                                     className="w-full bg-white border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-vivid-red transition font-medium shadow-sm"
                                 />
+                                {(() => {
+                                    const m = parseMileage(mileage);
+                                    if (!m.hasValue || !m.kmText) return null;
+                                    return (
+                                        <p className="mt-1 text-[11px] font-medium text-slate-500">
+                                            Converted to km:{" "}
+                                            <span className="text-slate-800 font-semibold">
+                                                {m.kmText}
+                                            </span>
+                                        </p>
+                                    );
+                                })()}
                             </div>
 
                             {/* VIN (17 Characters) */}

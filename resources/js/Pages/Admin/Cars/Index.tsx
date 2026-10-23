@@ -1,5 +1,6 @@
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import { DetailedVehicle, fetchAllVehicles } from "@/Services/vehicleService";
+import { parseMileage } from "@/Utils/mileage";
 import { Head, Link } from "@inertiajs/react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -950,11 +951,30 @@ export default function Index({
 
                                                 {/* 5. MILEAGE: Mileage (dark) */}
                                                 <td className="py-3 px-3">
-                                                    <div className="font-semibold text-slate-900">
-                                                        {car.mileage
-                                                            ? `${car.mileage}`
-                                                            : "-"}
-                                                    </div>
+                                                    {(() => {
+                                                        const m = parseMileage(
+                                                            car.mileage,
+                                                        );
+                                                        if (!m.hasValue) {
+                                                            return (
+                                                                <div className="font-semibold text-slate-400">
+                                                                    -
+                                                                </div>
+                                                            );
+                                                        }
+                                                        return (
+                                                            <div className="flex flex-col">
+                                                                <span className="font-semibold text-slate-900 leading-tight">
+                                                                    {
+                                                                        m.milesText
+                                                                    }
+                                                                </span>
+                                                                <span className="text-[10px] font-medium text-slate-500 leading-tight mt-0.5">
+                                                                    {m.kmText}
+                                                                </span>
+                                                            </div>
+                                                        );
+                                                    })()}
                                                 </td>
 
                                                 {/* 6. TITLE: Title (dark) */}
@@ -1780,8 +1800,15 @@ export default function Index({
                                                         </span>
                                                         <span>•</span>
                                                         <span>
-                                                            {car.mileage ||
-                                                                "0 km"}
+                                                            {(() => {
+                                                                const m =
+                                                                    parseMileage(
+                                                                        car.mileage,
+                                                                    );
+                                                                return m.hasValue
+                                                                    ? `${m.milesText} (${m.kmText})`
+                                                                    : "N/A";
+                                                            })()}
                                                         </span>
                                                         {car.availabilities && (
                                                             <>

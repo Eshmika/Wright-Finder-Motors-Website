@@ -5,6 +5,7 @@ import Footer from "@/Components/Footer";
 import CallToActionSection from "@/Pages/Home/CallToActionSection";
 import { PageProps } from "@/types";
 import { DetailedVehicle, fetchAllVehicles } from "@/Services/vehicleService";
+import { parseMileage } from "@/Utils/mileage";
 
 interface VehicleDetailProps extends PageProps {
     id: string;
@@ -284,7 +285,7 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                         <div className="flex flex-wrap items-center gap-y-2 gap-x-5 text-xs sm:text-sm text-slate-300 print:text-slate-700 pt-1">
                                             <div className="flex items-center gap-1.5">
                                                 <svg
-                                                    className="w-4 h-4 text-vivid-red"
+                                                    className="w-4 h-4 text-vivid-red shrink-0"
                                                     fill="none"
                                                     viewBox="0 0 24 24"
                                                     stroke="currentColor"
@@ -301,11 +302,24 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                                         d="M12 7v5l3 3"
                                                     />
                                                 </svg>
-                                                <span>
-                                                    {vehicle.mileage
-                                                        ? `${vehicle.mileage} km`
-                                                        : "N/A"}
-                                                </span>
+                                                {(() => {
+                                                    const m = parseMileage(
+                                                        vehicle.mileage,
+                                                    );
+                                                    if (!m.hasValue) {
+                                                        return <span>N/A</span>;
+                                                    }
+                                                    return (
+                                                        <span className="inline-flex items-baseline gap-1.5 flex-wrap">
+                                                            <span className="font-semibold text-white">
+                                                                {m.milesText}
+                                                            </span>
+                                                            <span className="text-xs font-normal text-slate-400">
+                                                                ({m.kmText})
+                                                            </span>
+                                                        </span>
+                                                    );
+                                                })()}
                                             </div>
                                             <div className="flex items-center gap-1.5">
                                                 <svg
@@ -755,8 +769,16 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                                         vehicle.clientEmail?.trim();
                                                     const carIdentifier = `${vehicle.year ? `${vehicle.year} ` : ""}${vehicle.make} ${vehicle.model} (ID: ${vehicle.id})`;
 
+                                                    const mInfo = parseMileage(
+                                                        vehicle.mileage,
+                                                    );
+                                                    const mileageFormatted =
+                                                        mInfo.hasValue
+                                                            ? `${mInfo.milesText} (${mInfo.kmText})`
+                                                            : "N/A";
+
                                                     if (!email) {
-                                                        const inquiryMsg = `Hello Wright Finder Motors,\n\nI would like more information and wish to contact an agent regarding this vehicle:\n- Vehicle: ${vehicle.title || carIdentifier}\n- Stock ID: #${vehicle.id}\n- Price: $${vehicle.price?.toLocaleString() || "N/A"}\n- Mileage: ${vehicle.mileage || "N/A"}\n\nPlease get in touch with me with further details.\n\nThank you!`;
+                                                        const inquiryMsg = `Hello Wright Finder Motors,\n\nI would like more information and wish to contact an agent regarding this vehicle:\n- Vehicle: ${vehicle.title || carIdentifier}\n- Stock ID: #${vehicle.id}\n- Price: $${vehicle.price?.toLocaleString() || "N/A"}\n- Mileage: ${mileageFormatted}\n\nPlease get in touch with me with further details.\n\nThank you!`;
                                                         router.visit(
                                                             `/contact?subject=buy&carId=${encodeURIComponent(vehicle.id)}&carTitle=${encodeURIComponent(vehicle.title || carIdentifier)}&message=${encodeURIComponent(inquiryMsg)}#contact-form`,
                                                         );
@@ -777,7 +799,7 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                                                 `• Vehicle: ${vehicle.title || carIdentifier}\n` +
                                                                 `• Stock ID: #${vehicle.id}\n` +
                                                                 `• Listed Price: $${vehicle.price?.toLocaleString() || "N/A"}\n` +
-                                                                `• Mileage: ${vehicle.mileage || "N/A"}\n` +
+                                                                `• Mileage: ${mileageFormatted}\n` +
                                                                 (vehicle.vin
                                                                     ? `• VIN: ${vehicle.vin}\n`
                                                                     : "") +
@@ -833,8 +855,17 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                                             vehicle.clientEmail?.trim();
                                                         const carIdentifier = `${vehicle.year ? `${vehicle.year} ` : ""}${vehicle.make} ${vehicle.model} (ID: ${vehicle.id})`;
 
+                                                        const mVisitInfo =
+                                                            parseMileage(
+                                                                vehicle.mileage,
+                                                            );
+                                                        const visitMileage =
+                                                            mVisitInfo.hasValue
+                                                                ? `${mVisitInfo.milesText} (${mVisitInfo.kmText})`
+                                                                : "N/A";
+
                                                         if (!email) {
-                                                            const visitMsg = `Hello Wright Finder Motors,\n\nI would like to schedule a visit / test drive to inspect this vehicle in person:\n- Vehicle: ${vehicle.title || carIdentifier}\n- Stock ID: #${vehicle.id}\n- Price: $${vehicle.price?.toLocaleString() || "N/A"}\n- Mileage: ${vehicle.mileage || "N/A"}\n\nPlease let me know your available visiting dates and times.\n\nThank you!`;
+                                                            const visitMsg = `Hello Wright Finder Motors,\n\nI would like to schedule a visit / test drive to inspect this vehicle in person:\n- Vehicle: ${vehicle.title || carIdentifier}\n- Stock ID: #${vehicle.id}\n- Price: $${vehicle.price?.toLocaleString() || "N/A"}\n- Mileage: ${visitMileage}\n\nPlease let me know your available visiting dates and times.\n\nThank you!`;
                                                             router.visit(
                                                                 `/contact?subject=visit&carId=${encodeURIComponent(vehicle.id)}&carTitle=${encodeURIComponent(vehicle.title || carIdentifier)}&message=${encodeURIComponent(visitMsg)}#contact-form`,
                                                             );
@@ -855,7 +886,7 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                                                     `• Vehicle: ${vehicle.title || carIdentifier}\n` +
                                                                     `• Stock ID: #${vehicle.id}\n` +
                                                                     `• Listed Price: $${vehicle.price?.toLocaleString() || "N/A"}\n` +
-                                                                    `• Mileage: ${vehicle.mileage || "N/A"}\n` +
+                                                                    `• Mileage: ${visitMileage}\n` +
                                                                     (vehicle.vin
                                                                         ? `• VIN: ${vehicle.vin}\n`
                                                                         : "") +
@@ -967,11 +998,26 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                             label="Body Style"
                                             value={vehicle.bodyStyle}
                                         />
-                                        <SpecItem
-                                            label="Mileage"
-                                            value={vehicle.mileage}
-                                            suffix=" km"
-                                        />
+                                        {(() => {
+                                            const m = parseMileage(
+                                                vehicle.mileage,
+                                            );
+                                            return (
+                                                <SpecItem
+                                                    label="Mileage"
+                                                    value={
+                                                        m.hasValue
+                                                            ? m.milesText
+                                                            : "N/A"
+                                                    }
+                                                    subValue={
+                                                        m.hasValue
+                                                            ? m.kmText
+                                                            : null
+                                                    }
+                                                />
+                                            );
+                                        })()}
                                         <SpecItem
                                             label="Exterior Color"
                                             value={vehicle.exteriorColor}
@@ -1195,6 +1241,7 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
 function SpecItem({
     label,
     value,
+    subValue,
     suffix = "",
     highlight = false,
     isPhone = false,
@@ -1202,6 +1249,7 @@ function SpecItem({
 }: {
     label: string;
     value?: string | number | null;
+    subValue?: string | null;
     suffix?: string;
     highlight?: boolean;
     isPhone?: boolean;
@@ -1236,16 +1284,27 @@ function SpecItem({
                     {displayText}
                 </a>
             ) : (
-                <span
-                    className={`text-sm font-semibold truncate ${
-                        highlight
-                            ? "text-emerald-400 print:text-emerald-700 font-bold"
-                            : "text-white print:text-slate-900"
-                    }`}
-                    title={displayText}
-                >
-                    {displayText}
-                </span>
+                <div className="flex flex-col min-w-0">
+                    <span
+                        className={`text-sm font-semibold truncate ${
+                            highlight
+                                ? "text-emerald-400 print:text-emerald-700 font-bold"
+                                : "text-white print:text-slate-900"
+                        }`}
+                        title={
+                            subValue
+                                ? `${displayText} (${subValue})`
+                                : displayText
+                        }
+                    >
+                        {displayText}
+                    </span>
+                    {subValue && (
+                        <span className="text-xs font-medium text-slate-400 print:text-slate-500 mt-0.5 tracking-tight truncate">
+                            {subValue}
+                        </span>
+                    )}
+                </div>
             )}
         </div>
     );

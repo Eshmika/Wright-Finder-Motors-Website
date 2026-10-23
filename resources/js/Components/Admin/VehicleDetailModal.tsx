@@ -1,4 +1,5 @@
 import { DetailedVehicle } from "@/Services/vehicleService";
+import { parseMileage } from "@/Utils/mileage";
 import { Link } from "@inertiajs/react";
 import { useEffect, useState } from "react";
 
@@ -235,9 +236,23 @@ export default function VehicleDetailModal({
                                     <span className="block text-[10px] font-bold uppercase text-slate-400">
                                         Mileage
                                     </span>
-                                    <span className="font-bold text-slate-800 text-sm">
-                                        {vehicle.mileage || "N/A"}
-                                    </span>
+                                    {(() => {
+                                        const m = parseMileage(vehicle.mileage);
+                                        return (
+                                            <div className="flex flex-col">
+                                                <span className="font-bold text-slate-800 text-sm leading-tight">
+                                                    {m.hasValue
+                                                        ? m.milesText
+                                                        : "N/A"}
+                                                </span>
+                                                {m.hasValue && m.kmText && (
+                                                    <span className="text-[10px] font-medium text-slate-500 leading-tight mt-0.5">
+                                                        {m.kmText}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        );
+                                    })()}
                                 </div>
                                 <div className="p-3 rounded-2xl bg-white border border-slate-200/80 shadow-2xs min-w-[90px]">
                                     <span className="block text-[10px] font-bold uppercase text-slate-400">

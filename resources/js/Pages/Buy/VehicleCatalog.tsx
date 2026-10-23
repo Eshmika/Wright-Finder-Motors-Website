@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { router } from "@inertiajs/react";
+import { parseMileage } from "@/Utils/mileage";
 
 export interface Vehicle {
     id: string;
@@ -415,14 +416,28 @@ function VehicleCard({ car }: { car: Vehicle }) {
                                     Mileage
                                 </span>
                             </div>
-                            <span
-                                className="font-semibold text-gray-800 text-[11px] truncate"
-                                title={
-                                    car.mileage ? `${car.mileage} km` : "N/A"
-                                }
-                            >
-                                {car.mileage ? `${car.mileage} km` : "N/A"}
-                            </span>
+                            {(() => {
+                                const m = parseMileage(car.mileage);
+                                return (
+                                    <div className="flex flex-col min-w-0">
+                                        <span
+                                            className="font-semibold text-gray-800 text-[11px] truncate leading-tight"
+                                            title={
+                                                m.hasValue
+                                                    ? `${m.milesText} (${m.kmText})`
+                                                    : "N/A"
+                                            }
+                                        >
+                                            {m.milesText}
+                                        </span>
+                                        {m.hasValue && m.kmText && (
+                                            <span className="text-[9.5px] font-medium text-gray-500 tracking-tight leading-tight mt-0.5 truncate">
+                                                {m.kmText}
+                                            </span>
+                                        )}
+                                    </div>
+                                );
+                            })()}
                         </div>
 
                         {/* 5. Transmission */}
@@ -519,7 +534,11 @@ function VehicleCard({ car }: { car: Vehicle }) {
                                         "rent"
                                             ? "rent"
                                             : "buy";
-                                    const inquiryMsg = `Hello Wright Finder Motors,\n\nI would like more information and wish to contact an agent regarding this vehicle:\n- Vehicle: ${car.title}\n- Stock ID: #${car.id}\n- Price: $${car.price?.toLocaleString() || "N/A"}\n- Mileage: ${car.mileage ? car.mileage + " km" : "N/A"}\n- Transmission: ${car.transmission || "N/A"}\n- Fuel Type: ${car.fuel || "N/A"}\n\nPlease get in touch with me with further details.\n\nThank you!`;
+                                    const mInfo = parseMileage(car.mileage);
+                                    const mileageFormatted = mInfo.hasValue
+                                        ? `${mInfo.milesText} (${mInfo.kmText})`
+                                        : "N/A";
+                                    const inquiryMsg = `Hello Wright Finder Motors,\n\nI would like more information and wish to contact an agent regarding this vehicle:\n- Vehicle: ${car.title}\n- Stock ID: #${car.id}\n- Price: $${car.price?.toLocaleString() || "N/A"}\n- Mileage: ${mileageFormatted}\n- Transmission: ${car.transmission || "N/A"}\n- Fuel Type: ${car.fuel || "N/A"}\n\nPlease get in touch with me with further details.\n\nThank you!`;
                                     router.visit(
                                         `/contact?subject=${subjectParam}&carId=${encodeURIComponent(car.id)}&carTitle=${encodeURIComponent(car.title)}&message=${encodeURIComponent(inquiryMsg)}#contact-form`,
                                     );
@@ -527,6 +546,10 @@ function VehicleCard({ car }: { car: Vehicle }) {
                                 }
 
                                 // Open mail client with prefilled car details and problem input area
+                                const mMailInfo = parseMileage(car.mileage);
+                                const mailMileage = mMailInfo.hasValue
+                                    ? `${mMailInfo.milesText} (${mMailInfo.kmText})`
+                                    : "N/A";
                                 const subject = encodeURIComponent(
                                     `Inquiry / Problem Report: ${car.title} (ID: ${car.id})`,
                                 );
@@ -536,7 +559,7 @@ function VehicleCard({ car }: { car: Vehicle }) {
                                         `Vehicle: ${car.title}\n` +
                                         `Car ID: ${car.id}\n` +
                                         `Price: $${car.price.toLocaleString()}\n` +
-                                        `Mileage: ${car.mileage ? car.mileage + " km" : "N/A"}\n` +
+                                        `Mileage: ${mailMileage}\n` +
                                         `Transmission: ${car.transmission || "N/A"}\n` +
                                         `Fuel Type: ${car.fuel || "N/A"}\n` +
                                         `Title Condition: ${car.condition || "N/A"}\n` +
