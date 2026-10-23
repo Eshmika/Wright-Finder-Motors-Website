@@ -442,6 +442,18 @@ function doPost(e) {
                             ? data.discount
                             : "";
                     break;
+                case "Rent Price":
+                    newRow[col] =
+                        data.rentPrice !== undefined && data.rentPrice !== null
+                            ? data.rentPrice
+                            : "";
+                    break;
+                case "Rent Discount":
+                    newRow[col] =
+                        data.rentDiscount !== undefined && data.rentDiscount !== null
+                            ? data.rentDiscount
+                            : "";
+                    break;
                 case "VIN":
                     newRow[col] = data.vin || "";
                     break;

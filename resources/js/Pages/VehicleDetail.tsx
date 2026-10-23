@@ -5,6 +5,7 @@ import Footer from "@/Components/Footer";
 import CallToActionSection from "@/Pages/Home/CallToActionSection";
 import { PageProps } from "@/types";
 import { DetailedVehicle, fetchAllVehicles } from "@/Services/vehicleService";
+import { parseMileage } from "@/Utils/mileage";
 
 interface VehicleDetailProps extends PageProps {
     id: string;
@@ -15,6 +16,16 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [activeImageIndex, setActiveImageIndex] = useState(0);
+
+    // Read previous catalog page from URL parameter if provided (e.g. ?page=2)
+    const catalogPageParam =
+        typeof window !== "undefined"
+            ? new URLSearchParams(window.location.search).get("page")
+            : null;
+    const backToCatalogUrl =
+        catalogPageParam && parseInt(catalogPageParam, 10) > 1
+            ? `/buy?page=${catalogPageParam}#catalog`
+            : "/buy#catalog";
 
     useEffect(() => {
         let isMounted = true;
@@ -142,9 +153,16 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 print:px-0 print:space-y-6">
                     {/* Bottom Navigation Buttons */}
                     <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 print:hidden">
-                        <Link
-                            href="/buy"
-                            className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-6 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs uppercase tracking-wider transition border border-slate-700"
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if (window.history.length > 1) {
+                                    window.history.back();
+                                } else {
+                                    router.visit(backToCatalogUrl);
+                                }
+                            }}
+                            className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-6 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs uppercase tracking-wider transition border border-slate-700 cursor-pointer shadow-sm active:scale-95"
                         >
                             <svg
                                 className="w-4 h-4"
@@ -160,7 +178,7 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                 />
                             </svg>
                             <span>Back to Vehicle Catalog</span>
-                        </Link>
+                        </button>
                     </div>
                     {/* Breadcrumbs Navigation */}
                     <nav className="flex items-center space-x-2 text-xs md:text-sm text-slate-300 print:hidden">
@@ -172,7 +190,7 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                         </Link>
                         <span>/</span>
                         <Link
-                            href="/buy"
+                            href={backToCatalogUrl}
                             className="hover:text-vivid-red transition-colors"
                         >
                             Inventory
@@ -213,7 +231,7 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                 longer available or the link is incorrect.
                             </p>
                             <Link
-                                href="/buy"
+                                href={backToCatalogUrl}
                                 className="mt-4 inline-flex items-center space-x-2 px-6 py-3 rounded-xl bg-vivid-red text-white text-sm font-bold shadow-lg hover:bg-red-600 transition"
                             >
                                 <svg
@@ -284,7 +302,7 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                         <div className="flex flex-wrap items-center gap-y-2 gap-x-5 text-xs sm:text-sm text-slate-300 print:text-slate-700 pt-1">
                                             <div className="flex items-center gap-1.5">
                                                 <svg
-                                                    className="w-4 h-4 text-vivid-red"
+                                                    className="w-4 h-4 text-vivid-red shrink-0"
                                                     fill="none"
                                                     viewBox="0 0 24 24"
                                                     stroke="currentColor"
@@ -301,11 +319,24 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                                         d="M12 7v5l3 3"
                                                     />
                                                 </svg>
-                                                <span>
-                                                    {vehicle.mileage
-                                                        ? `${vehicle.mileage} km`
-                                                        : "N/A"}
-                                                </span>
+                                                {(() => {
+                                                    const m = parseMileage(
+                                                        vehicle.mileage,
+                                                    );
+                                                    if (!m.hasValue) {
+                                                        return <span>N/A</span>;
+                                                    }
+                                                    return (
+                                                        <span className="inline-flex items-baseline gap-1.5 flex-wrap">
+                                                            <span className="font-semibold text-white">
+                                                                {m.milesText}
+                                                            </span>
+                                                            <span className="text-xs font-normal text-slate-400">
+                                                                ({m.kmText})
+                                                            </span>
+                                                        </span>
+                                                    );
+                                                })()}
                                             </div>
                                             <div className="flex items-center gap-1.5">
                                                 <svg
@@ -755,8 +786,16 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                                         vehicle.clientEmail?.trim();
                                                     const carIdentifier = `${vehicle.year ? `${vehicle.year} ` : ""}${vehicle.make} ${vehicle.model} (ID: ${vehicle.id})`;
 
+                                                    const mInfo = parseMileage(
+                                                        vehicle.mileage,
+                                                    );
+                                                    const mileageFormatted =
+                                                        mInfo.hasValue
+                                                            ? `${mInfo.milesText} (${mInfo.kmText})`
+                                                            : "N/A";
+
                                                     if (!email) {
-                                                        const inquiryMsg = `Hello Wright Finder Motors,\n\nI would like more information and wish to contact an agent regarding this vehicle:\n- Vehicle: ${vehicle.title || carIdentifier}\n- Stock ID: #${vehicle.id}\n- Price: $${vehicle.price?.toLocaleString() || "N/A"}\n- Mileage: ${vehicle.mileage || "N/A"}\n\nPlease get in touch with me with further details.\n\nThank you!`;
+                                                        const inquiryMsg = `Hello Wright Finder Motors,\n\nI would like more information and wish to contact an agent regarding this vehicle:\n- Vehicle: ${vehicle.title || carIdentifier}\n- Stock ID: #${vehicle.id}\n- Price: $${vehicle.price?.toLocaleString() || "N/A"}\n- Mileage: ${mileageFormatted}\n\nPlease get in touch with me with further details.\n\nThank you!`;
                                                         router.visit(
                                                             `/contact?subject=buy&carId=${encodeURIComponent(vehicle.id)}&carTitle=${encodeURIComponent(vehicle.title || carIdentifier)}&message=${encodeURIComponent(inquiryMsg)}#contact-form`,
                                                         );
@@ -777,7 +816,7 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                                                 `• Vehicle: ${vehicle.title || carIdentifier}\n` +
                                                                 `• Stock ID: #${vehicle.id}\n` +
                                                                 `• Listed Price: $${vehicle.price?.toLocaleString() || "N/A"}\n` +
-                                                                `• Mileage: ${vehicle.mileage || "N/A"}\n` +
+                                                                `• Mileage: ${mileageFormatted}\n` +
                                                                 (vehicle.vin
                                                                     ? `• VIN: ${vehicle.vin}\n`
                                                                     : "") +
@@ -807,7 +846,7 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
 
                                             <div className="grid grid-cols-2 gap-3">
                                                 <a
-                                                    href={`tel:${vehicle.clientPhone || "+19378388616"}`}
+                                                    href={`tel:${vehicle.clientPhone || "+19374754737"}`}
                                                     className="py-3 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs transition border border-slate-700 flex items-center justify-center gap-1.5"
                                                 >
                                                     <svg
@@ -833,8 +872,17 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                                             vehicle.clientEmail?.trim();
                                                         const carIdentifier = `${vehicle.year ? `${vehicle.year} ` : ""}${vehicle.make} ${vehicle.model} (ID: ${vehicle.id})`;
 
+                                                        const mVisitInfo =
+                                                            parseMileage(
+                                                                vehicle.mileage,
+                                                            );
+                                                        const visitMileage =
+                                                            mVisitInfo.hasValue
+                                                                ? `${mVisitInfo.milesText} (${mVisitInfo.kmText})`
+                                                                : "N/A";
+
                                                         if (!email) {
-                                                            const visitMsg = `Hello Wright Finder Motors,\n\nI would like to schedule a visit / test drive to inspect this vehicle in person:\n- Vehicle: ${vehicle.title || carIdentifier}\n- Stock ID: #${vehicle.id}\n- Price: $${vehicle.price?.toLocaleString() || "N/A"}\n- Mileage: ${vehicle.mileage || "N/A"}\n\nPlease let me know your available visiting dates and times.\n\nThank you!`;
+                                                            const visitMsg = `Hello Wright Finder Motors,\n\nI would like to schedule a visit / test drive to inspect this vehicle in person:\n- Vehicle: ${vehicle.title || carIdentifier}\n- Stock ID: #${vehicle.id}\n- Price: $${vehicle.price?.toLocaleString() || "N/A"}\n- Mileage: ${visitMileage}\n\nPlease let me know your available visiting dates and times.\n\nThank you!`;
                                                             router.visit(
                                                                 `/contact?subject=visit&carId=${encodeURIComponent(vehicle.id)}&carTitle=${encodeURIComponent(vehicle.title || carIdentifier)}&message=${encodeURIComponent(visitMsg)}#contact-form`,
                                                             );
@@ -855,7 +903,7 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                                                     `• Vehicle: ${vehicle.title || carIdentifier}\n` +
                                                                     `• Stock ID: #${vehicle.id}\n` +
                                                                     `• Listed Price: $${vehicle.price?.toLocaleString() || "N/A"}\n` +
-                                                                    `• Mileage: ${vehicle.mileage || "N/A"}\n` +
+                                                                    `• Mileage: ${visitMileage}\n` +
                                                                     (vehicle.vin
                                                                         ? `• VIN: ${vehicle.vin}\n`
                                                                         : "") +
@@ -967,11 +1015,26 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                                             label="Body Style"
                                             value={vehicle.bodyStyle}
                                         />
-                                        <SpecItem
-                                            label="Mileage"
-                                            value={vehicle.mileage}
-                                            suffix=" km"
-                                        />
+                                        {(() => {
+                                            const m = parseMileage(
+                                                vehicle.mileage,
+                                            );
+                                            return (
+                                                <SpecItem
+                                                    label="Mileage"
+                                                    value={
+                                                        m.hasValue
+                                                            ? m.milesText
+                                                            : "N/A"
+                                                    }
+                                                    subValue={
+                                                        m.hasValue
+                                                            ? m.kmText
+                                                            : null
+                                                    }
+                                                />
+                                            );
+                                        })()}
                                         <SpecItem
                                             label="Exterior Color"
                                             value={vehicle.exteriorColor}
@@ -1179,7 +1242,7 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
                 <div className="hidden print:block pt-8 mt-8 border-t border-slate-300 text-center text-xs text-slate-500">
                     <p className="font-semibold text-slate-700">
                         Wright Finder Motors • 1121 S Main St, Dayton, OH 45409
-                        • Phone: (937) 838-8616
+                        • Phone: 937-475-4737
                     </p>
                     <p className="mt-1">
                         All vehicle details, specifications, and availability
@@ -1195,6 +1258,7 @@ export default function VehicleDetail({ auth, id }: VehicleDetailProps) {
 function SpecItem({
     label,
     value,
+    subValue,
     suffix = "",
     highlight = false,
     isPhone = false,
@@ -1202,6 +1266,7 @@ function SpecItem({
 }: {
     label: string;
     value?: string | number | null;
+    subValue?: string | null;
     suffix?: string;
     highlight?: boolean;
     isPhone?: boolean;
@@ -1236,16 +1301,27 @@ function SpecItem({
                     {displayText}
                 </a>
             ) : (
-                <span
-                    className={`text-sm font-semibold truncate ${
-                        highlight
-                            ? "text-emerald-400 print:text-emerald-700 font-bold"
-                            : "text-white print:text-slate-900"
-                    }`}
-                    title={displayText}
-                >
-                    {displayText}
-                </span>
+                <div className="flex flex-col min-w-0">
+                    <span
+                        className={`text-sm font-semibold truncate ${
+                            highlight
+                                ? "text-emerald-400 print:text-emerald-700 font-bold"
+                                : "text-white print:text-slate-900"
+                        }`}
+                        title={
+                            subValue
+                                ? `${displayText} (${subValue})`
+                                : displayText
+                        }
+                    >
+                        {displayText}
+                    </span>
+                    {subValue && (
+                        <span className="text-xs font-medium text-slate-400 print:text-slate-500 mt-0.5 tracking-tight truncate">
+                            {subValue}
+                        </span>
+                    )}
+                </div>
             )}
         </div>
     );

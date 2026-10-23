@@ -1,5 +1,6 @@
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import { DetailedVehicle, fetchAllVehicles } from "@/Services/vehicleService";
+import { parseMileage } from "@/Utils/mileage";
 import { Head, Link } from "@inertiajs/react";
 import { useEffect, useState } from "react";
 
@@ -270,9 +271,23 @@ export default function Show({ id }: ShowProps) {
                                 <span className="block text-[10px] font-bold uppercase text-slate-400">
                                     Mileage
                                 </span>
-                                <span className="font-bold text-slate-800 text-sm">
-                                    {vehicle.mileage || "N/A"}
-                                </span>
+                                {(() => {
+                                    const m = parseMileage(vehicle.mileage);
+                                    return (
+                                        <div className="flex flex-col">
+                                            <span className="font-bold text-slate-800 text-sm leading-tight">
+                                                {m.hasValue
+                                                    ? m.milesText
+                                                    : "N/A"}
+                                            </span>
+                                            {m.hasValue && m.kmText && (
+                                                <span className="text-[10px] font-medium text-slate-500 leading-tight mt-0.5">
+                                                    {m.kmText}
+                                                </span>
+                                            )}
+                                        </div>
+                                    );
+                                })()}
                             </div>
                             <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 min-w-[90px]">
                                 <span className="block text-[10px] font-bold uppercase text-slate-400">

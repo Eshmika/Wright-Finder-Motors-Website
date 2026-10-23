@@ -245,7 +245,7 @@
                                 Wright Finder Motors &bull; Online Reservation Management System
                             </p>
                             <p style="margin: 0; color: #94a3b8; font-size: 11px;">
-                                Dayton, OH &bull; Phone: +1 937-838-8616 &bull; Email: contact@wrightfindermotors.com
+                                Dayton, OH &bull; Phone: +1 440-907-9599 &bull; Email: contact@wrightfindermotors.com
                             </p>
                         </td>
                     </tr>
