@@ -1853,6 +1853,16 @@ export default function Index({
                                                                 </span>
                                                             </>
                                                         )}
+                                                        {car.rentOrSell && (
+                                                            <>
+                                                                <span>•</span>
+                                                                <span className="inline-block px-1.5 py-0.2 rounded text-[9px] font-bold bg-blue-100 text-blue-800 border border-blue-200 uppercase">
+                                                                    {
+                                                                        car.rentOrSell
+                                                                    }
+                                                                </span>
+                                                            </>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
