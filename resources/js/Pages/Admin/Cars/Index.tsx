@@ -859,11 +859,11 @@ export default function Index({
                                             .trim();
                                         const rowHighlightClass =
                                             statusKey.startsWith("avail")
-                                                ? "bg-amber-50/60 hover:bg-amber-100/70 border-l-4 border-l-amber-400"
+                                                ? "bg-green-50/60 hover:bg-green-100/70 border-l-4 border-l-green-400"
                                                 : statusKey.startsWith("sold")
-                                                  ? "bg-emerald-50/50 hover:bg-emerald-100/60 border-l-4 border-l-emerald-500"
+                                                  ? "bg-red-50/60 hover:bg-red-100/70 border-l-4 border-l-red-400"
                                                   : statusKey.startsWith("pend")
-                                                    ? "bg-slate-100/70 hover:bg-slate-200/60 border-l-4 border-l-slate-400"
+                                                    ? "bg-yellow-50/60 hover:bg-yellow-100/70 border-l-4 border-l-yellow-400"
                                                     : "hover:bg-purple/5";
 
                                         return (
@@ -1079,19 +1079,19 @@ export default function Index({
                                                                 ""
                                                             ).toLowerCase() ===
                                                             "available"
-                                                                ? "bg-[#facc15] text-white"
+                                                                ? "bg-green-500 text-white"
                                                                 : (
                                                                         car.availabilities ||
                                                                         ""
                                                                     ).toLowerCase() ===
                                                                     "sold"
-                                                                  ? "bg-[#22c55e] text-white"
+                                                                  ? "bg-red-500 text-white"
                                                                   : (
                                                                           car.availabilities ||
                                                                           ""
                                                                       ).toLowerCase() ===
                                                                       "pending"
-                                                                    ? "bg-[#9ca3af] text-white"
+                                                                    ? "bg-yellow-500 text-white"
                                                                     : "bg-slate-100 text-slate-800 border border-slate-200"
                                                         }`}
                                                     >
