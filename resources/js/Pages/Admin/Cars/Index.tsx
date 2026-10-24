@@ -326,10 +326,19 @@ export default function Index({
         window.print();
     };
 
+    // Sell-eligible vehicles list (Sell, Both, or not explicitly rent-only)
+    const sellEligibleVehicles = useMemo(() => {
+        return vehicles.filter((v) => {
+            const ros = (v.rentOrSell || "").toLowerCase().trim();
+            return ros !== "rent";
+        });
+    }, [vehicles]);
+
     // Open vehicle picker modal for top Print / Share buttons
     const handleOpenActionModal = (action: "print" | "share") => {
-        // Pre-select first vehicle if available
-        const defaultCarId = vehicles.length > 0 ? vehicles[0].id : "";
+        // Pre-select first sell-eligible vehicle if available
+        const defaultCarId =
+            sellEligibleVehicles.length > 0 ? sellEligibleVehicles[0].id : "";
         setVehicleActionModal({
             isOpen: true,
             action,
@@ -1719,7 +1728,7 @@ export default function Index({
                                 const q = vehicleActionModal.searchQuery
                                     .trim()
                                     .toLowerCase();
-                                const filtered = vehicles.filter(
+                                const filtered = sellEligibleVehicles.filter(
                                     (v) =>
                                         !q ||
                                         v.id.toLowerCase().includes(q) ||
