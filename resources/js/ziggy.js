@@ -12,14 +12,26 @@ const Ziggy = {
             methods: ["GET", "HEAD"],
         },
         buy: { uri: "buy", methods: ["GET", "HEAD"] },
+        rent: { uri: "rent", methods: ["GET", "HEAD"] },
+        "rent.reserve": {
+            uri: "rent\/reserve\/{id}",
+            methods: ["GET", "HEAD"],
+            parameters: ["id"],
+        },
+        "rent.reserve.store": { uri: "rent\/reserve", methods: ["POST"] },
         "vehicles.show": {
             uri: "vehicles\/{id}",
             methods: ["GET", "HEAD"],
             parameters: ["id"],
         },
         contact: { uri: "contact", methods: ["GET", "HEAD"] },
+        "contact.submit": { uri: "contact", methods: ["POST"] },
         dashboard: { uri: "dashboard", methods: ["GET", "HEAD"] },
         "admin.cars.index": { uri: "admin\/cars", methods: ["GET", "HEAD"] },
+        "admin.rent.index": {
+            uri: "admin\/rent-cars",
+            methods: ["GET", "HEAD"],
+        },
         "admin.cars.create": {
             uri: "admin\/cars\/create",
             methods: ["GET", "HEAD"],
