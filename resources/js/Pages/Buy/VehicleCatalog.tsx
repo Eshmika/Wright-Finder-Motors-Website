@@ -260,39 +260,35 @@ function VehicleCard({
                         ).trim();
                         const statusLower = statusText.toLowerCase();
 
-                        // Colors requested:
-                        // Sold: #22c55e (vibrant emerald green)
-                        // Available: #facc15 (luminous warm gold/yellow)
-                        // Pending: #9ca3af (sleek refined neutral slate/gray)
                         const isSold = statusLower === "sold";
                         const isAvailable = statusLower === "available";
                         const isPending = statusLower === "pending";
 
                         const badgeConfig = isSold
                             ? {
-                                  bg: "bg-[#22c55e]",
-                                  border: "border-[#22c55e]",
-                                  text: "text-[#ffffff]",
+                                  bg: "bg-red-500",
+                                  border: "border-red-500",
+                                  text: "text-white",
                                   label: statusText,
                               }
                             : isAvailable
                               ? {
-                                    bg: "bg-[#facc15]",
-                                    border: "border-[#facc15]",
-                                    text: "text-[#ffffff]",
+                                    bg: "bg-green-500",
+                                    border: "border-green-500",
+                                    text: "text-white",
                                     label: statusText,
                                 }
                               : isPending
                                 ? {
-                                      bg: "bg-[#9ca3af]",
-                                      border: "border-[#9ca3af]",
-                                      text: "text-[#ffffff]",
+                                      bg: "bg-yellow-500",
+                                      border: "border-yellow-500",
+                                      text: "text-white",
                                       label: statusText,
                                   }
                                 : {
                                       bg: "bg-black",
                                       border: "border-black",
-                                      text: "text-[#ffffff]",
+                                      text: "text-white",
                                       label: statusText,
                                   };
 
