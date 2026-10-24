@@ -336,10 +336,19 @@ export default function Index({
         window.print();
     };
 
+    // Rental eligible vehicles list (Rent or Both)
+    const rentEligibleVehicles = useMemo(() => {
+        return vehicles.filter((v) => {
+            const ros = (v.rentOrSell || "").toLowerCase().trim();
+            return ros === "rent" || ros === "both";
+        });
+    }, [vehicles]);
+
     // Open vehicle picker modal for top Print / Share buttons
     const handleOpenActionModal = (action: "print" | "share") => {
-        // Pre-select first vehicle if available
-        const defaultCarId = vehicles.length > 0 ? vehicles[0].id : "";
+        // Pre-select first rent vehicle if available
+        const defaultCarId =
+            rentEligibleVehicles.length > 0 ? rentEligibleVehicles[0].id : "";
         setVehicleActionModal({
             isOpen: true,
             action,
@@ -398,11 +407,12 @@ export default function Index({
         }
     };
 
-    // Share handler for an individual vehicle public page
+    // Share handler for an individual vehicle reservation page
     const handleShareVehicle = async (car: DetailedVehicle) => {
-        const publicVehicleUrl = `${window.location.origin}/vehicles/${encodeURIComponent(car.id)}`;
-        const shareTitle = `${car.make} ${car.model} ${car.year ? `(${car.year})` : ""} - Wright Finder Motors`;
-        const shareText = `Check out this ${car.make} ${car.model} on Wright Finder Motors! Listed at ${formatCurrency(car.price)}.`;
+        const publicVehicleUrl = `${window.location.origin}/rent/reserve/${encodeURIComponent(car.id)}`;
+        const shareTitle = `Reserve ${car.make} ${car.model} ${car.year ? `(${car.year})` : ""} - Wright Finder Motors`;
+        const rentRate = Number(car.rentPrice) || car.price || 0;
+        const shareText = `Reserve and book this ${car.make} ${car.model} on Wright Finder Motors! Rental rate at ${formatCurrency(rentRate)}/day.`;
 
         if (navigator.share) {
             try {
@@ -426,12 +436,12 @@ export default function Index({
             setAlertModal({
                 isOpen: true,
                 type: "success",
-                title: "Vehicle Link Copied!",
-                message: `Public link for ${car.make} ${car.model} (#${car.id}) was copied to your clipboard:\n${publicVehicleUrl}`,
+                title: "Reservation Link Copied!",
+                message: `Reservation & booking link for ${car.make} ${car.model} (#${car.id}) was copied to your clipboard:\n${publicVehicleUrl}`,
             });
         } catch (copyErr) {
             // Prompt fallback for older browsers
-            window.prompt("Copy vehicle page link:", publicVehicleUrl);
+            window.prompt("Copy reservation page link:", publicVehicleUrl);
         }
     };
 
@@ -1273,7 +1283,7 @@ export default function Index({
                                                             </svg>
                                                         </button>
 
-                                                        {/* Share button */}
+                                                        {/* Share button - Shares client reservation & booking page */}
                                                         <button
                                                             type="button"
                                                             onClick={() =>
@@ -1281,8 +1291,8 @@ export default function Index({
                                                                     car,
                                                                 )
                                                             }
-                                                            title="Share Public Vehicle Page"
-                                                            aria-label="Share Public Vehicle Page"
+                                                            title="Share Vehicle Reservation & Booking Page"
+                                                            aria-label="Share Vehicle Reservation & Booking Page"
                                                             className="p-1.5 rounded-lg text-slate-600 hover:text-white hover:bg-purple bg-slate-50 border border-slate-200 transition active:scale-95 shadow-sm inline-flex items-center justify-center"
                                                         >
                                                             <svg
@@ -1667,7 +1677,7 @@ export default function Index({
                                     <p className="text-xs text-slate-500 mt-0.5">
                                         {vehicleActionModal.action === "print"
                                             ? "Choose which vehicle's public spec sheet and photo gallery to print."
-                                            : "Choose which public single vehicle page link to share."}
+                                            : "Choose which vehicle's reservation & booking page link to share."}
                                     </p>
                                 </div>
                             </div>
@@ -1735,7 +1745,7 @@ export default function Index({
                                 const q = vehicleActionModal.searchQuery
                                     .trim()
                                     .toLowerCase();
-                                const filtered = vehicles.filter(
+                                const filtered = rentEligibleVehicles.filter(
                                     (v) =>
                                         !q ||
                                         v.id.toLowerCase().includes(q) ||
@@ -1811,8 +1821,15 @@ export default function Index({
                                                     <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-0.5">
                                                         <span className="font-semibold text-slate-700">
                                                             {formatCurrency(
-                                                                car.price,
+                                                                Number(
+                                                                    car.rentPrice,
+                                                                ) ||
+                                                                    car.price ||
+                                                                    0,
                                                             )}
+                                                            <span className="text-[10px] font-normal text-slate-500">
+                                                                /day
+                                                            </span>
                                                         </span>
                                                         <span>•</span>
                                                         <span>
