@@ -38,6 +38,10 @@ export default function AuthenticatedLayout({
         route().current("admin.rent.index") ||
         (isCarsShowOrEdit && isFromRent);
 
+    const isReservationsIndex =
+        url === "/admin/rent-reservations" ||
+        route().current("admin.reservations.index");
+
     const isProfile =
         url.startsWith("/profile") || route().current("profile.edit");
 
@@ -356,6 +360,31 @@ export default function AuthenticatedLayout({
                                             />
                                         </svg>
                                         <span>View all Car</span>
+                                    </Link>
+
+                                    {/* Reservation */}
+                                    <Link
+                                        href={route("admin.reservations.index")}
+                                        className={`flex items-center space-x-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition ${
+                                            isReservationsIndex
+                                                ? "bg-vivid-red text-white shadow-lg shadow-vivid-red/30"
+                                                : "text-black hover:text-black/60 hover:bg-white/10"
+                                        }`}
+                                    >
+                                        <svg
+                                            className={`w-4 h-4 shrink-0 ${isReservationsIndex ? "text-white" : "text-purple"}`}
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
+                                            />
+                                        </svg>
+                                        <span>Reservation</span>
                                     </Link>
                                 </div>
                             </div>

@@ -68,6 +68,10 @@ Route::middleware('auth')->group(function () {
         return Inertia::render('Admin/RentCars/Index');
     })->name('admin.rent.index');
 
+    Route::get('/admin/rent-reservations', function () {
+        return Inertia::render('Admin/Reservations/Index');
+    })->name('admin.reservations.index');
+
     Route::get('/admin/cars/create', function () {
         return Inertia::render('Admin/Cars/Create');
     })->name('admin.cars.create');
