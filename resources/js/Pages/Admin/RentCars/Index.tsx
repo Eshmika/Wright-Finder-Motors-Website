@@ -1160,12 +1160,7 @@ export default function Index({
                                                     <div className="flex items-center justify-center gap-1.5">
                                                         {/* View button - Opens vehicle details screen panel */}
                                                         <Link
-                                                            href={route(
-                                                                "admin.cars.show",
-                                                                {
-                                                                    id: car.id,
-                                                                },
-                                                            )}
+                                                            href={`${route("admin.cars.show", { id: car.id })}?from=rent`}
                                                             title="View Vehicle Details Panel"
                                                             aria-label="View Vehicle Details Panel"
                                                             className="p-1.5 rounded-lg text-slate-600 hover:text-white hover:bg-dark-purple bg-slate-50 border border-slate-200 transition active:scale-95 shadow-sm inline-flex items-center justify-center"
@@ -1197,12 +1192,7 @@ export default function Index({
 
                                                         {/* Edit button - Opens vehicle edit panel */}
                                                         <Link
-                                                            href={route(
-                                                                "admin.cars.edit",
-                                                                {
-                                                                    id: car.id,
-                                                                },
-                                                            )}
+                                                            href={`${route("admin.cars.edit", { id: car.id })}?from=rent`}
                                                             title="Edit Vehicle Details Panel"
                                                             aria-label="Edit Vehicle Details Panel"
                                                             className="p-1.5 rounded-lg text-slate-600 hover:text-white hover:bg-blue-600 bg-slate-50 border border-slate-200 transition active:scale-95 shadow-sm inline-flex items-center justify-center"

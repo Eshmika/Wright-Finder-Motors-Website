@@ -10,16 +10,34 @@ export default function AuthenticatedLayout({
 
     const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
+    // Query parameters check (e.g. ?from=rent)
+    const isFromRent =
+        typeof window !== "undefined"
+            ? new URLSearchParams(window.location.search).get("from") === "rent"
+            : url.includes("from=rent");
+
     // Active route checks
     const isDashboard = url === "/dashboard" || route().current("dashboard");
+    const isCarsShowOrEdit =
+        url.startsWith("/admin/cars/") &&
+        (route().current("admin.cars.show") ||
+            route().current("admin.cars.edit") ||
+            url.includes("/edit"));
+
     const isCarsIndex =
-        url === "/admin/cars" ||
-        route().current("admin.cars.index") ||
-        route().current("admin.cars.show");
+        !isFromRent &&
+        (url === "/admin/cars" ||
+            route().current("admin.cars.index") ||
+            (isCarsShowOrEdit && !isFromRent));
+
     const isCarsCreate =
         url === "/admin/cars/create" || route().current("admin.cars.create");
+
     const isRentIndex =
-        url === "/admin/rent-cars" || route().current("admin.rent.index");
+        url === "/admin/rent-cars" ||
+        route().current("admin.rent.index") ||
+        (isCarsShowOrEdit && isFromRent);
+
     const isProfile =
         url.startsWith("/profile") || route().current("profile.edit");
 

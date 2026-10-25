@@ -306,6 +306,11 @@ export default function Edit({ id, hasGoogleAppsScriptUrl }: EditProps) {
         useState<DetailedVehicle | null>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
 
+    const isFromRent =
+        typeof window !== "undefined"
+            ? new URLSearchParams(window.location.search).get("from") === "rent"
+            : false;
+
     // Active Gallery preview tab / index for the top Hero View panel
     const [activeImageIndex, setActiveImageIndex] = useState<number>(0);
 
@@ -1073,9 +1078,17 @@ export default function Edit({ id, hasGoogleAppsScriptUrl }: EditProps) {
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="flex items-center gap-3">
                         <Link
-                            href={route("admin.cars.index")}
+                            href={
+                                isFromRent
+                                    ? route("admin.rent.index")
+                                    : route("admin.cars.index")
+                            }
                             className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition flex items-center justify-center shadow-sm"
-                            title="Back to All Cars"
+                            title={
+                                isFromRent
+                                    ? "Back to Rent Cars"
+                                    : "Back to All Cars"
+                            }
                         >
                             <svg
                                 className="w-4 h-4"
@@ -1114,7 +1127,7 @@ export default function Edit({ id, hasGoogleAppsScriptUrl }: EditProps) {
 
                     <div className="flex items-center space-x-2.5">
                         <Link
-                            href={route("admin.cars.show", { id })}
+                            href={`${route("admin.cars.show", { id })}${isFromRent ? "?from=rent" : ""}`}
                             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition shadow-sm"
                             title="View Full Vehicle Details Screen"
                         >
@@ -1299,10 +1312,16 @@ export default function Edit({ id, hasGoogleAppsScriptUrl }: EditProps) {
                             </button>
                             {popupModal.type === "success" && (
                                 <Link
-                                    href={route("admin.cars.index")}
+                                    href={
+                                        isFromRent
+                                            ? route("admin.rent.index")
+                                            : route("admin.cars.index")
+                                    }
                                     className="w-full sm:w-auto px-6 py-2.5 rounded-xl text-xs font-bold bg-dark-purple hover:bg-purple text-white transition shadow-sm text-center"
                                 >
-                                    Back to All Cars
+                                    {isFromRent
+                                        ? "Back to Rent Cars"
+                                        : "Back to All Cars"}
                                 </Link>
                             )}
                         </div>
