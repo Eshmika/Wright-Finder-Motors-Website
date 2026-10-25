@@ -27,6 +27,7 @@ class ReservationController extends Controller
             'rentalRate' => 'nullable|numeric',
             'discount' => 'nullable|numeric',
             'totalEstimate' => 'nullable|numeric',
+            'estimatedTotal' => 'nullable|numeric',
             'firstName' => 'required|string|max:100',
             'lastName' => 'required|string|max:100',
             'email' => 'required|email|max:255',
@@ -55,6 +56,9 @@ class ReservationController extends Controller
 
         $data = $request->all();
         $data['action'] = 'reserve';
+        if (!isset($data['estimatedTotal']) && isset($data['totalEstimate'])) {
+            $data['estimatedTotal'] = $data['totalEstimate'];
+        }
         $data['paymentStatus'] = 'No payment received (Pending Reservation)';
         $data['timestamp'] = date('Y-m-d H:i:s') . ' EST';
 

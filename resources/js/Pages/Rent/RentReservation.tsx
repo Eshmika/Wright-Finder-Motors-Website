@@ -301,6 +301,7 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
             rentalRate: baseDailyRate,
             discount: totalSavings,
             totalEstimate: totalEstimate,
+            estimatedTotal: totalEstimate,
             firstName,
             lastName,
             email,
