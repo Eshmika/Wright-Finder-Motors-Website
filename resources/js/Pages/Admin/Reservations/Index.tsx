@@ -840,21 +840,45 @@ export default function Index() {
                                                     </div>
                                                 </td>
 
-                                                {/* 9. PAYMENT STATUS: Line 1 dark status with badge */}
+                                                {/* 9. PAYMENT STATUS: Line 1 status badge */}
                                                 <td className="py-3 px-3 text-center">
-                                                    <span
-                                                        className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-bold ${
-                                                            isPaid
-                                                                ? "bg-green-500 text-white"
-                                                                : "bg-amber-100 text-amber-900 border border-amber-200"
-                                                        }`}
-                                                    >
-                                                        {res.paymentStatus ||
-                                                            "Pending"}
-                                                    </span>
+                                                    {(() => {
+                                                        const isPending =
+                                                            !res.paymentStatus ||
+                                                            statusLower.includes(
+                                                                "no payment",
+                                                            ) ||
+                                                            statusLower.includes(
+                                                                "pending",
+                                                            );
+
+                                                        if (isPending) {
+                                                            return (
+                                                                <span className="inline-block px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
+                                                                    Pending
+                                                                </span>
+                                                            );
+                                                        }
+
+                                                        if (isPaid) {
+                                                            return (
+                                                                <span className="inline-block px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                                                    Paid
+                                                                </span>
+                                                            );
+                                                        }
+
+                                                        return (
+                                                            <span className="inline-block px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-800 border border-slate-200">
+                                                                {
+                                                                    res.paymentStatus
+                                                                }
+                                                            </span>
+                                                        );
+                                                    })()}
                                                 </td>
 
-                                                {/* 10. ACTION BUTTONS: Icon only */}
+                                                {/* 10. ACTION BUTTONS: Icon only (View Details & Print) */}
                                                 <td className="py-3 px-4 text-center">
                                                     <div className="flex items-center justify-center gap-1.5">
                                                         {/* View Details Modal Icon */}
@@ -894,32 +918,6 @@ export default function Index() {
                                                             </svg>
                                                         </button>
 
-                                                        {/* Edit Vehicle in Admin (if Car ID connected) */}
-                                                        {res.carId && (
-                                                            <Link
-                                                                href={`${route("admin.cars.edit", { id: res.carId })}?from=rent`}
-                                                                title="Edit Connected Vehicle"
-                                                                aria-label="Edit Connected Vehicle"
-                                                                className="p-1.5 rounded-lg text-slate-600 hover:text-white hover:bg-blue-600 bg-slate-50 border border-slate-200 transition active:scale-95 shadow-sm inline-flex items-center justify-center"
-                                                            >
-                                                                <svg
-                                                                    className="w-4 h-4"
-                                                                    fill="none"
-                                                                    viewBox="0 0 24 24"
-                                                                    stroke="currentColor"
-                                                                >
-                                                                    <path
-                                                                        strokeLinecap="round"
-                                                                        strokeLinejoin="round"
-                                                                        strokeWidth={
-                                                                            2
-                                                                        }
-                                                                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                                                    />
-                                                                </svg>
-                                                            </Link>
-                                                        )}
-
                                                         {/* Print Reservation Icon */}
                                                         <button
                                                             type="button"
@@ -945,35 +943,6 @@ export default function Index() {
                                                                         2
                                                                     }
                                                                     d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
-                                                                />
-                                                            </svg>
-                                                        </button>
-
-                                                        {/* Share Icon */}
-                                                        <button
-                                                            type="button"
-                                                            onClick={() =>
-                                                                handleShareReservation(
-                                                                    res,
-                                                                )
-                                                            }
-                                                            title="Share Reservation Link"
-                                                            aria-label="Share Reservation Link"
-                                                            className="p-1.5 rounded-lg text-slate-600 hover:text-white hover:bg-purple bg-slate-50 border border-slate-200 transition active:scale-95 shadow-sm inline-flex items-center justify-center"
-                                                        >
-                                                            <svg
-                                                                className="w-4 h-4"
-                                                                fill="none"
-                                                                viewBox="0 0 24 24"
-                                                                stroke="currentColor"
-                                                            >
-                                                                <path
-                                                                    strokeLinecap="round"
-                                                                    strokeLinejoin="round"
-                                                                    strokeWidth={
-                                                                        2
-                                                                    }
-                                                                    d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
                                                                 />
                                                             </svg>
                                                         </button>
@@ -1065,13 +1034,31 @@ export default function Index() {
                                         className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
                                             (selectedRes.paymentStatus || "")
                                                 .toLowerCase()
-                                                .includes("paid")
-                                                ? "bg-green-500 text-white"
-                                                : "bg-amber-100 text-amber-900 border border-amber-200"
+                                                .includes("no payment") ||
+                                            (selectedRes.paymentStatus || "")
+                                                .toLowerCase()
+                                                .includes("pending") ||
+                                            !selectedRes.paymentStatus
+                                                ? "bg-amber-100 text-amber-900 border border-amber-200"
+                                                : (
+                                                        selectedRes.paymentStatus ||
+                                                        ""
+                                                    )
+                                                        .toLowerCase()
+                                                        .includes("paid")
+                                                  ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                                  : "bg-slate-100 text-slate-800 border border-slate-200"
                                         }`}
                                     >
-                                        {selectedRes.paymentStatus ||
-                                            "Pending Reservation"}
+                                        {(selectedRes.paymentStatus || "")
+                                            .toLowerCase()
+                                            .includes("no payment") ||
+                                        (selectedRes.paymentStatus || "")
+                                            .toLowerCase()
+                                            .includes("pending") ||
+                                        !selectedRes.paymentStatus
+                                            ? "Pending"
+                                            : selectedRes.paymentStatus}
                                     </span>
                                 </div>
                                 <h3 className="text-lg font-black text-slate-900 mt-1">
