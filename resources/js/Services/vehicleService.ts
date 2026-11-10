@@ -295,3 +295,156 @@ export async function fetchAllVehicles(): Promise<DetailedVehicle[]> {
         return statusRank(a.availabilities) - statusRank(b.availabilities);
     });
 }
+
+export interface ReservationRecord {
+    confirmationNumber: string;
+    timestamp: string;
+    carId: string;
+    carTitle: string;
+    rentalRate: number;
+    discount: number;
+    estimatedTotal: number;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    age: string;
+    residency: string;
+    pickupLocation: string;
+    pickupDate: string;
+    pickupTime: string;
+    returnLocation: string;
+    returnDate: string;
+    returnTime: string;
+    paymentOption: string;
+    paymentStatus: string;
+    notes: string;
+    // Joined vehicle details
+    vehicle?: DetailedVehicle;
+}
+
+export const RESERVATION_SHEET_CSV_URL =
+    "https://docs.google.com/spreadsheets/d/16dhtw1POBIeifrAEk0ZqmH3jV8s20quo9Si3GfebifE/gviz/tq?tqx=out:csv&sheet=Reservation";
+
+export async function fetchAllReservations(): Promise<ReservationRecord[]> {
+    const res = await fetch(RESERVATION_SHEET_CSV_URL);
+    if (!res.ok) {
+        throw new Error(`Failed to fetch reservations: ${res.statusText}`);
+    }
+    const text = await res.text();
+    const rows = parseCsv(text);
+    if (rows.length < 2) return [];
+
+    const headers = rows[0].map((h) => h.trim());
+    const getIndex = (name: string): number => {
+        return headers.findIndex((h) => h.toLowerCase() === name.toLowerCase());
+    };
+
+    const confIdx = getIndex("Confirmation Number");
+    const timestampIdx = getIndex("Timestamp");
+    const carIdIdx = getIndex("Car ID");
+    const carTitleIdx = getIndex("Car Title");
+    const rentalRateIdx = getIndex("Rental Rate");
+    const discountIdx = getIndex("Discount");
+    let estTotalIdx = getIndex("Estimated Total");
+    if (estTotalIdx === -1) {
+        estTotalIdx = getIndex("Total Estimate");
+    }
+    const firstNameIdx = getIndex("First Name");
+    const lastNameIdx = getIndex("Last Name");
+    const emailIdx = getIndex("Email");
+    const phoneIdx =
+        getIndex("Mobile Phone") !== -1
+            ? getIndex("Mobile Phone")
+            : getIndex("Phone");
+    const ageIdx = getIndex("Age");
+    const residencyIdx = getIndex("Residency");
+    const pickupLocIdx = getIndex("Pickup Location");
+    const pickupDateIdx = getIndex("Pickup Date");
+    const pickupTimeIdx =
+        getIndex("Pickup Time (EST)") !== -1
+            ? getIndex("Pickup Time (EST)")
+            : getIndex("Pickup Time");
+    const returnLocIdx = getIndex("Return Location");
+    const returnDateIdx = getIndex("Return Date");
+    const returnTimeIdx =
+        getIndex("Return Time (EST)") !== -1
+            ? getIndex("Return Time (EST)")
+            : getIndex("Return Time");
+    const paymentOptionIdx = getIndex("Payment Option");
+    const paymentStatusIdx = getIndex("Payment Status");
+    const notesIdx =
+        getIndex("Special Notes") !== -1
+            ? getIndex("Special Notes")
+            : getIndex("Notes");
+
+    const reservations: ReservationRecord[] = [];
+
+    for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row || row.length === 0) continue;
+
+        const confirmationNumber =
+            confIdx !== -1 ? row[confIdx]?.trim() || `RES-${i}` : `RES-${i}`;
+        const carId = carIdIdx !== -1 ? row[carIdIdx]?.trim() || "" : "";
+
+        if (!confirmationNumber && !carId) continue;
+
+        const rentalRate =
+            rentalRateIdx !== -1
+                ? parseFloat(row[rentalRateIdx]?.replace(/[^0-9.]/g, "") || "0")
+                : 0;
+        const discount =
+            discountIdx !== -1
+                ? parseFloat(row[discountIdx]?.replace(/[^0-9.]/g, "") || "0")
+                : 0;
+        const estimatedTotal =
+            estTotalIdx !== -1
+                ? parseFloat(row[estTotalIdx]?.replace(/[^0-9.]/g, "") || "0")
+                : 0;
+
+        reservations.push({
+            confirmationNumber,
+            timestamp:
+                timestampIdx !== -1 ? row[timestampIdx]?.trim() || "" : "",
+            carId,
+            carTitle: carTitleIdx !== -1 ? row[carTitleIdx]?.trim() || "" : "",
+            rentalRate,
+            discount,
+            estimatedTotal,
+            firstName:
+                firstNameIdx !== -1 ? row[firstNameIdx]?.trim() || "" : "",
+            lastName: lastNameIdx !== -1 ? row[lastNameIdx]?.trim() || "" : "",
+            email: emailIdx !== -1 ? row[emailIdx]?.trim() || "" : "",
+            phone: phoneIdx !== -1 ? row[phoneIdx]?.trim() || "" : "",
+            age: ageIdx !== -1 ? row[ageIdx]?.trim() || "" : "",
+            residency:
+                residencyIdx !== -1 ? row[residencyIdx]?.trim() || "" : "",
+            pickupLocation:
+                pickupLocIdx !== -1 ? row[pickupLocIdx]?.trim() || "" : "",
+            pickupDate:
+                pickupDateIdx !== -1 ? row[pickupDateIdx]?.trim() || "" : "",
+            pickupTime:
+                pickupTimeIdx !== -1 ? row[pickupTimeIdx]?.trim() || "" : "",
+            returnLocation:
+                returnLocIdx !== -1 ? row[returnLocIdx]?.trim() || "" : "",
+            returnDate:
+                returnDateIdx !== -1 ? row[returnDateIdx]?.trim() || "" : "",
+            returnTime:
+                returnTimeIdx !== -1 ? row[returnTimeIdx]?.trim() || "" : "",
+            paymentOption:
+                paymentOptionIdx !== -1
+                    ? row[paymentOptionIdx]?.trim() || ""
+                    : "",
+            paymentStatus:
+                paymentStatusIdx !== -1
+                    ? row[paymentStatusIdx]?.trim() ||
+                      "No payment received (Pending Reservation)"
+                    : "No payment received (Pending Reservation)",
+            notes: notesIdx !== -1 ? row[notesIdx]?.trim() || "" : "",
+        });
+    }
+
+    // Newest reservations first
+    return reservations.reverse();
+}

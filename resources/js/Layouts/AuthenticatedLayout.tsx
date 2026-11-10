@@ -10,14 +10,38 @@ export default function AuthenticatedLayout({
 
     const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
+    // Query parameters check (e.g. ?from=rent)
+    const isFromRent =
+        typeof window !== "undefined"
+            ? new URLSearchParams(window.location.search).get("from") === "rent"
+            : url.includes("from=rent");
+
     // Active route checks
     const isDashboard = url === "/dashboard" || route().current("dashboard");
+    const isCarsShowOrEdit =
+        url.startsWith("/admin/cars/") &&
+        (route().current("admin.cars.show") ||
+            route().current("admin.cars.edit") ||
+            url.includes("/edit"));
+
     const isCarsIndex =
-        url === "/admin/cars" ||
-        route().current("admin.cars.index") ||
-        route().current("admin.cars.show");
+        !isFromRent &&
+        (url === "/admin/cars" ||
+            route().current("admin.cars.index") ||
+            (isCarsShowOrEdit && !isFromRent));
+
     const isCarsCreate =
         url === "/admin/cars/create" || route().current("admin.cars.create");
+
+    const isRentIndex =
+        url === "/admin/rent-cars" ||
+        route().current("admin.rent.index") ||
+        (isCarsShowOrEdit && isFromRent);
+
+    const isReservationsIndex =
+        url === "/admin/rent-reservations" ||
+        route().current("admin.reservations.index");
+
     const isProfile =
         url.startsWith("/profile") || route().current("profile.edit");
 
@@ -292,7 +316,80 @@ export default function AuthenticatedLayout({
                                 </div>
                             </div>
 
-                            {/* 3. Profile */}
+                            {/* 3. Rent Section Header */}
+                            <div className="pt-2">
+                                <div className="flex items-center space-x-3 px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-black">
+                                    <svg
+                                        className="w-4 h-4 text-vivid-red shrink-0"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                        />
+                                    </svg>
+                                    <span>Rent</span>
+                                </div>
+
+                                {/* Rent Sub-menu Options */}
+                                <div className="mt-1 ml-4 pl-3 border-l-2 border-purple/40 space-y-1">
+                                    {/* View all Car */}
+                                    <Link
+                                        href={route("admin.rent.index")}
+                                        className={`flex items-center space-x-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition ${
+                                            isRentIndex
+                                                ? "bg-vivid-red text-white shadow-lg shadow-vivid-red/30"
+                                                : "text-black hover:text-black/60 hover:bg-white/10"
+                                        }`}
+                                    >
+                                        <svg
+                                            className={`w-4 h-4 shrink-0 ${isRentIndex ? "text-white" : "text-vivid-red"}`}
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M4 6h16M4 10h16M4 14h16M4 18h16"
+                                            />
+                                        </svg>
+                                        <span>View all Car</span>
+                                    </Link>
+
+                                    {/* Reservation */}
+                                    <Link
+                                        href={route("admin.reservations.index")}
+                                        className={`flex items-center space-x-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition ${
+                                            isReservationsIndex
+                                                ? "bg-vivid-red text-white shadow-lg shadow-vivid-red/30"
+                                                : "text-black hover:text-black/60 hover:bg-white/10"
+                                        }`}
+                                    >
+                                        <svg
+                                            className={`w-4 h-4 shrink-0 ${isReservationsIndex ? "text-white" : "text-purple"}`}
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
+                                            />
+                                        </svg>
+                                        <span>Reservation</span>
+                                    </Link>
+                                </div>
+                            </div>
+
+                            {/* 4. Profile */}
                             <div className="pt-2">
                                 <Link
                                     href={route("profile.edit")}

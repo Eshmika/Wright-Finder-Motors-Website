@@ -179,6 +179,7 @@ function doPost(e) {
                 "Car Title",
                 "Rental Rate",
                 "Discount",
+                "Estimated Total",
                 "First Name",
                 "Last Name",
                 "Email",
@@ -203,6 +204,39 @@ function doPost(e) {
                 headerRange.setBackground("#170a3d");
                 headerRange.setFontColor("#ffffff");
                 headerRange.setFontWeight("bold");
+            } else {
+                // If sheet already exists, check if "Estimated Total" column exists. If not, add it.
+                var existingHeaderRange = resSheet.getRange(1, 1, 1, resSheet.getLastColumn());
+                var currentHeaders = existingHeaderRange.getValues()[0].map(function (h) {
+                    return h ? h.toString().trim() : "";
+                });
+
+                var hasEstimatedTotal = currentHeaders.some(function (h) {
+                    return h.toLowerCase() === "estimated total" || h.toLowerCase() === "total estimate";
+                });
+
+                if (!hasEstimatedTotal) {
+                    // Find Discount column index to insert after Discount if possible
+                    var discountIdx = currentHeaders.findIndex(function (h) {
+                        return h.toLowerCase() === "discount";
+                    });
+
+                    if (discountIdx !== -1) {
+                        resSheet.insertColumnAfter(discountIdx + 1);
+                        var newCell = resSheet.getRange(1, discountIdx + 2);
+                        newCell.setValue("Estimated Total");
+                        newCell.setBackground("#170a3d");
+                        newCell.setFontColor("#ffffff");
+                        newCell.setFontWeight("bold");
+                    } else {
+                        var newColIdx = resSheet.getLastColumn() + 1;
+                        var newCell = resSheet.getRange(1, newColIdx);
+                        newCell.setValue("Estimated Total");
+                        newCell.setBackground("#170a3d");
+                        newCell.setFontColor("#ffffff");
+                        newCell.setFontWeight("bold");
+                    }
+                }
             }
 
             // Deduplication check: verify confirmation number does not already exist
@@ -239,30 +273,101 @@ function doPost(e) {
                 }
             }
 
-            var reservationRow = [
-                data.confirmationNumber || "",
-                data.timestamp || new Date().toISOString(),
-                data.carId || "",
-                data.carTitle || "",
-                data.rentalRate !== undefined ? data.rentalRate : "",
-                data.discount !== undefined ? data.discount : "",
-                data.firstName || "",
-                data.lastName || "",
-                data.email || "",
-                data.phone || "",
-                data.age || "",
-                data.residency || "",
-                data.pickupLocation || "",
-                data.pickupDate || "",
-                data.pickupTime || "",
-                data.returnLocation || "",
-                data.returnDate || "",
-                data.returnTime || "",
-                data.paymentOption || "",
-                data.paymentStatus ||
-                    "No payment received (Pending Reservation)",
-                data.notes || "",
-            ];
+            // Read updated dynamic headers
+            var activeResHeaders = resSheet
+                .getRange(1, 1, 1, resSheet.getLastColumn())
+                .getValues()[0];
+            var reservationRow = new Array(activeResHeaders.length).fill("");
+
+            for (var colIdx = 0; colIdx < activeResHeaders.length; colIdx++) {
+                var colHeader = activeResHeaders[colIdx].toString().trim();
+                var headerLower = colHeader.toLowerCase();
+
+                switch (headerLower) {
+                    case "confirmation number":
+                        reservationRow[colIdx] = data.confirmationNumber || "";
+                        break;
+                    case "timestamp":
+                        reservationRow[colIdx] = data.timestamp || new Date().toISOString();
+                        break;
+                    case "car id":
+                        reservationRow[colIdx] = data.carId || "";
+                        break;
+                    case "car title":
+                        reservationRow[colIdx] = data.carTitle || "";
+                        break;
+                    case "rental rate":
+                        reservationRow[colIdx] = data.rentalRate !== undefined ? data.rentalRate : "";
+                        break;
+                    case "discount":
+                        reservationRow[colIdx] = data.discount !== undefined ? data.discount : "";
+                        break;
+                    case "estimated total":
+                    case "total estimate":
+                        reservationRow[colIdx] =
+                            data.estimatedTotal !== undefined
+                                ? data.estimatedTotal
+                                : data.totalEstimate !== undefined
+                                  ? data.totalEstimate
+                                  : "";
+                        break;
+                    case "first name":
+                        reservationRow[colIdx] = data.firstName || "";
+                        break;
+                    case "last name":
+                        reservationRow[colIdx] = data.lastName || "";
+                        break;
+                    case "email":
+                        reservationRow[colIdx] = data.email || "";
+                        break;
+                    case "mobile phone":
+                    case "phone":
+                        reservationRow[colIdx] = data.phone || "";
+                        break;
+                    case "age":
+                        reservationRow[colIdx] = data.age || "";
+                        break;
+                    case "residency":
+                        reservationRow[colIdx] = data.residency || "";
+                        break;
+                    case "pickup location":
+                        reservationRow[colIdx] = data.pickupLocation || "";
+                        break;
+                    case "pickup date":
+                        reservationRow[colIdx] = data.pickupDate || "";
+                        break;
+                    case "pickup time (est)":
+                    case "pickup time":
+                        reservationRow[colIdx] = data.pickupTime || "";
+                        break;
+                    case "return location":
+                        reservationRow[colIdx] = data.returnLocation || "";
+                        break;
+                    case "return date":
+                        reservationRow[colIdx] = data.returnDate || "";
+                        break;
+                    case "return time (est)":
+                    case "return time":
+                        reservationRow[colIdx] = data.returnTime || "";
+                        break;
+                    case "payment option":
+                        reservationRow[colIdx] = data.paymentOption || "";
+                        break;
+                    case "payment status":
+                        reservationRow[colIdx] =
+                            data.paymentStatus || "No payment received (Pending Reservation)";
+                        break;
+                    case "special notes":
+                    case "notes":
+                        reservationRow[colIdx] = data.notes || "";
+                        break;
+                    default:
+                        if (data[colHeader] !== undefined) {
+                            reservationRow[colIdx] = data[colHeader];
+                        }
+                        break;
+                }
+            }
 
             resSheet.appendRow(reservationRow);
             var resRowNumber = resSheet.getLastRow();

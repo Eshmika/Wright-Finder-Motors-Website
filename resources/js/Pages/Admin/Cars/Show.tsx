@@ -14,6 +14,11 @@ export default function Show({ id }: ShowProps) {
     const [error, setError] = useState<string | null>(null);
     const [activeImageIndex, setActiveImageIndex] = useState<number>(0);
 
+    const isFromRent =
+        typeof window !== "undefined"
+            ? new URLSearchParams(window.location.search).get("from") === "rent"
+            : false;
+
     const loadVehicle = async () => {
         setLoading(true);
         setError(null);
@@ -62,9 +67,17 @@ export default function Show({ id }: ShowProps) {
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="flex items-center gap-3">
                         <Link
-                            href={route("admin.cars.index")}
+                            href={
+                                isFromRent
+                                    ? route("admin.rent.index")
+                                    : route("admin.cars.index")
+                            }
                             className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition flex items-center justify-center shadow-sm"
-                            title="Back to All Cars"
+                            title={
+                                isFromRent
+                                    ? "Back to Rent Cars"
+                                    : "Back to All Cars"
+                            }
                         >
                             <svg
                                 className="w-4 h-4"
@@ -102,7 +115,11 @@ export default function Show({ id }: ShowProps) {
 
                     <div className="flex items-center gap-2">
                         <Link
-                            href={route("admin.cars.index")}
+                            href={
+                                isFromRent
+                                    ? route("admin.rent.index")
+                                    : route("admin.cars.index")
+                            }
                             className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition shadow-sm"
                         >
                             <svg
@@ -118,13 +135,15 @@ export default function Show({ id }: ShowProps) {
                                     d="M4 6h16M4 10h16M4 14h16M4 18h16"
                                 />
                             </svg>
-                            <span>View All Cars</span>
+                            <span>
+                                {isFromRent
+                                    ? "View All Rent Cars"
+                                    : "View All Cars"}
+                            </span>
                         </Link>
                         {vehicle && (
                             <Link
-                                href={route("admin.cars.edit", {
-                                    id: vehicle.id,
-                                })}
+                                href={`${route("admin.cars.edit", { id: vehicle.id })}${isFromRent ? "?from=rent" : ""}`}
                                 className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-dark-purple text-white hover:bg-purple transition shadow-sm"
                             >
                                 <svg
