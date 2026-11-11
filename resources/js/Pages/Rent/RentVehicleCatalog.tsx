@@ -131,6 +131,7 @@ function VehicleCard({ car }: { car: Vehicle }) {
     const [imageError, setImageError] = useState(false);
     const hasImages = car.images && car.images.length > 0 && !imageError;
     const currentImageUrl = hasImages ? car.images[currentImageIndex] : "";
+    const isBoth = (car.rentOrSell || "").toLowerCase().trim() === "both";
 
     return (
         <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-300 flex flex-col group transform hover:-translate-y-1">
@@ -447,34 +448,62 @@ function VehicleCard({ car }: { car: Vehicle }) {
                         </div>
                     </div>
 
-                    {/* Action Buttons: 1 Row with "Pay Later" & "Pay Now" */}
+                    {/* Action Buttons: 1 Row with ("Buy now" if Both, else "Pay Later") & "Pay Now" */}
                     <div className="grid grid-cols-2 gap-3 mt-5 items-start">
-                        <button
-                            type="button"
-                            onClick={(e) => {
-                                e.preventDefault();
-                                const inquiryMsg = `Hello Wright Finder Motors,\n\nI am interested in renting this vehicle with the "Pay Later" rental option:\n- Vehicle: ${car.title}\n- Stock ID: #${car.id}\n- Rental Rate / Price: $${car.price?.toLocaleString() || "N/A"}\n- Transmission: ${car.transmission || "N/A"}\n- Fuel Type: ${car.fuel || "N/A"}\n\nPlease contact me regarding vehicle availability, pickup schedule, and Pay Later reservation terms.\n\nThank you!`;
-                                router.visit(
-                                    `/contact?subject=rent&carId=${encodeURIComponent(car.id)}&carTitle=${encodeURIComponent(car.title)}&message=${encodeURIComponent(inquiryMsg)}#contact-form`,
-                                );
-                            }}
-                            className="inline-flex items-center justify-center space-x-1.5 py-3 px-3 rounded-xl border-2 border-dark-blue text-dark-blue hover:bg-dark-blue hover:text-white text-xs font-bold transition-all duration-200 shadow-sm active:scale-95 h-[42px]"
-                        >
-                            <svg
-                                className="w-3.5 h-3.5 shrink-0"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                                strokeWidth={2.2}
+                        {isBoth ? (
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    router.visit(
+                                        `/vehicles/${encodeURIComponent(car.id)}`,
+                                    );
+                                }}
+                                className="inline-flex items-center justify-center space-x-1.5 py-3 px-3 rounded-xl border-2 border-dark-blue text-dark-blue hover:bg-dark-blue hover:text-white text-xs font-bold transition-all duration-200 shadow-sm active:scale-95 h-[42px]"
                             >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                />
-                            </svg>
-                            <span className="truncate">Pay Later</span>
-                        </button>
+                                <svg
+                                    className="w-3.5 h-3.5 shrink-0"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    strokeWidth={2.2}
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                                    />
+                                </svg>
+                                <span className="truncate">Buy now</span>
+                            </button>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    const inquiryMsg = `Hello Wright Finder Motors,\n\nI am interested in renting this vehicle with the "Pay Later" rental option:\n- Vehicle: ${car.title}\n- Stock ID: #${car.id}\n- Rental Rate / Price: $${car.price?.toLocaleString() || "N/A"}\n- Transmission: ${car.transmission || "N/A"}\n- Fuel Type: ${car.fuel || "N/A"}\n\nPlease contact me regarding vehicle availability, pickup schedule, and Pay Later reservation terms.\n\nThank you!`;
+                                    router.visit(
+                                        `/contact?subject=rent&carId=${encodeURIComponent(car.id)}&carTitle=${encodeURIComponent(car.title)}&message=${encodeURIComponent(inquiryMsg)}#contact-form`,
+                                    );
+                                }}
+                                className="inline-flex items-center justify-center space-x-1.5 py-3 px-3 rounded-xl border-2 border-dark-blue text-dark-blue hover:bg-dark-blue hover:text-white text-xs font-bold transition-all duration-200 shadow-sm active:scale-95 h-[42px]"
+                            >
+                                <svg
+                                    className="w-3.5 h-3.5 shrink-0"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    strokeWidth={2.2}
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                    />
+                                </svg>
+                                <span className="truncate">Pay Later</span>
+                            </button>
+                        )}
 
                         <div className="flex flex-col items-center">
                             <button
