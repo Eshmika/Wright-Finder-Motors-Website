@@ -12,6 +12,9 @@ export interface Vehicle {
     price: number;
     originalPrice: number;
     discount?: number;
+    salePrice?: number;
+    originalSalePrice?: number;
+    saleDiscount?: number;
     fuel: string;
     powerOptions: string;
     driveline: string;
@@ -128,9 +131,21 @@ function VehicleCard({ car }: { car: Vehicle }) {
             ? Math.round((discountAmount / car.originalPrice) * 100)
             : 0;
 
+    // Sale / Buy pricing calculation (for vehicles where Rent or Sell is "Both")
+    const saleDisplayPrice = car.salePrice || 0;
+    const originalSalePrice = car.originalSalePrice || 0;
+    const displaySaleDiscount =
+        car.saleDiscount !== undefined && car.saleDiscount > 0
+            ? car.saleDiscount
+            : originalSalePrice > saleDisplayPrice && saleDisplayPrice > 0
+              ? originalSalePrice - saleDisplayPrice
+              : 0;
+    const hasSaleDiscount = displaySaleDiscount > 0 && originalSalePrice > 0;
+
     const [imageError, setImageError] = useState(false);
     const hasImages = car.images && car.images.length > 0 && !imageError;
     const currentImageUrl = hasImages ? car.images[currentImageIndex] : "";
+    const isBoth = (car.rentOrSell || "").toLowerCase().trim() === "both";
 
     return (
         <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-300 flex flex-col group transform hover:-translate-y-1">
@@ -428,27 +443,120 @@ function VehicleCard({ car }: { car: Vehicle }) {
                 </div>
 
                 {/* Price Display Section */}
-                <div className="mt-1">
-                    <div className="flex items-baseline justify-between">
-                        <div>
-                            <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider block mb-0.5">
-                                Rent Price
-                            </span>
-                            <div className="flex items-baseline gap-2.5">
-                                <span className="text-2xl font-black text-[#170a3d] tracking-tight">
-                                    ${car.price.toLocaleString()}
-                                </span>
-                                {hasDiscount && (
-                                    <span className="text-sm font-semibold text-gray-400 line-through decoration-vivid-red/70 decoration-2">
-                                        ${car.originalPrice.toLocaleString()}
+                <div className="mt-2 pt-2 border-t border-gray-100/80">
+                    {isBoth ? (
+                        <div className="grid grid-cols-2 gap-2 bg-gradient-to-br from-gray-50/90 to-gray-100/50 p-2.5 rounded-xl border border-gray-100 shadow-xs">
+                            {/* Rent Price & Discount */}
+                            <div className="flex flex-col pr-2 border-r border-gray-200/70">
+                                <div className="flex items-center justify-between mb-0.5">
+                                    <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">
+                                        Rent Price
                                     </span>
-                                )}
+                                    {hasDiscount && (
+                                        <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200">
+                                            -${discountAmount.toLocaleString()}
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="flex items-baseline gap-1.5 flex-wrap">
+                                    <span className="text-xl font-black text-[#170a3d] tracking-tight">
+                                        ${car.price.toLocaleString()}
+                                    </span>
+                                    {hasDiscount && (
+                                        <span className="text-[11px] font-semibold text-gray-400 line-through decoration-vivid-red/70 decoration-1.5">
+                                            $
+                                            {car.originalPrice.toLocaleString()}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Buy / Sale Price & Discount */}
+                            <div className="flex flex-col pl-1">
+                                <div className="flex items-center justify-between mb-0.5">
+                                    <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">
+                                        Buy Price
+                                    </span>
+                                    {hasSaleDiscount && (
+                                        <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200">
+                                            -$
+                                            {displaySaleDiscount.toLocaleString()}
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="flex items-baseline gap-1.5 flex-wrap">
+                                    <span className="text-xl font-black text-[#170a3d] tracking-tight">
+                                        $
+                                        {saleDisplayPrice > 0
+                                            ? saleDisplayPrice.toLocaleString()
+                                            : "N/A"}
+                                    </span>
+                                    {hasSaleDiscount && (
+                                        <span className="text-[11px] font-semibold text-gray-400 line-through decoration-vivid-red/70 decoration-1.5">
+                                            $
+                                            {originalSalePrice.toLocaleString()}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    ) : (
+                        <div className="flex items-baseline justify-between">
+                            <div>
+                                <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider block mb-0.5">
+                                    Rent Price
+                                </span>
+                                <div className="flex items-baseline gap-2.5">
+                                    <span className="text-2xl font-black text-[#170a3d] tracking-tight">
+                                        ${car.price.toLocaleString()}
+                                    </span>
+                                    {hasDiscount && (
+                                        <span className="text-sm font-semibold text-gray-400 line-through decoration-vivid-red/70 decoration-2">
+                                            $
+                                            {car.originalPrice.toLocaleString()}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                            {hasDiscount && (
+                                <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                                    Save ${discountAmount.toLocaleString()} (
+                                    {discountPercentage}%)
+                                </span>
+                            )}
+                        </div>
+                    )}
+                </div>
 
-                    {/* Action Buttons: 1 Row with "Pay Later" & "Pay Now" */}
-                    <div className="grid grid-cols-2 gap-3 mt-5 items-start">
+                {/* Action Buttons: 1 Row with ("Buy now" if Both, else "Pay Later") & "Pay Now" */}
+                <div className="grid grid-cols-2 gap-3 mt-5 items-start">
+                    {isBoth ? (
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                router.visit(
+                                    `/vehicles/${encodeURIComponent(car.id)}`,
+                                );
+                            }}
+                            className="inline-flex items-center justify-center space-x-1.5 py-3 px-3 rounded-xl border-2 border-dark-blue text-dark-blue hover:bg-dark-blue hover:text-white text-xs font-bold transition-all duration-200 shadow-sm active:scale-95 h-[42px]"
+                        >
+                            <svg
+                                className="w-3.5 h-3.5 shrink-0"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2.2}
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                                />
+                            </svg>
+                            <span className="truncate">Buy now</span>
+                        </button>
+                    ) : (
                         <button
                             type="button"
                             onClick={(e) => {
@@ -475,45 +583,45 @@ function VehicleCard({ car }: { car: Vehicle }) {
                             </svg>
                             <span className="truncate">Pay Later</span>
                         </button>
+                    )}
 
-                        <div className="flex flex-col items-center">
-                            <button
-                                type="button"
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    router.visit(
-                                        `/rent/reserve/${encodeURIComponent(car.id)}`,
-                                    );
-                                }}
-                                className="w-full inline-flex items-center justify-center space-x-1.5 py-3 px-3 rounded-xl bg-vivid-red hover:bg-red-600 text-white text-xs font-bold transition-all duration-200 shadow-md hover:shadow-red-500/30 active:scale-95 h-[42px]"
+                    <div className="flex flex-col items-center">
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                router.visit(
+                                    `/rent/reserve/${encodeURIComponent(car.id)}`,
+                                );
+                            }}
+                            className="w-full inline-flex items-center justify-center space-x-1.5 py-3 px-3 rounded-xl bg-vivid-red hover:bg-red-600 text-white text-xs font-bold transition-all duration-200 shadow-md hover:shadow-red-500/30 active:scale-95 h-[42px]"
+                        >
+                            <span>Pay Now</span>
+                            <svg
+                                className="w-3.5 h-3.5 shrink-0"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2.5}
                             >
-                                <span>Pay Now</span>
-                                <svg
-                                    className="w-3.5 h-3.5 shrink-0"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                    strokeWidth={2.5}
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        d="M14 5l7 7m0 0l-7 7m7-7H3"
-                                    />
-                                </svg>
-                            </button>
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M14 5l7 7m0 0l-7 7m7-7H3"
+                                />
+                            </svg>
+                        </button>
 
-                            {/* 'Pay Now & Save' Label under Pay Now button */}
-                            {hasDiscount && (
-                                <div className="mt-2 flex items-center justify-center gap-1 px-2 py-0.5 rounded-full bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200/80 shadow-xs">
-                                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                    <span className="text-[10px] font-extrabold text-emerald-700 tracking-tight whitespace-nowrap">
-                                        Pay Now &amp; Save $
-                                        {discountAmount.toLocaleString()}
-                                    </span>
-                                </div>
-                            )}
-                        </div>
+                        {/* 'Pay Now & Save' Label under Pay Now button */}
+                        {hasDiscount && (
+                            <div className="mt-2 flex items-center justify-center gap-1 px-2 py-0.5 rounded-full bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200/80 shadow-xs">
+                                <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                <span className="text-[10px] font-extrabold text-emerald-700 tracking-tight whitespace-nowrap">
+                                    Pay Now &amp; Save $
+                                    {discountAmount.toLocaleString()}
+                                </span>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -569,14 +677,10 @@ export default function RentVehicleCatalog() {
                 const modelIdx = getIndex("Model");
                 const yearIdx = getIndex("Year");
                 const bodyStyleIdx = getIndex("Body Style");
-                const priceIdx =
-                    getIndex("Rent Price") !== -1
-                        ? getIndex("Rent Price")
-                        : getIndex("Price");
-                const discountIdx =
-                    getIndex("Rent Discount") !== -1
-                        ? getIndex("Rent Discount")
-                        : getIndex("Discount");
+                const rentPriceIdx = getIndex("Rent Price");
+                const rentDiscountIdx = getIndex("Rent Discount");
+                const sellPriceIdx = getIndex("Price");
+                const sellDiscountIdx = getIndex("Discount");
                 const fuelTypeIdx = getIndex("Fuel Type");
                 const powerOptionsIdx = getIndex("Power Options");
                 const drivelineIdx = getIndex("Driveline");
@@ -623,54 +727,62 @@ export default function RentVehicleCatalog() {
                             ? row[bodyStyleIdx]?.trim() || "Sedan"
                             : "Sedan";
 
-                    // Prefer Rent Price & Rent Discount, fallback to Price & Discount
-                    const rentPriceColIdx = getIndex("Rent Price");
-                    const rentDiscountColIdx = getIndex("Rent Discount");
-
+                    // Rent Price & Rent Discount
                     const rawRentPrice =
-                        rentPriceColIdx !== -1
+                        rentPriceIdx !== -1
                             ? parseFloat(
-                                  row[rentPriceColIdx]?.replace(
-                                      /[^0-9.]/g,
-                                      "",
-                                  ) || "0",
-                              )
-                            : 0;
-                    const rawRentDiscount =
-                        rentDiscountColIdx !== -1
-                            ? parseFloat(
-                                  row[rentDiscountColIdx]?.replace(
-                                      /[^0-9.]/g,
-                                      "",
-                                  ) || "0",
-                              )
-                            : 0;
-
-                    const rawBasePrice =
-                        priceIdx !== -1
-                            ? parseFloat(
-                                  row[priceIdx]?.replace(/[^0-9.]/g, "") || "0",
-                              )
-                            : 0;
-                    const rawBaseDiscount =
-                        discountIdx !== -1
-                            ? parseFloat(
-                                  row[discountIdx]?.replace(/[^0-9.]/g, "") ||
+                                  row[rentPriceIdx]?.replace(/[^0-9.]/g, "") ||
                                       "0",
                               )
                             : 0;
+                    const rawRentDiscount =
+                        rentDiscountIdx !== -1
+                            ? parseFloat(
+                                  row[rentDiscountIdx]?.replace(
+                                      /[^0-9.]/g,
+                                      "",
+                                  ) || "0",
+                              )
+                            : 0;
 
-                    const originalPriceRaw =
-                        rawRentPrice > 0 ? rawRentPrice : rawBasePrice;
-                    const discountRaw =
-                        rawRentPrice > 0 ? rawRentDiscount : rawBaseDiscount;
+                    // Sale Price & Sale Discount
+                    const rawSellPrice =
+                        sellPriceIdx !== -1
+                            ? parseFloat(
+                                  row[sellPriceIdx]?.replace(/[^0-9.]/g, "") ||
+                                      "0",
+                              )
+                            : 0;
+                    const rawSellDiscount =
+                        sellDiscountIdx !== -1
+                            ? parseFloat(
+                                  row[sellDiscountIdx]?.replace(
+                                      /[^0-9.]/g,
+                                      "",
+                                  ) || "0",
+                              )
+                            : 0;
+
+                    const originalRentPriceRaw =
+                        rawRentPrice > 0 ? rawRentPrice : rawSellPrice;
+                    const rentDiscountRaw =
+                        rawRentPrice > 0 ? rawRentDiscount : rawSellDiscount;
 
                     // price = Discount reduced from originalPrice
                     // i.e. if originalPrice is 7000 and discount is 2000 => price is 5000. If no discount, price = originalPrice.
-                    const finalPrice =
-                        discountRaw > 0 && originalPriceRaw >= discountRaw
-                            ? originalPriceRaw - discountRaw
-                            : originalPriceRaw;
+                    const finalRentPrice =
+                        rentDiscountRaw > 0 &&
+                        originalRentPriceRaw >= rentDiscountRaw
+                            ? originalRentPriceRaw - rentDiscountRaw
+                            : originalRentPriceRaw;
+
+                    const originalSalePriceRaw = rawSellPrice;
+                    const saleDiscountRaw = rawSellDiscount;
+                    const finalSalePrice =
+                        saleDiscountRaw > 0 &&
+                        originalSalePriceRaw >= saleDiscountRaw
+                            ? originalSalePriceRaw - saleDiscountRaw
+                            : originalSalePriceRaw;
 
                     const fuel =
                         fuelTypeIdx !== -1
@@ -747,9 +859,12 @@ export default function RentVehicleCatalog() {
                         model,
                         year: yearNum,
                         category,
-                        price: finalPrice,
-                        originalPrice: originalPriceRaw,
-                        discount: discountRaw,
+                        price: finalRentPrice,
+                        originalPrice: originalRentPriceRaw,
+                        discount: rentDiscountRaw,
+                        salePrice: finalSalePrice,
+                        originalSalePrice: originalSalePriceRaw,
+                        saleDiscount: saleDiscountRaw,
                         fuel,
                         powerOptions,
                         driveline,
