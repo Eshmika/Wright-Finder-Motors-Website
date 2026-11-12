@@ -206,13 +206,23 @@ function doPost(e) {
                 headerRange.setFontWeight("bold");
             } else {
                 // If sheet already exists, check if "Estimated Total" column exists. If not, add it.
-                var existingHeaderRange = resSheet.getRange(1, 1, 1, resSheet.getLastColumn());
-                var currentHeaders = existingHeaderRange.getValues()[0].map(function (h) {
-                    return h ? h.toString().trim() : "";
-                });
+                var existingHeaderRange = resSheet.getRange(
+                    1,
+                    1,
+                    1,
+                    resSheet.getLastColumn(),
+                );
+                var currentHeaders = existingHeaderRange
+                    .getValues()[0]
+                    .map(function (h) {
+                        return h ? h.toString().trim() : "";
+                    });
 
                 var hasEstimatedTotal = currentHeaders.some(function (h) {
-                    return h.toLowerCase() === "estimated total" || h.toLowerCase() === "total estimate";
+                    return (
+                        h.toLowerCase() === "estimated total" ||
+                        h.toLowerCase() === "total estimate"
+                    );
                 });
 
                 if (!hasEstimatedTotal) {
@@ -288,7 +298,8 @@ function doPost(e) {
                         reservationRow[colIdx] = data.confirmationNumber || "";
                         break;
                     case "timestamp":
-                        reservationRow[colIdx] = data.timestamp || new Date().toISOString();
+                        reservationRow[colIdx] =
+                            data.timestamp || new Date().toISOString();
                         break;
                     case "car id":
                         reservationRow[colIdx] = data.carId || "";
@@ -297,10 +308,24 @@ function doPost(e) {
                         reservationRow[colIdx] = data.carTitle || "";
                         break;
                     case "rental rate":
-                        reservationRow[colIdx] = data.rentalRate !== undefined ? data.rentalRate : "";
+                        reservationRow[colIdx] =
+                            data.rentalRate !== undefined
+                                ? data.rentalRate
+                                : "";
                         break;
                     case "discount":
-                        reservationRow[colIdx] = data.discount !== undefined ? data.discount : "";
+                        reservationRow[colIdx] =
+                            data.discount !== undefined ? data.discount : "";
+                        break;
+                    case "coupon code":
+                    case "coupon":
+                        reservationRow[colIdx] = data.couponCode || "";
+                        break;
+                    case "coupon discount":
+                        reservationRow[colIdx] =
+                            data.couponDiscount !== undefined
+                                ? data.couponDiscount
+                                : "";
                         break;
                     case "estimated total":
                     case "total estimate":
@@ -355,7 +380,8 @@ function doPost(e) {
                         break;
                     case "payment status":
                         reservationRow[colIdx] =
-                            data.paymentStatus || "No payment received (Pending Reservation)";
+                            data.paymentStatus ||
+                            "No payment received (Pending Reservation)";
                         break;
                     case "special notes":
                     case "notes":
@@ -387,6 +413,187 @@ function doPost(e) {
                     rowNumber: resRowNumber,
                 }),
             ).setMimeType(ContentService.MimeType.JSON);
+        }
+
+        // ==========================================
+        // ACTION: SYNC_COUPONS / SAVE_COUPON / DELETE_COUPON
+        // ==========================================
+        if (
+            data.action === "sync_coupons" ||
+            data.action === "save_coupon" ||
+            data.action === "delete_coupon"
+        ) {
+            var couponSheet = ss.getSheetByName("Coupons");
+            var couponHeaders = [
+                "Coupon ID",
+                "Code",
+                "Title",
+                "Category",
+                "Discount Percent",
+                "Start Date",
+                "End Date",
+                "Status",
+                "Description",
+                "Updated At",
+            ];
+
+            if (!couponSheet) {
+                couponSheet = ss.insertSheet("Coupons");
+                couponSheet.appendRow(couponHeaders);
+                couponSheet
+                    .getRange(1, 1, 1, couponHeaders.length)
+                    .setFontWeight("bold");
+            } else if (couponSheet.getLastColumn() < 1) {
+                couponSheet.appendRow(couponHeaders);
+                couponSheet
+                    .getRange(1, 1, 1, couponHeaders.length)
+                    .setFontWeight("bold");
+            }
+
+            // Sub-action: DELETE_COUPON
+            if (data.action === "delete_coupon") {
+                var delCode = (data.code || "").toString().trim().toUpperCase();
+                var delId = (data.id || "").toString().trim().toLowerCase();
+                var lastR = couponSheet.getLastRow();
+                var deleted = false;
+
+                if (lastR > 1) {
+                    var vals = couponSheet
+                        .getRange(2, 1, lastR - 1, 2)
+                        .getValues();
+                    for (var d = 0; d < vals.length; d++) {
+                        var rowId = (vals[d][0] || "")
+                            .toString()
+                            .trim()
+                            .toLowerCase();
+                        var rowCode = (vals[d][1] || "")
+                            .toString()
+                            .trim()
+                            .toUpperCase();
+                        if (
+                            (delCode && rowCode === delCode) ||
+                            (delId && rowId === delId)
+                        ) {
+                            couponSheet.deleteRow(d + 2);
+                            deleted = true;
+                            break;
+                        }
+                    }
+                }
+
+                return ContentService.createTextOutput(
+                    JSON.stringify({
+                        status: "success",
+                        message: deleted
+                            ? "Coupon " + delCode + " deleted."
+                            : "Coupon not found in sheet.",
+                    }),
+                ).setMimeType(ContentService.MimeType.JSON);
+            }
+
+            // Sub-action: SAVE_COUPON (Single add or update)
+            if (data.action === "save_coupon" && data.coupon) {
+                var c = data.coupon;
+                var cCode = (c.code || "").toString().trim().toUpperCase();
+                var lastRow = couponSheet.getLastRow();
+                var foundRow = -1;
+
+                if (lastRow > 1) {
+                    var codeVals = couponSheet
+                        .getRange(2, 2, lastRow - 1, 1)
+                        .getValues();
+                    for (var k = 0; k < codeVals.length; k++) {
+                        if (
+                            codeVals[k][0] &&
+                            codeVals[k][0].toString().trim().toUpperCase() ===
+                                cCode
+                        ) {
+                            foundRow = k + 2;
+                            break;
+                        }
+                    }
+                }
+
+                var cRowData = [
+                    c.id || "coupon-" + new Date().getTime(),
+                    cCode,
+                    c.title || "",
+                    c.category || "custom",
+                    c.discountPercent !== undefined ? c.discountPercent : 15,
+                    c.startDate || "",
+                    c.endDate || "",
+                    c.status || "active",
+                    c.description || "",
+                    new Date().toISOString(),
+                ];
+
+                if (foundRow > 0) {
+                    couponSheet
+                        .getRange(foundRow, 1, 1, cRowData.length)
+                        .setValues([cRowData]);
+                } else {
+                    couponSheet.appendRow(cRowData);
+                }
+
+                return ContentService.createTextOutput(
+                    JSON.stringify({
+                        status: "success",
+                        message: "Coupon " + cCode + " saved successfully.",
+                    }),
+                ).setMimeType(ContentService.MimeType.JSON);
+            }
+
+            // Sub-action: SYNC_COUPONS (Bulk batch sync)
+            if (
+                data.action === "sync_coupons" &&
+                data.coupons &&
+                data.coupons.length > 0
+            ) {
+                var list = data.coupons;
+                var nowIso = new Date().toISOString();
+
+                // Clear existing data rows except header
+                var lastRowBefore = couponSheet.getLastRow();
+                if (lastRowBefore > 1) {
+                    couponSheet.deleteRows(2, lastRowBefore - 1);
+                }
+
+                var batchRows = [];
+                for (var b = 0; b < list.length; b++) {
+                    var item = list[b];
+                    batchRows.push([
+                        item.id || "coupon-" + b,
+                        (item.code || "").toString().trim().toUpperCase(),
+                        item.title || "",
+                        item.category || "custom",
+                        item.discountPercent !== undefined
+                            ? item.discountPercent
+                            : 15,
+                        item.startDate || "",
+                        item.endDate || "",
+                        item.status || "active",
+                        item.description || "",
+                        nowIso,
+                    ]);
+                }
+
+                if (batchRows.length > 0) {
+                    couponSheet
+                        .getRange(2, 1, batchRows.length, couponHeaders.length)
+                        .setValues(batchRows);
+                }
+
+                return ContentService.createTextOutput(
+                    JSON.stringify({
+                        status: "success",
+                        message:
+                            "Successfully synced " +
+                            batchRows.length +
+                            " coupons to 'Coupons' tab.",
+                        count: batchRows.length,
+                    }),
+                ).setMimeType(ContentService.MimeType.JSON);
+            }
         }
 
         var sheet = ss.getSheetByName("Vehicle details");
@@ -555,7 +762,8 @@ function doPost(e) {
                     break;
                 case "Rent Discount":
                     newRow[col] =
-                        data.rentDiscount !== undefined && data.rentDiscount !== null
+                        data.rentDiscount !== undefined &&
+                        data.rentDiscount !== null
                             ? data.rentDiscount
                             : "";
                     break;

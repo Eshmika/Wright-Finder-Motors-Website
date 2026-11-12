@@ -36,6 +36,10 @@ const Ziggy = {
             uri: "admin\/rent-reservations",
             methods: ["GET", "HEAD"],
         },
+        "admin.coupons.index": {
+            uri: "admin\/coupons",
+            methods: ["GET", "HEAD"],
+        },
         "admin.cars.create": {
             uri: "admin\/cars\/create",
             methods: ["GET", "HEAD"],

@@ -72,6 +72,10 @@ Route::middleware('auth')->group(function () {
         return Inertia::render('Admin/Reservations/Index');
     })->name('admin.reservations.index');
 
+    Route::get('/admin/coupons', function () {
+        return Inertia::render('Admin/Coupons/Index');
+    })->name('admin.coupons.index');
+
     Route::get('/admin/cars/create', function () {
         return Inertia::render('Admin/Cars/Create');
     })->name('admin.cars.create');
