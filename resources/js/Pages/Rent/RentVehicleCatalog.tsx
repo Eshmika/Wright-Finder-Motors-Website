@@ -446,33 +446,8 @@ function VehicleCard({ car }: { car: Vehicle }) {
                 <div className="mt-2 pt-2 border-t border-gray-100/80">
                     {isBoth ? (
                         <div className="grid grid-cols-2 gap-2 bg-gradient-to-br from-gray-50/90 to-gray-100/50 p-2.5 rounded-xl border border-gray-100 shadow-xs">
-                            {/* Rent Price & Discount */}
-                            <div className="flex flex-col pr-2 border-r border-gray-200/70">
-                                <div className="flex items-center justify-between mb-0.5">
-                                    <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">
-                                        Rent Price
-                                    </span>
-                                    {hasDiscount && (
-                                        <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200">
-                                            -${discountAmount.toLocaleString()}
-                                        </span>
-                                    )}
-                                </div>
-                                <div className="flex items-baseline gap-1.5 flex-wrap">
-                                    <span className="text-xl font-black text-[#170a3d] tracking-tight">
-                                        ${car.price.toLocaleString()}
-                                    </span>
-                                    {hasDiscount && (
-                                        <span className="text-[11px] font-semibold text-gray-400 line-through decoration-vivid-red/70 decoration-1.5">
-                                            $
-                                            {car.originalPrice.toLocaleString()}
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-
                             {/* Buy / Sale Price & Discount */}
-                            <div className="flex flex-col pl-1">
+                            <div className="flex flex-col pr-2 border-r border-gray-200/70">
                                 <div className="flex items-center justify-between mb-0.5">
                                     <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">
                                         Buy Price
@@ -495,6 +470,31 @@ function VehicleCard({ car }: { car: Vehicle }) {
                                         <span className="text-[11px] font-semibold text-gray-400 line-through decoration-vivid-red/70 decoration-1.5">
                                             $
                                             {originalSalePrice.toLocaleString()}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Rent Price & Discount */}
+                            <div className="flex flex-col pl-1">
+                                <div className="flex items-center justify-between mb-0.5">
+                                    <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">
+                                        Rent Price
+                                    </span>
+                                    {hasDiscount && (
+                                        <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200">
+                                            -${discountAmount.toLocaleString()}
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="flex items-baseline gap-1.5 flex-wrap">
+                                    <span className="text-xl font-black text-[#170a3d] tracking-tight">
+                                        ${car.price.toLocaleString()}
+                                    </span>
+                                    {hasDiscount && (
+                                        <span className="text-[11px] font-semibold text-gray-400 line-through decoration-vivid-red/70 decoration-1.5">
+                                            $
+                                            {car.originalPrice.toLocaleString()}
                                         </span>
                                     )}
                                 </div>

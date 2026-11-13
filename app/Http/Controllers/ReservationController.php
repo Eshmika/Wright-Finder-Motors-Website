@@ -26,6 +26,8 @@ class ReservationController extends Controller
             'carYear' => 'nullable|string',
             'rentalRate' => 'nullable|numeric',
             'discount' => 'nullable|numeric',
+            'couponCode' => 'nullable|string|max:50',
+            'couponDiscount' => 'nullable|numeric',
             'totalEstimate' => 'nullable|numeric',
             'estimatedTotal' => 'nullable|numeric',
             'firstName' => 'required|string|max:100',

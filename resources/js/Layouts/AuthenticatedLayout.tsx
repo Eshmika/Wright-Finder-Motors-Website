@@ -42,6 +42,9 @@ export default function AuthenticatedLayout({
         url === "/admin/rent-reservations" ||
         route().current("admin.reservations.index");
 
+    const isCouponsIndex =
+        url === "/admin/coupons" || route().current("admin.coupons.index");
+
     const isProfile =
         url.startsWith("/profile") || route().current("profile.edit");
 
@@ -389,7 +392,55 @@ export default function AuthenticatedLayout({
                                 </div>
                             </div>
 
-                            {/* 4. Profile */}
+                            {/* 4. Coupons */}
+                            <div className="pt-2">
+                                <div className="flex items-center space-x-3 px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-black">
+                                    <svg
+                                        className="w-4 h-4 text-vivid-red shrink-0"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
+                                        />
+                                    </svg>
+                                    <span>Coupons</span>
+                                </div>
+
+                                {/* Rent Sub-menu Options */}
+                                <div className="mt-1 ml-4 pl-3 border-l-2 border-purple/40 space-y-1">
+                                    {/* Coupons & Offers */}
+                                    <Link
+                                        href={route("admin.coupons.index")}
+                                        className={`flex items-center space-x-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition ${
+                                            isCouponsIndex
+                                                ? "bg-vivid-red text-white shadow-lg shadow-vivid-red/30"
+                                                : "text-black hover:text-black/60 hover:bg-white/10"
+                                        }`}
+                                    >
+                                        <svg
+                                            className={`w-4 h-4 shrink-0 ${isCouponsIndex ? "text-white" : "text-amber-500"}`}
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
+                                            />
+                                        </svg>
+                                        <span>Coupons &amp; Offers</span>
+                                    </Link>
+                                </div>
+                            </div>
+
+                            {/* 5. Profile */}
                             <div className="pt-2">
                                 <Link
                                     href={route("profile.edit")}

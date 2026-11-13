@@ -4,6 +4,7 @@ import Header from "@/Components/Header";
 import Footer from "@/Components/Footer";
 import { PageProps } from "@/types";
 import { DetailedVehicle, fetchAllVehicles } from "@/Services/vehicleService";
+import { Coupon, fetchAllCoupons } from "@/Services/couponService";
 
 interface RentReservationProps extends PageProps {
     id: string;
@@ -80,6 +81,16 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
     // Step 4: Details & Terms Agreement
     const [acceptedTerms, setAcceptedTerms] = useState(false);
     const [specialNotes, setSpecialNotes] = useState("");
+
+    // Coupon / Promo Code State (One coupon per booking rule)
+    const [couponInput, setCouponInput] = useState<string>("");
+    const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
+    const [couponMessage, setCouponMessage] = useState<{
+        type: "success" | "error";
+        text: string;
+    } | null>(null);
+    const [isValidatingCoupon, setIsValidatingCoupon] =
+        useState<boolean>(false);
 
     // Submission states
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -197,7 +208,96 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
     const dailyDiscount = rentDisc;
     const totalSavings = dailyDiscount * rentalDays;
     const totalBeforeDiscount = originalDailyRate * rentalDays;
-    const totalEstimate = baseDailyRate * rentalDays;
+    const standardEstimate = baseDailyRate * rentalDays;
+
+    // Additional coupon discount calculation
+    const couponDiscountAmount = appliedCoupon
+        ? Math.round((standardEstimate * appliedCoupon.discountPercent) / 100)
+        : 0;
+    const totalEstimate = Math.max(0, standardEstimate - couponDiscountAmount);
+
+    // Apply Coupon Handler
+    const handleApplyCoupon = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        setCouponMessage(null);
+
+        const clean = couponInput.trim().toUpperCase();
+        if (!clean) {
+            setCouponMessage({
+                type: "error",
+                text: "Please enter a coupon code.",
+            });
+            return;
+        }
+
+        setIsValidatingCoupon(true);
+        try {
+            const all = await fetchAllCoupons();
+            const found = all.find(
+                (c) => c.code.toUpperCase().trim() === clean,
+            );
+
+            if (!found) {
+                setCouponMessage({
+                    type: "error",
+                    text: `Coupon code "${clean}" is not recognized or invalid.`,
+                });
+                setAppliedCoupon(null);
+                setIsValidatingCoupon(false);
+                return;
+            }
+
+            if (found.isActiveToggle === false) {
+                setCouponMessage({
+                    type: "error",
+                    text: `Coupon code "${clean}" is currently disabled.`,
+                });
+                setAppliedCoupon(null);
+                setIsValidatingCoupon(false);
+                return;
+            }
+
+            if (found.status === "expired") {
+                setCouponMessage({
+                    type: "error",
+                    text: `Coupon code "${clean}" expired on ${found.endDate}.`,
+                });
+                setAppliedCoupon(null);
+                setIsValidatingCoupon(false);
+                return;
+            }
+
+            if (found.status === "upcoming") {
+                setCouponMessage({
+                    type: "error",
+                    text: `Coupon code "${clean}" is not active yet (starts on ${found.startDate}).`,
+                });
+                setAppliedCoupon(null);
+                setIsValidatingCoupon(false);
+                return;
+            }
+
+            // Valid! Apply coupon
+            setAppliedCoupon(found);
+            setCouponMessage({
+                type: "success",
+                text: `Success! "${found.code}" applied: ${found.discountPercent}% OFF (${found.title}).`,
+            });
+        } catch (err) {
+            setCouponMessage({
+                type: "error",
+                text: "Could not validate coupon at this moment. Please try again.",
+            });
+        } finally {
+            setIsValidatingCoupon(false);
+        }
+    };
+
+    const handleRemoveCoupon = () => {
+        setAppliedCoupon(null);
+        setCouponInput("");
+        setCouponMessage(null);
+    };
 
     // Step Validation
     const validateStep = (step: number): boolean => {
@@ -299,7 +399,9 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
             carModel: vehicle?.model || "",
             carYear: vehicle?.year?.toString() || "",
             rentalRate: baseDailyRate,
-            discount: totalSavings,
+            discount: totalSavings + couponDiscountAmount,
+            couponCode: appliedCoupon ? appliedCoupon.code : "",
+            couponDiscount: couponDiscountAmount,
             totalEstimate: totalEstimate,
             estimatedTotal: totalEstimate,
             firstName,
@@ -1725,6 +1827,132 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                                             <span>
                                                                 - $
                                                                 {totalSavings.toLocaleString()}
+                                                            </span>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Coupon Promo Code Redemption Section */}
+                                                    <div className="pt-3 pb-1 border-t border-white/10">
+                                                        <div className="flex items-center justify-between mb-2">
+                                                            <span className="text-xs uppercase font-extrabold tracking-wider text-slate-300 flex items-center gap-1.5">
+                                                                <svg
+                                                                    className="w-3.5 h-3.5 text-amber-400"
+                                                                    fill="none"
+                                                                    viewBox="0 0 24 24"
+                                                                    stroke="currentColor"
+                                                                >
+                                                                    <path
+                                                                        strokeLinecap="round"
+                                                                        strokeLinejoin="round"
+                                                                        strokeWidth={
+                                                                            2
+                                                                        }
+                                                                        d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
+                                                                    />
+                                                                </svg>
+                                                                Have a Coupon /
+                                                                Offer Code?
+                                                            </span>
+                                                            <span className="text-[10px] text-slate-400">
+                                                                1 coupon per
+                                                                booking
+                                                            </span>
+                                                        </div>
+
+                                                        {appliedCoupon ? (
+                                                            <div className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300">
+                                                                <div className="flex items-center space-x-2">
+                                                                    <span className="font-mono font-bold text-white bg-emerald-600/60 px-2 py-0.5 rounded text-xs tracking-wider">
+                                                                        {
+                                                                            appliedCoupon.code
+                                                                        }
+                                                                    </span>
+                                                                    <span className="text-xs font-semibold">
+                                                                        {
+                                                                            appliedCoupon.title
+                                                                        }{" "}
+                                                                        (-
+                                                                        {
+                                                                            appliedCoupon.discountPercent
+                                                                        }
+                                                                        %)
+                                                                    </span>
+                                                                </div>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={
+                                                                        handleRemoveCoupon
+                                                                    }
+                                                                    className="text-xs text-red-300 hover:text-red-100 font-bold underline"
+                                                                >
+                                                                    Remove
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex gap-2">
+                                                                <input
+                                                                    type="text"
+                                                                    value={
+                                                                        couponInput
+                                                                    }
+                                                                    onChange={(
+                                                                        e,
+                                                                    ) =>
+                                                                        setCouponInput(
+                                                                            e.target.value.toUpperCase(),
+                                                                        )
+                                                                    }
+                                                                    placeholder="e.g. WFMOCT482"
+                                                                    className="flex-1 bg-white/10 text-white placeholder-slate-400 border border-white/20 rounded-xl px-3 py-2 text-xs font-mono uppercase focus:ring-2 focus:ring-amber-400 focus:outline-none"
+                                                                />
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={
+                                                                        handleApplyCoupon
+                                                                    }
+                                                                    disabled={
+                                                                        isValidatingCoupon ||
+                                                                        !couponInput.trim()
+                                                                    }
+                                                                    className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-900 text-xs font-bold transition disabled:opacity-50 shrink-0"
+                                                                >
+                                                                    {isValidatingCoupon
+                                                                        ? "Checking..."
+                                                                        : "Apply"}
+                                                                </button>
+                                                            </div>
+                                                        )}
+
+                                                        {couponMessage && (
+                                                            <p
+                                                                className={`text-[11px] font-semibold mt-1.5 ${
+                                                                    couponMessage.type ===
+                                                                    "success"
+                                                                        ? "text-emerald-400"
+                                                                        : "text-red-400"
+                                                                }`}
+                                                            >
+                                                                {
+                                                                    couponMessage.text
+                                                                }
+                                                            </p>
+                                                        )}
+                                                    </div>
+
+                                                    {couponDiscountAmount >
+                                                        0 && (
+                                                        <div className="flex justify-between text-amber-300 font-extrabold text-sm pt-1">
+                                                            <span>
+                                                                Coupon Discount
+                                                                (
+                                                                {
+                                                                    appliedCoupon?.code
+                                                                }
+                                                                ):
+                                                            </span>
+                                                            <span>
+                                                                - $
+                                                                {couponDiscountAmount.toLocaleString()}
                                                             </span>
                                                         </div>
                                                     )}
