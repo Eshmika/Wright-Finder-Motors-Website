@@ -34,6 +34,23 @@ export default function CouponsIndex() {
         text: string;
     } | null>(null);
 
+    // Toast notification for copying coupon code
+    const [copiedCode, setCopiedCode] = useState<string | null>(null);
+    const [toastVisible, setToastVisible] = useState<boolean>(false);
+
+    const handleCopyCode = async (code: string) => {
+        try {
+            await navigator.clipboard.writeText(code);
+            setCopiedCode(code);
+            setToastVisible(true);
+            setTimeout(() => {
+                setToastVisible(false);
+            }, 3000);
+        } catch (err) {
+            console.error("Failed to copy:", err);
+        }
+    };
+
     // Modal state for Add / Edit Coupon
     const [modalOpen, setModalOpen] = useState<boolean>(false);
     const [editingCoupon, setEditingCoupon] = useState<Coupon | null>(null);
@@ -866,38 +883,61 @@ export default function CouponsIndex() {
                                             >
                                                 {/* Code with Copy Button */}
                                                 <td className="py-3.5 px-4 font-mono font-bold text-dark-blue">
-                                                    <div className="inline-flex items-center space-x-1.5 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200">
-                                                        <span>
+                                                    <div className="inline-flex items-center space-x-1.5 bg-slate-100 hover:bg-slate-200/80 px-2.5 py-1 rounded-md border border-slate-200 transition-colors group">
+                                                        <span className="tracking-wide">
                                                             {coupon.code}
                                                         </span>
                                                         <button
                                                             type="button"
-                                                            title="Copy code"
-                                                            onClick={() => {
-                                                                navigator.clipboard.writeText(
+                                                            title={`Copy "${coupon.code}"`}
+                                                            onClick={() =>
+                                                                handleCopyCode(
                                                                     coupon.code,
-                                                                );
-                                                                alert(
-                                                                    `Copied "${coupon.code}" to clipboard!`,
-                                                                );
-                                                            }}
-                                                            className="text-slate-400 hover:text-vivid-red transition-colors"
+                                                                )
+                                                            }
+                                                            className={`p-1 rounded transition-all active:scale-90 ${
+                                                                copiedCode ===
+                                                                    coupon.code &&
+                                                                toastVisible
+                                                                    ? "text-emerald-600 bg-emerald-50"
+                                                                    : "text-slate-400 hover:text-vivid-red hover:bg-white"
+                                                            }`}
                                                         >
-                                                            <svg
-                                                                className="w-3.5 h-3.5"
-                                                                fill="none"
-                                                                viewBox="0 0 24 24"
-                                                                stroke="currentColor"
-                                                            >
-                                                                <path
-                                                                    strokeLinecap="round"
-                                                                    strokeLinejoin="round"
+                                                            {copiedCode ===
+                                                                coupon.code &&
+                                                            toastVisible ? (
+                                                                <svg
+                                                                    className="w-3.5 h-3.5 animate-bounce"
+                                                                    fill="none"
+                                                                    viewBox="0 0 24 24"
+                                                                    stroke="currentColor"
+                                                                    strokeWidth={
+                                                                        2.5
+                                                                    }
+                                                                >
+                                                                    <path
+                                                                        strokeLinecap="round"
+                                                                        strokeLinejoin="round"
+                                                                        d="M5 13l4 4L19 7"
+                                                                    />
+                                                                </svg>
+                                                            ) : (
+                                                                <svg
+                                                                    className="w-3.5 h-3.5 transition-transform group-hover:scale-110"
+                                                                    fill="none"
+                                                                    viewBox="0 0 24 24"
+                                                                    stroke="currentColor"
                                                                     strokeWidth={
                                                                         2
                                                                     }
-                                                                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                                                                />
-                                                            </svg>
+                                                                >
+                                                                    <path
+                                                                        strokeLinecap="round"
+                                                                        strokeLinejoin="round"
+                                                                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                                                                    />
+                                                                </svg>
+                                                            )}
                                                         </button>
                                                     </div>
                                                 </td>
@@ -1338,6 +1378,67 @@ export default function CouponsIndex() {
                     </div>
                 </div>
             )}
+            {/* Floating Toast Notification for Copied Coupon */}
+            <div
+                className={`fixed bottom-6 right-6 z-50 transition-all duration-300 transform pointer-events-none ${
+                    toastVisible && copiedCode
+                        ? "translate-y-0 opacity-100 scale-100"
+                        : "translate-y-4 opacity-0 scale-95"
+                }`}
+            >
+                <div className="pointer-events-auto flex items-center gap-3.5 bg-slate-900/95 backdrop-blur-md text-white px-4 py-3 rounded-2xl shadow-2xl border border-white/10 ring-1 ring-black/10">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                        <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2.5}
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M5 13l4 4L19 7"
+                            />
+                        </svg>
+                    </div>
+
+                    <div className="pr-2">
+                        <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                            Copied to Clipboard
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="font-mono font-black text-amber-300 text-sm tracking-wide">
+                                {copiedCode}
+                            </span>
+                            <span className="text-xs text-slate-300 font-medium">
+                                is ready to redeem!
+                            </span>
+                        </div>
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={() => setToastVisible(false)}
+                        className="text-slate-400 hover:text-white p-1 rounded-lg transition-colors ml-1"
+                        title="Dismiss"
+                    >
+                        <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M6 18L18 6M6 6l12 12"
+                            />
+                        </svg>
+                    </button>
+                </div>
+            </div>
         </AuthenticatedLayout>
     );
 }
