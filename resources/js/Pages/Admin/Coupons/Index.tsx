@@ -38,6 +38,9 @@ export default function CouponsIndex() {
     const [copiedCode, setCopiedCode] = useState<string | null>(null);
     const [toastVisible, setToastVisible] = useState<boolean>(false);
 
+    // Delete Confirmation Modal State
+    const [couponToDelete, setCouponToDelete] = useState<Coupon | null>(null);
+
     const handleCopyCode = async (code: string) => {
         try {
             await navigator.clipboard.writeText(code);
@@ -328,16 +331,18 @@ export default function CouponsIndex() {
         }
     };
 
-    // Delete custom coupon
-    const handleDeleteCoupon = (coupon: Coupon) => {
-        if (
-            !window.confirm(
-                `Are you sure you want to delete coupon ${coupon.code}?`,
-            )
-        ) {
-            return;
-        }
+    // Trigger creative delete confirmation dialog
+    const promptDeleteCoupon = (coupon: Coupon) => {
+        setCouponToDelete(coupon);
+    };
+
+    // Confirm deletion
+    const confirmDeleteCoupon = () => {
+        if (!couponToDelete) return;
+
+        const coupon = couponToDelete;
         setCoupons((prev) => prev.filter((c) => c.code !== coupon.code));
+        setCouponToDelete(null);
 
         if (scriptWebhookUrl.trim()) {
             try {
@@ -1097,7 +1102,7 @@ export default function CouponsIndex() {
                                                         <button
                                                             type="button"
                                                             onClick={() =>
-                                                                handleDeleteCoupon(
+                                                                promptDeleteCoupon(
                                                                     coupon,
                                                                 )
                                                             }
@@ -1378,6 +1383,98 @@ export default function CouponsIndex() {
                     </div>
                 </div>
             )}
+            {/* Creative Delete Confirmation Modal */}
+            {couponToDelete && (
+                <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl border border-slate-100 relative text-center">
+                        {/* Glowing Warning Icon */}
+                        <div className="mx-auto w-16 h-16 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center mb-4 shadow-inner">
+                            <div className="w-10 h-10 rounded-xl bg-vivid-red/10 text-vivid-red flex items-center justify-center">
+                                <svg
+                                    className="w-6 h-6 animate-pulse"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    strokeWidth={2}
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                    />
+                                </svg>
+                            </div>
+                        </div>
+
+                        {/* Title & Message */}
+                        <h3 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">
+                            Delete Coupon Offer?
+                        </h3>
+                        <p className="text-xs sm:text-sm text-slate-500 mt-1.5 leading-relaxed">
+                            Are you sure you want to permanently remove this
+                            coupon?
+                        </p>
+
+                        {/* Coupon Details Card */}
+                        <div className="my-5 p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 text-left flex items-center justify-between">
+                            <div>
+                                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
+                                    Coupon Code
+                                </span>
+                                <span className="font-mono font-black text-dark-blue text-sm">
+                                    {couponToDelete.code}
+                                </span>
+                                <div className="text-[11px] text-slate-600 font-medium line-clamp-1 mt-0.5">
+                                    {couponToDelete.title}
+                                </div>
+                            </div>
+                            <div className="text-right">
+                                <span className="inline-block px-2.5 py-1 rounded-lg text-xs font-black text-emerald-700 bg-emerald-50 border border-emerald-200">
+                                    {couponToDelete.discountPercent}% OFF
+                                </span>
+                            </div>
+                        </div>
+
+                        <p className="text-[11px] text-rose-600 bg-rose-50 border border-rose-100 rounded-xl py-2 px-3 mb-5 font-medium">
+                            This action cannot be undone and will delete the
+                            coupon from your active records and Google Sheet
+                            sync.
+                        </p>
+
+                        {/* Action Buttons */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setCouponToDelete(null)}
+                                className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs transition shadow-sm"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={confirmDeleteCoupon}
+                                className="px-4 py-2.5 rounded-xl bg-vivid-red hover:bg-red-600 text-white font-bold text-xs transition shadow-lg shadow-vivid-red/30 flex items-center justify-center gap-1.5 active:scale-95"
+                            >
+                                <svg
+                                    className="w-4 h-4"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    strokeWidth={2}
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                    />
+                                </svg>
+                                <span>Yes, Delete</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Floating Toast Notification for Copied Coupon */}
             <div
                 className={`fixed bottom-6 right-6 z-50 transition-all duration-300 transform pointer-events-none ${
