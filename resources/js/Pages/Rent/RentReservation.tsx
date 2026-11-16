@@ -418,11 +418,12 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
             returnTime,
             paymentOption:
                 paymentMethod === "zelle"
-                    ? "Zelle (contact@wrightfindermotors.com)"
+                    ? "Zelle"
                     : paymentMethod === "cashapp"
-                      ? "Cash App (937 475 4737)"
-                      : "In Person / Cash at Pickup",
-            paymentStatus: "No payment received (Pending Reservation)",
+                      ? "Cash App"
+                      : "In Person",
+            paymentStatus: "Pending",
+            reservationStatus: "Pending",
             notes: specialNotes,
         };
 
@@ -447,7 +448,7 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
 
             setReservationResult({
                 confirmationNumber: confirmationNum,
-                paymentStatus: "No payment received (Pending Reservation)",
+                paymentStatus: "Pending",
             });
             window.scrollTo({ top: 150, behavior: "smooth" });
         } catch (err) {
