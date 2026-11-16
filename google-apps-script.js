@@ -179,6 +179,8 @@ function doPost(e) {
                 "Car Title",
                 "Rental Rate",
                 "Discount",
+                "Coupon Code",
+                "Coupon Discount",
                 "Estimated Total",
                 "First Name",
                 "Last Name",
@@ -194,6 +196,7 @@ function doPost(e) {
                 "Return Time (EST)",
                 "Payment Option",
                 "Payment Status",
+                "Reservation Status",
                 "Special Notes",
             ];
 
@@ -205,7 +208,7 @@ function doPost(e) {
                 headerRange.setFontColor("#ffffff");
                 headerRange.setFontWeight("bold");
             } else {
-                // If sheet already exists, check if "Estimated Total" column exists. If not, add it.
+                // Ensure dynamic columns exist: Estimated Total, Coupon Code, Coupon Discount, Reservation Status
                 var existingHeaderRange = resSheet.getRange(
                     1,
                     1,
@@ -218,35 +221,45 @@ function doPost(e) {
                         return h ? h.toString().trim() : "";
                     });
 
-                var hasEstimatedTotal = currentHeaders.some(function (h) {
-                    return (
-                        h.toLowerCase() === "estimated total" ||
-                        h.toLowerCase() === "total estimate"
-                    );
-                });
-
-                if (!hasEstimatedTotal) {
-                    // Find Discount column index to insert after Discount if possible
-                    var discountIdx = currentHeaders.findIndex(function (h) {
-                        return h.toLowerCase() === "discount";
+                function ensureColumn(colName, afterColName) {
+                    var exists = currentHeaders.some(function (h) {
+                        return h.toLowerCase() === colName.toLowerCase();
                     });
-
-                    if (discountIdx !== -1) {
-                        resSheet.insertColumnAfter(discountIdx + 1);
-                        var newCell = resSheet.getRange(1, discountIdx + 2);
-                        newCell.setValue("Estimated Total");
-                        newCell.setBackground("#170a3d");
-                        newCell.setFontColor("#ffffff");
-                        newCell.setFontWeight("bold");
-                    } else {
-                        var newColIdx = resSheet.getLastColumn() + 1;
-                        var newCell = resSheet.getRange(1, newColIdx);
-                        newCell.setValue("Estimated Total");
-                        newCell.setBackground("#170a3d");
-                        newCell.setFontColor("#ffffff");
-                        newCell.setFontWeight("bold");
+                    if (!exists) {
+                        var insertIdx = -1;
+                        if (afterColName) {
+                            insertIdx = currentHeaders.findIndex(function (h) {
+                                return (
+                                    h.toLowerCase() ===
+                                    afterColName.toLowerCase()
+                                );
+                            });
+                        }
+                        if (insertIdx !== -1) {
+                            resSheet.insertColumnAfter(insertIdx + 1);
+                            var cell = resSheet.getRange(1, insertIdx + 2);
+                            cell.setValue(colName);
+                            cell.setBackground("#170a3d");
+                            cell.setFontColor("#ffffff");
+                            cell.setFontWeight("bold");
+                            // refresh current headers array
+                            currentHeaders.splice(insertIdx + 1, 0, colName);
+                        } else {
+                            var newCol = resSheet.getLastColumn() + 1;
+                            var cell = resSheet.getRange(1, newCol);
+                            cell.setValue(colName);
+                            cell.setBackground("#170a3d");
+                            cell.setFontColor("#ffffff");
+                            cell.setFontWeight("bold");
+                            currentHeaders.push(colName);
+                        }
                     }
                 }
+
+                ensureColumn("Estimated Total", "Discount");
+                ensureColumn("Coupon Code", "Discount");
+                ensureColumn("Coupon Discount", "Coupon Code");
+                ensureColumn("Reservation Status", "Payment Status");
             }
 
             // Deduplication check: verify confirmation number does not already exist
@@ -380,8 +393,12 @@ function doPost(e) {
                         break;
                     case "payment status":
                         reservationRow[colIdx] =
-                            data.paymentStatus ||
-                            "No payment received (Pending Reservation)";
+                            data.paymentStatus || "Pending";
+                        break;
+                    case "reservation status":
+                    case "status":
+                        reservationRow[colIdx] =
+                            data.reservationStatus || "Pending";
                         break;
                     case "special notes":
                     case "notes":
@@ -407,10 +424,135 @@ function doPost(e) {
                         " recorded in Reservation sheet row " +
                         resRowNumber,
                     confirmationNumber: data.confirmationNumber,
-                    paymentStatus:
-                        data.paymentStatus ||
-                        "No payment received (Pending Reservation)",
+                    paymentStatus: data.paymentStatus || "Pending",
+                    reservationStatus: data.reservationStatus || "Pending",
                     rowNumber: resRowNumber,
+                }),
+            ).setMimeType(ContentService.MimeType.JSON);
+        }
+
+        // ==========================================
+        // ACTION: UPDATE_RESERVATION_STATUS
+        // Update paymentStatus, paymentOption, and/or reservationStatus
+        // ==========================================
+        if (data.action === "update_reservation_status") {
+            var resSheet = ss.getSheetByName("Reservation");
+            if (!resSheet) {
+                return ContentService.createTextOutput(
+                    JSON.stringify({
+                        status: "error",
+                        message: "Sheet tab 'Reservation' not found.",
+                    }),
+                ).setMimeType(ContentService.MimeType.JSON);
+            }
+
+            var targetConfNum = (data.confirmationNumber || "")
+                .toString()
+                .trim()
+                .toUpperCase();
+            if (!targetConfNum) {
+                return ContentService.createTextOutput(
+                    JSON.stringify({
+                        status: "error",
+                        message: "Confirmation Number is required.",
+                    }),
+                ).setMimeType(ContentService.MimeType.JSON);
+            }
+
+            var lastCol = resSheet.getLastColumn();
+            var totalRows = resSheet.getLastRow();
+            if (lastCol < 1 || totalRows < 2) {
+                return ContentService.createTextOutput(
+                    JSON.stringify({
+                        status: "error",
+                        message: "No reservation rows found.",
+                    }),
+                ).setMimeType(ContentService.MimeType.JSON);
+            }
+
+            var headers = resSheet.getRange(1, 1, 1, lastCol).getValues()[0];
+            var confColIdx = -1;
+            var paymentStatusColIdx = -1;
+            var paymentOptionColIdx = -1;
+            var resStatusColIdx = -1;
+
+            for (var c = 0; c < headers.length; c++) {
+                var h = headers[c]
+                    ? headers[c].toString().trim().toLowerCase()
+                    : "";
+                if (h === "confirmation number") confColIdx = c + 1;
+                if (h === "payment status") paymentStatusColIdx = c + 1;
+                if (h === "payment option") paymentOptionColIdx = c + 1;
+                if (h === "reservation status" || h === "status")
+                    resStatusColIdx = c + 1;
+            }
+
+            // Ensure Reservation Status column exists if missing
+            if (resStatusColIdx === -1) {
+                resSheet.insertColumnAfter(lastCol);
+                resStatusColIdx = lastCol + 1;
+                var newHdr = resSheet.getRange(1, resStatusColIdx);
+                newHdr.setValue("Reservation Status");
+                newHdr.setBackground("#170a3d");
+                newHdr.setFontColor("#ffffff");
+                newHdr.setFontWeight("bold");
+            }
+
+            var confVals = resSheet
+                .getRange(2, confColIdx, totalRows - 1, 1)
+                .getValues();
+            var targetRow = -1;
+            for (var r = 0; r < confVals.length; r++) {
+                if (
+                    confVals[r][0] &&
+                    confVals[r][0].toString().trim().toUpperCase() ===
+                        targetConfNum
+                ) {
+                    targetRow = r + 2;
+                    break;
+                }
+            }
+
+            if (targetRow === -1) {
+                return ContentService.createTextOutput(
+                    JSON.stringify({
+                        status: "error",
+                        message:
+                            "Reservation " +
+                            targetConfNum +
+                            " not found in sheet.",
+                    }),
+                ).setMimeType(ContentService.MimeType.JSON);
+            }
+
+            if (data.paymentStatus && paymentStatusColIdx > 0) {
+                resSheet
+                    .getRange(targetRow, paymentStatusColIdx)
+                    .setValue(data.paymentStatus);
+            }
+            if (data.paymentOption && paymentOptionColIdx > 0) {
+                resSheet
+                    .getRange(targetRow, paymentOptionColIdx)
+                    .setValue(data.paymentOption);
+            }
+            if (data.reservationStatus && resStatusColIdx > 0) {
+                resSheet
+                    .getRange(targetRow, resStatusColIdx)
+                    .setValue(data.reservationStatus);
+            }
+
+            return ContentService.createTextOutput(
+                JSON.stringify({
+                    status: "success",
+                    message:
+                        "Reservation " +
+                        targetConfNum +
+                        " updated successfully.",
+                    confirmationNumber: targetConfNum,
+                    paymentStatus: data.paymentStatus,
+                    paymentOption: data.paymentOption,
+                    reservationStatus: data.reservationStatus,
+                    rowNumber: targetRow,
                 }),
             ).setMimeType(ContentService.MimeType.JSON);
         }

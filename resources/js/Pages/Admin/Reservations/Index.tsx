@@ -27,6 +27,7 @@ export default function Index() {
     // Filter & Search Controls
     const [searchTerm, setSearchTerm] = useState<string>("");
     const [sortBy, setSortBy] = useState<SortOption>("newest");
+    const [statusFilter, setStatusFilter] = useState<string>("all");
     const [paymentFilter, setPaymentFilter] = useState<string>("all");
 
     // Pagination
@@ -37,6 +38,66 @@ export default function Index() {
     const [selectedRes, setSelectedRes] = useState<ReservationRecord | null>(
         null,
     );
+
+    // Edit Modal State
+    const [editingRes, setEditingRes] = useState<ReservationRecord | null>(
+        null,
+    );
+    const [editForm, setEditForm] = useState<{
+        firstName: string;
+        lastName: string;
+        email: string;
+        phone: string;
+        pickupDate: string;
+        pickupTime: string;
+        returnDate: string;
+        returnTime: string;
+        pickupLocation: string;
+        returnLocation: string;
+        notes: string;
+    }>({
+        firstName: "",
+        lastName: "",
+        email: "",
+        phone: "",
+        pickupDate: "",
+        pickupTime: "",
+        returnDate: "",
+        returnTime: "",
+        pickupLocation: "",
+        returnLocation: "",
+        notes: "",
+    });
+
+    // Payment Approval Modal State
+    const [paymentModalRes, setPaymentModalRes] =
+        useState<ReservationRecord | null>(null);
+    const [approvalPaymentOption, setApprovalPaymentOption] =
+        useState<string>("Zelle");
+    const [approvalCoverage, setApprovalCoverage] = useState<
+        "full" | "partial"
+    >("full");
+    const [approvalPaymentStatus, setApprovalPaymentStatus] = useState<
+        "Paid" | "Pending" | "Unpaid"
+    >("Paid");
+    const [isUpdatingPayment, setIsUpdatingPayment] = useState<boolean>(false);
+
+    // Reservation Status Change Modal / Confirmation State
+    const [resStatusModalRes, setResStatusModalRes] =
+        useState<ReservationRecord | null>(null);
+    const [targetResStatus, setTargetResStatus] = useState<
+        "Pending" | "Approved" | "Declined"
+    >("Approved");
+    const [isUpdatingResStatus, setIsUpdatingResStatus] =
+        useState<boolean>(false);
+
+    // Webhook URL from localStorage or default
+    const [scriptWebhookUrl, setScriptWebhookUrl] = useState<string>(() => {
+        if (typeof window !== "undefined") {
+            return localStorage.getItem("WFM_APPS_SCRIPT_URL") || "";
+        }
+        return "";
+    });
 
     // Alert feedback modal
     const [alertModal, setAlertModal] = useState<{
@@ -123,7 +184,6 @@ export default function Index() {
     ): { days: number; grossTotal: number } => {
         const days = getRentalDays(res.pickupDate, res.returnDate);
         const car = res.vehicle;
-        // Rent Price from vehicle details (fallback to car.price or reservation rentalRate)
         const dailyRentRate =
             car && car.rentPrice !== undefined && car.rentPrice > 0
                 ? car.rentPrice
@@ -134,11 +194,21 @@ export default function Index() {
         return { days, grossTotal: gross };
     };
 
+    // Clean payment option display (Strip email or phone so only Zelle, Cash App, In Person remain)
+    const cleanPaymentOption = (opt?: string): string => {
+        if (!opt) return "Zelle";
+        const o = opt.toLowerCase();
+        if (o.includes("zelle")) return "Zelle";
+        if (o.includes("cash app") || o.includes("cashapp")) return "Cash App";
+        if (o.includes("in person") || o.includes("cash")) return "In Person";
+        return opt.replace(/\s*\(.*?\)\s*/g, "").trim();
+    };
+
     // Filter & Sort Reservations
     const processedReservations = useMemo(() => {
         let list = [...reservations];
 
-        // Search filter
+        // Search filter (Name, Reservation ID, Email, Phone, Car ID)
         if (searchTerm.trim()) {
             const q = searchTerm.toLowerCase();
             list = list.filter((r) => {
@@ -155,6 +225,8 @@ export default function Index() {
                     r.returnLocation,
                     r.paymentOption,
                     r.paymentStatus,
+                    r.reservationStatus,
+                    r.couponCode,
                     car?.make || "",
                     car?.model || "",
                     car?.year?.toString() || "",
@@ -169,19 +241,31 @@ export default function Index() {
             });
         }
 
-        // Payment status filter
+        // Reservation Status filter
+        if (statusFilter !== "all") {
+            list = list.filter((r) => {
+                const s = (r.reservationStatus || "Pending").toLowerCase();
+                return s === statusFilter.toLowerCase();
+            });
+        }
+
+        // Payment status filter (Pending, Paid, Unpaid)
         if (paymentFilter !== "all") {
             list = list.filter((r) => {
                 const status = (r.paymentStatus || "").toLowerCase();
                 if (paymentFilter === "paid") {
                     return (
-                        status.includes("paid") || status.includes("received")
+                        status.includes("paid") && !status.includes("unpaid")
                     );
+                }
+                if (paymentFilter === "unpaid") {
+                    return status.includes("unpaid");
                 }
                 if (paymentFilter === "pending") {
                     return (
                         status.includes("pending") ||
-                        status.includes("no payment")
+                        status.includes("no payment") ||
+                        !r.paymentStatus
                     );
                 }
                 return true;
@@ -227,7 +311,7 @@ export default function Index() {
         }
 
         return list;
-    }, [reservations, searchTerm, sortBy, paymentFilter]);
+    }, [reservations, searchTerm, sortBy, statusFilter, paymentFilter]);
 
     // Pagination calculations
     const totalPages =
@@ -240,41 +324,7 @@ export default function Index() {
     // Reset pagination on filter change
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, sortBy, paymentFilter]);
-
-    // Share reservation link
-    const handleShareReservation = async (res: ReservationRecord) => {
-        const shareUrl = res.carId
-            ? `${window.location.origin}/rent/reserve/${encodeURIComponent(res.carId)}`
-            : `${window.location.origin}/rent`;
-        const title = `Reservation #${res.confirmationNumber} - ${res.carTitle || "Rental Vehicle"}`;
-        const text = `Booking Reference #${res.confirmationNumber} for ${res.firstName} ${res.lastName} (${res.pickupDate} to ${res.returnDate}).`;
-
-        if (navigator.share) {
-            try {
-                await navigator.share({
-                    title,
-                    text,
-                    url: shareUrl,
-                });
-                return;
-            } catch (err: any) {
-                if (err.name === "AbortError") return;
-            }
-        }
-
-        try {
-            await navigator.clipboard.writeText(shareUrl);
-            setAlertModal({
-                isOpen: true,
-                type: "success",
-                title: "Reservation Link Copied!",
-                message: `Booking page link for Reservation #${res.confirmationNumber} was copied to your clipboard.`,
-            });
-        } catch {
-            window.prompt("Copy link:", shareUrl);
-        }
-    };
+    }, [searchTerm, sortBy, statusFilter, paymentFilter]);
 
     // Print individual reservation
     const handlePrintReservation = (res: ReservationRecord) => {
@@ -282,6 +332,202 @@ export default function Index() {
         setTimeout(() => {
             window.print();
         }, 200);
+    };
+
+    // Open Payment Approval Modal
+    const handleOpenPaymentModal = (res: ReservationRecord) => {
+        setPaymentModalRes(res);
+        setApprovalPaymentOption(cleanPaymentOption(res.paymentOption));
+        setApprovalCoverage("full");
+        setApprovalPaymentStatus(
+            res.paymentStatus?.toLowerCase().includes("paid") &&
+                !res.paymentStatus?.toLowerCase().includes("unpaid")
+                ? "Paid"
+                : "Paid",
+        );
+    };
+
+    // Save Payment Approval
+    // SEPARATE RULE: Marking payment as Paid does NOT approve reservation
+    const handleSavePaymentApproval = async () => {
+        if (!paymentModalRes) return;
+        setIsUpdatingPayment(true);
+
+        const newPaymentStatus = approvalPaymentStatus;
+        const savedOption = cleanPaymentOption(approvalPaymentOption);
+        const confNum = paymentModalRes.confirmationNumber;
+
+        // Optimistically update local state
+        setReservations((prev) =>
+            prev.map((r) =>
+                r.confirmationNumber === confNum
+                    ? {
+                          ...r,
+                          paymentStatus: newPaymentStatus,
+                          paymentOption: savedOption,
+                      }
+                    : r,
+            ),
+        );
+
+        if (selectedRes && selectedRes.confirmationNumber === confNum) {
+            setSelectedRes((prev) =>
+                prev
+                    ? {
+                          ...prev,
+                          paymentStatus: newPaymentStatus,
+                          paymentOption: savedOption,
+                      }
+                    : null,
+            );
+        }
+
+        // Forward to Google Sheet via webhook
+        const webhook =
+            scriptWebhookUrl.trim() ||
+            localStorage.getItem("WFM_APPS_SCRIPT_URL") ||
+            "";
+
+        if (webhook) {
+            try {
+                await fetch(webhook, {
+                    method: "POST",
+                    headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify({
+                        action: "update_reservation_status",
+                        confirmationNumber: confNum,
+                        paymentStatus: newPaymentStatus,
+                        paymentOption: savedOption,
+                        coverage: approvalCoverage,
+                    }),
+                });
+            } catch (err) {
+                console.error("Payment status webhook error:", err);
+            }
+        }
+
+        setIsUpdatingPayment(false);
+        setPaymentModalRes(null);
+        setAlertModal({
+            isOpen: true,
+            type: "success",
+            title: "Payment Updated!",
+            message: `Payment status for #${confNum} set to "${newPaymentStatus}" (${savedOption} - ${approvalCoverage === "full" ? "Full payment" : "Partial deposit"}). Reservation status remains separate and unchanged.`,
+        });
+    };
+
+    // Open Reservation Status Modal
+    const handleOpenResStatusModal = (res: ReservationRecord) => {
+        setResStatusModalRes(res);
+        const current = (res.reservationStatus || "Pending").toLowerCase();
+        if (current.includes("approv")) {
+            setTargetResStatus("Approved");
+        } else if (current.includes("decline")) {
+            setTargetResStatus("Declined");
+        } else {
+            setTargetResStatus("Pending");
+        }
+    };
+
+    // Save Reservation Status
+    const handleSaveResStatus = async () => {
+        if (!resStatusModalRes) return;
+        setIsUpdatingResStatus(true);
+
+        const confNum = resStatusModalRes.confirmationNumber;
+        const newResStatus = targetResStatus;
+
+        // Optimistically update local state
+        setReservations((prev) =>
+            prev.map((r) =>
+                r.confirmationNumber === confNum
+                    ? {
+                          ...r,
+                          reservationStatus: newResStatus,
+                      }
+                    : r,
+            ),
+        );
+
+        if (selectedRes && selectedRes.confirmationNumber === confNum) {
+            setSelectedRes((prev) =>
+                prev ? { ...prev, reservationStatus: newResStatus } : null,
+            );
+        }
+
+        const webhook =
+            scriptWebhookUrl.trim() ||
+            localStorage.getItem("WFM_APPS_SCRIPT_URL") ||
+            "";
+
+        if (webhook) {
+            try {
+                await fetch(webhook, {
+                    method: "POST",
+                    headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify({
+                        action: "update_reservation_status",
+                        confirmationNumber: confNum,
+                        reservationStatus: newResStatus,
+                    }),
+                });
+            } catch (err) {
+                console.error("Reservation status webhook error:", err);
+            }
+        }
+
+        setIsUpdatingResStatus(false);
+        setResStatusModalRes(null);
+        setAlertModal({
+            isOpen: true,
+            type: "success",
+            title: "Reservation Status Updated!",
+            message: `Reservation #${confNum} is now marked as "${newResStatus}".`,
+        });
+    };
+
+    // Open Edit Customer/Dates Modal
+    const handleOpenEditModal = (res: ReservationRecord) => {
+        setEditingRes(res);
+        setEditForm({
+            firstName: res.firstName || "",
+            lastName: res.lastName || "",
+            email: res.email || "",
+            phone: res.phone || "",
+            pickupDate: res.pickupDate || "",
+            pickupTime: res.pickupTime || "10:00 AM",
+            returnDate: res.returnDate || "",
+            returnTime: res.returnTime || "10:00 AM",
+            pickupLocation: res.pickupLocation || "",
+            returnLocation: res.returnLocation || "",
+            notes: res.notes || "",
+        });
+    };
+
+    // Save Edit Form
+    const handleSaveEditForm = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingRes) return;
+
+        const confNum = editingRes.confirmationNumber;
+        setReservations((prev) =>
+            prev.map((r) =>
+                r.confirmationNumber === confNum
+                    ? {
+                          ...r,
+                          ...editForm,
+                      }
+                    : r,
+            ),
+        );
+
+        setEditingRes(null);
+        setAlertModal({
+            isOpen: true,
+            type: "success",
+            title: "Reservation Details Updated!",
+            message: `Customer & rental dates for #${confNum} updated successfully.`,
+        });
     };
 
     return (
@@ -298,8 +544,7 @@ export default function Index() {
                             </span>
                         </div>
                         <p className="text-xs text-slate-500 mt-0.5">
-                            Live reservation records from Google Sheet
-                            "Reservation" tab connected with "Vehicle details".
+                            Review, approve, or decline rental requests.
                         </p>
                     </div>
 
@@ -351,14 +596,38 @@ export default function Index() {
             <Head title="Rental Reservations - Wright Finder Motors" />
 
             <div className="space-y-5">
-                {/* Top Control Bar: Sort, Filter, Search, Print */}
-                <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/80 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                    {/* Left: Sort By Dropdown & Quick Search */}
-                    <div className="flex flex-wrap items-center gap-3">
-                        <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap flex items-center gap-1.5">
+                {/* Top Control Bar: Search, Status, Payment, Sort, Reset */}
+                <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/80 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                    {/* Search Input */}
+                    <div className="relative flex-1 min-w-[240px] max-w-lg">
+                        <svg
+                            className="w-4 h-4 text-purple absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2.5}
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                            />
+                        </svg>
+                        <input
+                            type="text"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            placeholder="Search by Name, Reservation ID, Email, Phone, or Stock ID..."
+                            className="w-full pl-10 pr-9 py-2.5 text-xs bg-slate-50 border border-slate-200 text-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple/40 focus:border-purple placeholder:text-slate-400 shadow-sm"
+                        />
+                        {searchTerm && (
+                            <button
+                                type="button"
+                                onClick={() => setSearchTerm("")}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                            >
                                 <svg
-                                    className="w-4 h-4 text-purple"
+                                    className="w-3.5 h-3.5"
                                     fill="none"
                                     viewBox="0 0 24 24"
                                     stroke="currentColor"
@@ -367,10 +636,87 @@ export default function Index() {
                                         strokeLinecap="round"
                                         strokeLinejoin="round"
                                         strokeWidth={2}
-                                        d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"
+                                        d="M6 18L18 6M6 6l12 12"
                                     />
                                 </svg>
-                                Sort by:
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Filter & Sort Dropdowns */}
+                    <div className="flex flex-wrap items-center gap-3">
+                        {/* Reservation Status Filter */}
+                        <div className="flex items-center gap-1.5">
+                            <span className="text-[11px] font-bold uppercase text-slate-500 whitespace-nowrap">
+                                Status:
+                            </span>
+                            <div className="relative">
+                                <select
+                                    value={statusFilter}
+                                    onChange={(e) =>
+                                        setStatusFilter(e.target.value)
+                                    }
+                                    className="appearance-none pl-3 pr-8 py-2 text-xs font-semibold bg-slate-50 border border-slate-200 text-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple/40 focus:border-purple cursor-pointer shadow-sm"
+                                >
+                                    <option value="all">All Status</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="approved">Approved</option>
+                                    <option value="declined">Declined</option>
+                                </select>
+                                <svg
+                                    className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M19 9l-7 7-7-7"
+                                    />
+                                </svg>
+                            </div>
+                        </div>
+
+                        {/* Payment Filter */}
+                        <div className="flex items-center gap-1.5">
+                            <span className="text-[11px] font-bold uppercase text-slate-500 whitespace-nowrap">
+                                Payment:
+                            </span>
+                            <div className="relative">
+                                <select
+                                    value={paymentFilter}
+                                    onChange={(e) =>
+                                        setPaymentFilter(e.target.value)
+                                    }
+                                    className="appearance-none pl-3 pr-8 py-2 text-xs font-semibold bg-slate-50 border border-slate-200 text-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple/40 focus:border-purple cursor-pointer shadow-sm"
+                                >
+                                    <option value="all">All Payments</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="paid">Paid</option>
+                                    <option value="unpaid">Unpaid</option>
+                                </select>
+                                <svg
+                                    className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M19 9l-7 7-7-7"
+                                    />
+                                </svg>
+                            </div>
+                        </div>
+
+                        {/* Sort By Dropdown */}
+                        <div className="flex items-center gap-1.5">
+                            <span className="text-[11px] font-bold uppercase text-slate-500 whitespace-nowrap">
+                                Sort By:
                             </span>
                             <div className="relative">
                                 <select
@@ -378,16 +724,12 @@ export default function Index() {
                                     onChange={(e) =>
                                         setSortBy(e.target.value as SortOption)
                                     }
-                                    className="appearance-none pl-3.5 pr-8 py-2 text-xs font-semibold bg-slate-50 border border-slate-200 text-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple/40 focus:border-purple cursor-pointer shadow-sm"
+                                    className="appearance-none pl-3 pr-8 py-2 text-xs font-semibold bg-slate-50 border border-slate-200 text-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple/40 focus:border-purple cursor-pointer shadow-sm"
                                 >
-                                    <option value="newest">
-                                        Recently Booked
-                                    </option>
-                                    <option value="oldest">
-                                        Oldest Bookings
-                                    </option>
+                                    <option value="newest">Newest First</option>
+                                    <option value="oldest">Oldest First</option>
                                     <option value="pickup-soonest">
-                                        Pickup: Soonest First
+                                        Pickup: Soonest
                                     </option>
                                     <option value="total-high">
                                         Total: High to Low
@@ -396,7 +738,7 @@ export default function Index() {
                                         Total: Low to High
                                     </option>
                                     <option value="name-asc">
-                                        Driver Name (A - Z)
+                                        Driver (A - Z)
                                     </option>
                                 </select>
                                 <svg
@@ -415,75 +757,20 @@ export default function Index() {
                             </div>
                         </div>
 
-                        {/* Search Input */}
-                        <div className="relative min-w-[200px] sm:min-w-[240px]">
-                            <svg
-                                className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                            >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                                />
-                            </svg>
-                            <input
-                                type="text"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                placeholder="Search reservations or cars..."
-                                className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 text-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple/40 focus:border-purple placeholder:text-slate-400 shadow-sm"
-                            />
-                            {searchTerm && (
-                                <button
-                                    type="button"
-                                    onClick={() => setSearchTerm("")}
-                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                                >
-                                    <svg
-                                        className="w-3.5 h-3.5"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                    >
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={2}
-                                            d="M6 18L18 6M6 6l12 12"
-                                        />
-                                    </svg>
-                                </button>
-                            )}
-                        </div>
-
-                        {/* Payment Filter */}
-                        <select
-                            value={paymentFilter}
-                            onChange={(e) => setPaymentFilter(e.target.value)}
-                            className="appearance-none px-3 py-2 text-xs font-semibold bg-slate-50 border border-slate-200 text-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple/40 focus:border-purple cursor-pointer shadow-sm"
-                        >
-                            <option value="all">All Payment Statuses</option>
-                            <option value="pending">Pending Reservation</option>
-                            <option value="paid">
-                                Payment Received / Paid
-                            </option>
-                        </select>
-                    </div>
-
-                    {/* Right: Print Table */}
-                    <div className="flex items-center gap-2.5 self-end md:self-auto">
+                        {/* Reset Filters Button */}
                         <button
                             type="button"
-                            onClick={() => window.print()}
-                            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300/80 shadow-sm transition active:scale-95"
-                            title="Print Reservation Table"
+                            onClick={() => {
+                                setSearchTerm("");
+                                setStatusFilter("all");
+                                setPaymentFilter("all");
+                                setSortBy("newest");
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
+                            title="Reset filters"
                         >
                             <svg
-                                className="w-4 h-4 text-purple"
+                                className="w-3.5 h-3.5"
                                 fill="none"
                                 viewBox="0 0 24 24"
                                 stroke="currentColor"
@@ -492,98 +779,75 @@ export default function Index() {
                                     strokeLinecap="round"
                                     strokeLinejoin="round"
                                     strokeWidth={2}
-                                    d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
                                 />
                             </svg>
-                            <span>Print Table</span>
+                            <span>Reset</span>
                         </button>
                     </div>
                 </div>
 
-                {/* Table Card Container */}
+                {/* Main Table Card */}
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
                     {/* Error State */}
                     {error && (
-                        <div className="p-6 bg-rose-50 border-b border-rose-200 text-rose-700 flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <svg
-                                    className="w-5 h-5 text-rose-500 shrink-0"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                                    />
-                                </svg>
-                                <span className="text-sm font-medium">
-                                    {error}
-                                </span>
-                            </div>
+                        <div className="p-4 bg-rose-50 border-b border-rose-200 text-rose-700 flex items-center justify-between">
+                            <span className="text-xs font-semibold">
+                                {error}
+                            </span>
                             <button
                                 onClick={loadData}
-                                className="px-3 py-1.5 text-xs font-semibold bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition"
+                                className="px-3 py-1 text-xs font-bold bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition"
                             >
                                 Try Again
                             </button>
                         </div>
                     )}
 
-                    {/* Table Container with Horizontal Scroll */}
+                    {/* Table Container */}
                     <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse min-w-[1300px]">
-                            {/* Table Header: Dark-purple background & white text */}
+                        <table className="w-full text-left border-collapse min-w-[1200px]">
                             <thead>
                                 <tr className="bg-dark-purple text-white text-[11px] font-bold uppercase tracking-wider select-none border-b border-dark-purple">
                                     <th className="py-3.5 px-3 text-center w-12 shrink-0">
-                                        NO
+                                        No
                                     </th>
-                                    <th className="py-3.5 px-3 text-center w-20 shrink-0">
-                                        IMAGE
+                                    <th className="py-3.5 px-4 min-w-[210px]">
+                                        Reservation ID / Rental Dates
                                     </th>
-                                    <th className="py-3.5 px-3.5 min-w-[170px]">
-                                        DATE / TIME PICK UP-RETURN
+                                    <th className="py-3.5 px-4 min-w-[200px]">
+                                        Customer Info
                                     </th>
-                                    <th className="py-3.5 px-3.5 min-w-[170px]">
-                                        LOCATION PICK UP-RETURN
+                                    <th className="py-3.5 px-4 min-w-[250px]">
+                                        Vehicle Info
                                     </th>
-                                    <th className="py-3.5 px-3.5 min-w-[160px]">
-                                        MAKE / MODEL-TRIM
-                                    </th>
-                                    <th className="py-3.5 px-3 min-w-[110px]">
-                                        YEAR / BODY STYLE
-                                    </th>
-                                    <th className="py-3.5 px-3 min-w-[130px]">
-                                        DRIVETRAIN / FUEL TYPE
-                                    </th>
-                                    <th className="py-3.5 px-3.5 min-w-[150px]">
-                                        TOTAL PRICE / DISCOUNT
-                                    </th>
-                                    <th className="py-3.5 px-3 text-center min-w-[130px]">
-                                        PAYMENT STATUS
+                                    <th className="py-3.5 px-4 min-w-[180px]">
+                                        Price &amp; Savings
                                     </th>
                                     <th className="py-3.5 px-4 text-center min-w-[120px]">
-                                        ACTION
+                                        Payment
+                                    </th>
+                                    <th className="py-3.5 px-4 text-center min-w-[120px]">
+                                        Status
+                                    </th>
+                                    <th className="py-3.5 px-4 text-center min-w-[130px]">
+                                        Actions
                                     </th>
                                 </tr>
                             </thead>
 
-                            <tbody className="divide-y divide-slate-100 text-xs">
+                            <tbody className="divide-y divide-slate-100 text-xs bg-white">
                                 {loading ? (
                                     <tr>
                                         <td
-                                            colSpan={10}
+                                            colSpan={8}
                                             className="py-16 text-center text-slate-400"
                                         >
                                             <div className="flex flex-col items-center justify-center space-y-3">
                                                 <div className="w-9 h-9 border-3 border-dark-purple/30 border-t-dark-purple rounded-full animate-spin" />
                                                 <span className="text-xs font-semibold text-slate-600">
-                                                    Fetching reservations &
-                                                    connecting vehicle
-                                                    details...
+                                                    Fetching reservations from
+                                                    Google Sheet...
                                                 </span>
                                             </div>
                                         </td>
@@ -591,30 +855,16 @@ export default function Index() {
                                 ) : paginatedReservations.length === 0 ? (
                                     <tr>
                                         <td
-                                            colSpan={10}
+                                            colSpan={8}
                                             className="py-16 text-center text-slate-400"
                                         >
                                             <div className="flex flex-col items-center justify-center space-y-2">
-                                                <svg
-                                                    className="w-12 h-12 text-slate-300"
-                                                    fill="none"
-                                                    viewBox="0 0 24 24"
-                                                    stroke="currentColor"
-                                                >
-                                                    <path
-                                                        strokeLinecap="round"
-                                                        strokeLinejoin="round"
-                                                        strokeWidth={1.5}
-                                                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                                                    />
-                                                </svg>
                                                 <p className="text-sm font-semibold text-slate-600">
                                                     No reservations found
                                                 </p>
-                                                <p className="text-xs text-slate-400 max-w-sm">
+                                                <p className="text-xs text-slate-400">
                                                     Try adjusting your search
-                                                    criteria or filter options
-                                                    above.
+                                                    criteria or filters above.
                                                 </p>
                                             </div>
                                         </td>
@@ -633,50 +883,62 @@ export default function Index() {
                                             (car?.images && car.images[0]) ||
                                             "";
 
-                                        // Make / Model - Trim
-                                        const carMake =
-                                            car?.make ||
-                                            res.carTitle ||
-                                            "Wright Finder Vehicle";
-                                        const modelTrim =
-                                            [car?.model, car?.trim]
-                                                .filter(Boolean)
-                                                .join(" - ") ||
-                                            car?.model ||
-                                            res.carId ||
-                                            "-";
-
-                                        // Year / Body Style
-                                        const carYear =
-                                            car?.year ||
-                                            (res.carTitle?.match(
-                                                /\b(19\d\d|20\d\d)\b/,
-                                            )
-                                                ? res.carTitle.match(
-                                                      /\b(19\d\d|20\d\d)\b/,
-                                                  )![0]
-                                                : "-");
-                                        const bodyStyle = car?.bodyStyle || "-";
-
-                                        // Drivetrain / Fuel Type
-                                        const driveline = car?.driveline || "-";
-                                        const fuelType = car?.fuelType || "-";
-
-                                        // Total Price / Discount
+                                        // Rental Days & Gross
                                         const { days, grossTotal } =
                                             calculateGrossTotal(res);
-                                        const estimatedTotalVal =
+                                        const finalTotal =
                                             res.estimatedTotal > 0
                                                 ? res.estimatedTotal
                                                 : grossTotal;
+                                        const hasCoupon = Boolean(
+                                            res.couponCode &&
+                                            res.couponCode.trim(),
+                                        );
+                                        const couponSavings =
+                                            res.couponDiscount !== undefined &&
+                                            res.couponDiscount > 0
+                                                ? res.couponDiscount
+                                                : Math.max(
+                                                      0,
+                                                      grossTotal - finalTotal,
+                                                  );
+                                        const savingsPct =
+                                            grossTotal > 0 && couponSavings > 0
+                                                ? Math.round(
+                                                      (couponSavings /
+                                                          grossTotal) *
+                                                          100,
+                                                  )
+                                                : 0;
 
-                                        // Payment Status styling
-                                        const statusLower = (
+                                        // Payment status
+                                        const pLower = (
                                             res.paymentStatus || ""
                                         ).toLowerCase();
                                         const isPaid =
-                                            statusLower.includes("paid") ||
-                                            statusLower.includes("received");
+                                            pLower.includes("paid") &&
+                                            !pLower.includes("unpaid");
+                                        const isUnpaid =
+                                            pLower.includes("unpaid");
+                                        const isPaymentPending =
+                                            !isPaid && !isUnpaid;
+
+                                        // Reservation status
+                                        const rLower = (
+                                            res.reservationStatus || "Pending"
+                                        ).toLowerCase();
+                                        const isApproved =
+                                            rLower.includes("approv");
+                                        const isDeclined =
+                                            rLower.includes("decline");
+                                        const isResPending =
+                                            !isApproved && !isDeclined;
+
+                                        // Clean Payment option
+                                        const displayPaymentOption =
+                                            cleanPaymentOption(
+                                                res.paymentOption,
+                                            );
 
                                         return (
                                             <tr
@@ -684,204 +946,320 @@ export default function Index() {
                                                     res.confirmationNumber ||
                                                     index
                                                 }
-                                                className="transition-colors group hover:bg-purple/5"
+                                                className="transition-colors group hover:bg-slate-50/80"
                                             >
-                                                {/* 1. NO: Auto increment number */}
-                                                <td className="py-3 px-3 text-center font-bold text-slate-800">
+                                                {/* 1. NO */}
+                                                <td className="py-4 px-3 text-center font-bold text-slate-700">
                                                     {autoIncNo}
                                                 </td>
 
-                                                {/* 2. IMAGE: relevant car Main Image URLs */}
-                                                <td className="py-2 px-3 text-center">
-                                                    <div className="w-14 h-10 rounded-xl overflow-hidden bg-slate-100 border border-slate-200/80 mx-auto flex items-center justify-center shrink-0">
-                                                        {mainImage ? (
-                                                            <img
-                                                                src={mainImage}
-                                                                alt={carMake}
-                                                                className="w-full h-full object-cover"
-                                                                loading="lazy"
-                                                                onError={(
-                                                                    e,
-                                                                ) => {
-                                                                    (
-                                                                        e.currentTarget as HTMLElement
-                                                                    ).style.display =
-                                                                        "none";
-                                                                }}
-                                                            />
-                                                        ) : (
-                                                            <svg
-                                                                className="w-5 h-5 text-slate-300"
-                                                                fill="none"
-                                                                viewBox="0 0 24 24"
-                                                                stroke="currentColor"
-                                                            >
-                                                                <path
-                                                                    strokeLinecap="round"
-                                                                    strokeLinejoin="round"
-                                                                    strokeWidth={
-                                                                        1.5
-                                                                    }
-                                                                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                                                                />
-                                                            </svg>
-                                                        )}
+                                                {/* 2. RESERVATION ID / RENTAL DATE */}
+                                                <td className="py-4 px-4">
+                                                    {/* Confirmation Number Pill */}
+                                                    <div className="mb-2">
+                                                        <span className="inline-block px-3 py-1 rounded-full text-xs font-mono font-bold bg-purple/10 text-purple border border-purple/20">
+                                                            {
+                                                                res.confirmationNumber
+                                                            }
+                                                        </span>
                                                     </div>
-                                                </td>
 
-                                                {/* 3. DATE/ TIME PICK UP-RETURN: Line 1 dark (Pickup), Line 2 light (Return) */}
-                                                <td className="py-3 px-3.5">
-                                                    <div className="font-semibold text-slate-900 leading-snug flex items-center gap-1.5">
-                                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block shrink-0" />
+                                                    {/* Pickup Date & Time */}
+                                                    <div className="flex items-center gap-1.5 text-xs font-medium text-slate-800">
+                                                        <span className="text-emerald-600 font-bold">
+                                                            📅
+                                                        </span>
                                                         <span>
+                                                            <strong className="font-bold">
+                                                                Pickup:
+                                                            </strong>{" "}
                                                             {res.pickupDate ||
                                                                 "N/A"}{" "}
                                                             {res.pickupTime
-                                                                ? `• ${res.pickupTime}`
+                                                                ? `at ${res.pickupTime}`
                                                                 : ""}
                                                         </span>
                                                     </div>
-                                                    <div className="text-[11px] text-slate-500 font-medium leading-tight mt-0.5 flex items-center gap-1.5 pl-3">
-                                                        <span className="w-1.5 h-1.5 rounded-full bg-rose-400 inline-block shrink-0" />
+
+                                                    {/* Return Date & Time */}
+                                                    <div className="flex items-center gap-1.5 text-xs font-medium text-slate-700 mt-0.5">
+                                                        <span className="text-rose-500 font-bold">
+                                                            📅
+                                                        </span>
                                                         <span>
+                                                            <strong className="font-bold">
+                                                                Return:
+                                                            </strong>{" "}
                                                             {res.returnDate ||
                                                                 "N/A"}{" "}
                                                             {res.returnTime
-                                                                ? `• ${res.returnTime}`
+                                                                ? `at ${res.returnTime}`
                                                                 : ""}
+                                                        </span>
+                                                    </div>
+
+                                                    {/* Difference of dates */}
+                                                    <div className="text-[11px] font-bold text-slate-500 mt-1 pl-5">
+                                                        ({days}{" "}
+                                                        {days === 1
+                                                            ? "Day"
+                                                            : "Days"}
+                                                        )
+                                                    </div>
+                                                </td>
+
+                                                {/* 3. CUSTOMER INFO */}
+                                                <td className="py-4 px-4">
+                                                    {/* First & Last Name */}
+                                                    <div className="flex items-center gap-1.5 font-bold text-slate-900 text-xs sm:text-sm">
+                                                        <svg
+                                                            className="w-3.5 h-3.5 text-purple shrink-0"
+                                                            fill="none"
+                                                            viewBox="0 0 24 24"
+                                                            stroke="currentColor"
+                                                            strokeWidth={2}
+                                                        >
+                                                            <path
+                                                                strokeLinecap="round"
+                                                                strokeLinejoin="round"
+                                                                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                                                            />
+                                                        </svg>
+                                                        <span>
+                                                            {res.firstName}{" "}
+                                                            {res.lastName}
+                                                        </span>
+                                                    </div>
+
+                                                    {/* Email */}
+                                                    <div className="flex items-center gap-1.5 text-slate-600 text-xs mt-1 truncate max-w-[200px]">
+                                                        <svg
+                                                            className="w-3.5 h-3.5 text-slate-400 shrink-0"
+                                                            fill="none"
+                                                            viewBox="0 0 24 24"
+                                                            stroke="currentColor"
+                                                            strokeWidth={2}
+                                                        >
+                                                            <path
+                                                                strokeLinecap="round"
+                                                                strokeLinejoin="round"
+                                                                d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                                                            />
+                                                        </svg>
+                                                        <a
+                                                            href={`mailto:${res.email}`}
+                                                            className="hover:text-purple hover:underline truncate"
+                                                            title={res.email}
+                                                        >
+                                                            {res.email}
+                                                        </a>
+                                                    </div>
+
+                                                    {/* Phone */}
+                                                    <div className="flex items-center gap-1.5 text-slate-600 text-xs mt-1">
+                                                        <svg
+                                                            className="w-3.5 h-3.5 text-slate-400 shrink-0"
+                                                            fill="none"
+                                                            viewBox="0 0 24 24"
+                                                            stroke="currentColor"
+                                                            strokeWidth={2}
+                                                        >
+                                                            <path
+                                                                strokeLinecap="round"
+                                                                strokeLinejoin="round"
+                                                                d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+                                                            />
+                                                        </svg>
+                                                        <span>
+                                                            {res.phone || "-"}
                                                         </span>
                                                     </div>
                                                 </td>
 
-                                                {/* 4. LOCATION PICK UP-RETURN: Line 1 dark (Pickup Loc), Line 2 light (Return Loc) */}
-                                                <td className="py-3 px-3.5">
-                                                    <div
-                                                        className="font-semibold text-slate-900 leading-snug truncate max-w-[200px]"
-                                                        title={
-                                                            res.pickupLocation
-                                                        }
-                                                    >
-                                                        {res.pickupLocation ||
-                                                            "Wright Finder Motors"}
-                                                    </div>
-                                                    <div
-                                                        className="text-[11px] text-slate-500 leading-tight mt-0.5 truncate max-w-[200px]"
-                                                        title={
-                                                            res.returnLocation
-                                                        }
-                                                    >
-                                                        {res.returnLocation ||
-                                                            res.pickupLocation ||
-                                                            "-"}
+                                                {/* 4. VEHICLE INFO (2 subcolumns: left car image, right vehicle specs) */}
+                                                <td className="py-4 px-4">
+                                                    <div className="flex items-center gap-3">
+                                                        {/* Left side: Car Image */}
+                                                        <div className="w-16 h-12 rounded-xl overflow-hidden bg-slate-100 border border-slate-200/80 shrink-0 flex items-center justify-center shadow-sm">
+                                                            {mainImage ? (
+                                                                <img
+                                                                    src={
+                                                                        mainImage
+                                                                    }
+                                                                    alt={
+                                                                        car?.make ||
+                                                                        "Vehicle"
+                                                                    }
+                                                                    className="w-full h-full object-cover"
+                                                                    loading="lazy"
+                                                                    onError={(
+                                                                        e,
+                                                                    ) => {
+                                                                        (
+                                                                            e.currentTarget as HTMLElement
+                                                                        ).style.display =
+                                                                            "none";
+                                                                    }}
+                                                                />
+                                                            ) : (
+                                                                <span className="text-xs text-slate-400">
+                                                                    🚗
+                                                                </span>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Right side: Vehicle Details */}
+                                                        <div className="min-w-0">
+                                                            {/* Year + Car Name + Model */}
+                                                            <div className="font-bold text-slate-900 leading-snug truncate">
+                                                                {[
+                                                                    car?.year,
+                                                                    car?.make,
+                                                                    car?.model,
+                                                                ]
+                                                                    .filter(
+                                                                        Boolean,
+                                                                    )
+                                                                    .join(
+                                                                        " ",
+                                                                    ) ||
+                                                                    res.carTitle ||
+                                                                    "Vehicle"}
+                                                            </div>
+
+                                                            {/* Body Style and Fuel Type */}
+                                                            <div className="text-[11px] text-slate-600 font-medium leading-tight mt-0.5">
+                                                                {car?.bodyStyle ||
+                                                                    "Sedan"}{" "}
+                                                                |{" "}
+                                                                {car?.fuelType ||
+                                                                    "Gasoline"}
+                                                            </div>
+
+                                                            {/* Car ID */}
+                                                            <div className="text-[11px] text-slate-500 font-medium mt-0.5">
+                                                                Stock ID:{" "}
+                                                                <span className="font-mono font-bold text-slate-700">
+                                                                    {res.carId ||
+                                                                        car?.id ||
+                                                                        "-"}
+                                                                </span>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </td>
 
-                                                {/* 5. MAKE/ MODEL-TRIM: Line 1 dark (Car Name), Line 2 light (Model-Trim) */}
-                                                <td className="py-3 px-3.5">
-                                                    <div className="font-semibold text-slate-900 leading-snug">
-                                                        {carMake}
-                                                    </div>
-                                                    <div className="text-[11px] text-slate-500 font-medium leading-tight mt-0.5">
-                                                        {modelTrim}
-                                                    </div>
-                                                </td>
-
-                                                {/* 6. YEAR/ BODY STYLE: Line 1 dark (Year), Line 2 light (Body Style) */}
-                                                <td className="py-3 px-3">
-                                                    <div className="font-semibold text-slate-900">
-                                                        {carYear}
-                                                    </div>
-                                                    <div className="text-[11px] text-slate-500 leading-tight mt-0.5">
-                                                        {bodyStyle}
-                                                    </div>
-                                                </td>
-
-                                                {/* 7. DRIVETRAIN/ FUEL TYPE: Line 1 dark (Driveline), Line 2 light (Fuel Type) */}
-                                                <td className="py-3 px-3">
-                                                    <div className="font-semibold text-slate-900">
-                                                        {driveline}
-                                                    </div>
-                                                    <div className="text-[11px] text-slate-500 leading-tight mt-0.5">
-                                                        {fuelType}
-                                                    </div>
-                                                </td>
-
-                                                {/* 8. TOTAL PRICE/ DISCOUNT: Line 1 dark (Gross rate * days), Line 2 light (Estimated Total) */}
-                                                <td className="py-3 px-3.5">
-                                                    <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                                                {/* 5. PRICE & SAVINGS */}
+                                                <td className="py-4 px-4 font-sans text-xs">
+                                                    {/* Before Coupon */}
+                                                    <div className="text-slate-600 flex items-center justify-between gap-2">
                                                         <span>
+                                                            Before Coupon:
+                                                        </span>
+                                                        <span className="font-bold text-slate-900">
                                                             {formatCurrency(
                                                                 grossTotal,
                                                             )}
                                                         </span>
-                                                        <span className="text-[10px] text-slate-500 font-normal">
-                                                            ({days}{" "}
-                                                            {days === 1
-                                                                ? "day"
-                                                                : "days"}
-                                                            )
-                                                        </span>
                                                     </div>
-                                                    <div className="text-[11px] leading-tight mt-0.5">
-                                                        <span className="text-emerald-600 font-semibold">
-                                                            Est:{" "}
+
+                                                    {/* Coupon with reduce cost */}
+                                                    <div className="text-slate-600 flex items-center justify-between gap-2 mt-0.5">
+                                                        <span>Coupon:</span>
+                                                        {hasCoupon ? (
+                                                            <span className="font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                                                                {res.couponCode}{" "}
+                                                                (-
+                                                                {formatCurrency(
+                                                                    couponSavings,
+                                                                )}
+                                                                )
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-slate-400">
+                                                                —
+                                                            </span>
+                                                        )}
+                                                    </div>
+
+                                                    {/* After Coupon */}
+                                                    <div className="text-slate-700 flex items-center justify-between gap-2 mt-0.5">
+                                                        <span>
+                                                            After Coupon:
+                                                        </span>
+                                                        <span className="font-black text-slate-900 text-sm">
                                                             {formatCurrency(
-                                                                estimatedTotalVal,
+                                                                finalTotal,
                                                             )}
                                                         </span>
-                                                        {grossTotal >
-                                                            estimatedTotalVal && (
-                                                            <span className="text-slate-400 ml-1 line-through">
+                                                    </div>
+
+                                                    {/* Savings cost Badge */}
+                                                    <div className="mt-1.5">
+                                                        {couponSavings > 0 ? (
+                                                            <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                                                Savings:{" "}
                                                                 {formatCurrency(
-                                                                    grossTotal,
-                                                                )}
+                                                                    couponSavings,
+                                                                )}{" "}
+                                                                ({savingsPct}%)
+                                                            </span>
+                                                        ) : (
+                                                            <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-500">
+                                                                Savings: $0
                                                             </span>
                                                         )}
                                                     </div>
                                                 </td>
 
-                                                {/* 9. PAYMENT STATUS: Line 1 status badge */}
-                                                <td className="py-3 px-3 text-center">
-                                                    {(() => {
-                                                        const isPending =
-                                                            !res.paymentStatus ||
-                                                            statusLower.includes(
-                                                                "no payment",
-                                                            ) ||
-                                                            statusLower.includes(
-                                                                "pending",
-                                                            );
-
-                                                        if (isPending) {
-                                                            return (
-                                                                <span className="inline-block px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
-                                                                    Pending
-                                                                </span>
-                                                            );
-                                                        }
-
-                                                        if (isPaid) {
-                                                            return (
-                                                                <span className="inline-block px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                                                                    Paid
-                                                                </span>
-                                                            );
-                                                        }
-
-                                                        return (
-                                                            <span className="inline-block px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-800 border border-slate-200">
-                                                                {
-                                                                    res.paymentStatus
-                                                                }
+                                                {/* 6. PAYMENT */}
+                                                <td className="py-4 px-4 text-center">
+                                                    {/* Payment Status Pill */}
+                                                    <div className="mb-1">
+                                                        {isPaid && (
+                                                            <span className="inline-block px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                                                Paid
                                                             </span>
-                                                        );
-                                                    })()}
+                                                        )}
+                                                        {isPaymentPending && (
+                                                            <span className="inline-block px-3 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
+                                                                Pending
+                                                            </span>
+                                                        )}
+                                                        {isUnpaid && (
+                                                            <span className="inline-block px-3 py-1 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                                                                Unpaid
+                                                            </span>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Payment Option */}
+                                                    <div className="text-xs font-semibold text-slate-700">
+                                                        {displayPaymentOption}
+                                                    </div>
                                                 </td>
 
-                                                {/* 10. ACTION BUTTONS: Icon only (View Details & Print) */}
-                                                <td className="py-3 px-4 text-center">
+                                                {/* 7. STATUS */}
+                                                <td className="py-4 px-4 text-center">
+                                                    {isApproved ? (
+                                                        <span className="inline-block px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                                            Approved
+                                                        </span>
+                                                    ) : isDeclined ? (
+                                                        <span className="inline-block px-3 py-1 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                                                            Declined
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-block px-3 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
+                                                            Pending
+                                                        </span>
+                                                    )}
+                                                </td>
+
+                                                {/* 8. ACTIONS */}
+                                                <td className="py-4 px-4 text-center">
                                                     <div className="flex items-center justify-center gap-1.5">
-                                                        {/* View Details Modal Icon */}
+                                                        {/* 1. View button */}
                                                         <button
                                                             type="button"
                                                             onClick={() =>
@@ -889,62 +1267,124 @@ export default function Index() {
                                                                     res,
                                                                 )
                                                             }
-                                                            title="View Reservation Details"
-                                                            aria-label="View Reservation Details"
-                                                            className="p-1.5 rounded-lg text-slate-600 hover:text-white hover:bg-dark-purple bg-slate-50 border border-slate-200 transition active:scale-95 shadow-sm inline-flex items-center justify-center"
+                                                            title="View Details"
+                                                            aria-label="View Details"
+                                                            className="p-1.5 rounded-lg text-slate-600 hover:text-white hover:bg-dark-purple bg-slate-50 border border-slate-200 transition shadow-sm"
                                                         >
                                                             <svg
                                                                 className="w-4 h-4"
                                                                 fill="none"
                                                                 viewBox="0 0 24 24"
                                                                 stroke="currentColor"
+                                                                strokeWidth={2}
                                                             >
                                                                 <path
                                                                     strokeLinecap="round"
                                                                     strokeLinejoin="round"
-                                                                    strokeWidth={
-                                                                        2
-                                                                    }
                                                                     d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
                                                                 />
                                                                 <path
                                                                     strokeLinecap="round"
                                                                     strokeLinejoin="round"
-                                                                    strokeWidth={
-                                                                        2
-                                                                    }
                                                                     d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
                                                                 />
                                                             </svg>
                                                         </button>
 
-                                                        {/* Print Reservation Icon */}
+                                                        {/* 2. Edit button */}
                                                         <button
                                                             type="button"
                                                             onClick={() =>
-                                                                handlePrintReservation(
+                                                                handleOpenEditModal(
                                                                     res,
                                                                 )
                                                             }
-                                                            title="Print Reservation Voucher"
-                                                            aria-label="Print Reservation Voucher"
-                                                            className="p-1.5 rounded-lg text-slate-600 hover:text-white hover:bg-purple bg-slate-50 border border-slate-200 transition active:scale-95 shadow-sm inline-flex items-center justify-center"
+                                                            title="Edit Reservation"
+                                                            aria-label="Edit Reservation"
+                                                            className="p-1.5 rounded-lg text-slate-600 hover:text-white hover:bg-purple bg-slate-50 border border-slate-200 transition shadow-sm"
                                                         >
                                                             <svg
                                                                 className="w-4 h-4"
                                                                 fill="none"
                                                                 viewBox="0 0 24 24"
                                                                 stroke="currentColor"
+                                                                strokeWidth={2}
                                                             >
                                                                 <path
                                                                     strokeLinecap="round"
                                                                     strokeLinejoin="round"
+                                                                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                                                />
+                                                            </svg>
+                                                        </button>
+
+                                                        {/* 3. Reservation button (Status indicator & switcher) */}
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                handleOpenResStatusModal(
+                                                                    res,
+                                                                )
+                                                            }
+                                                            title={`Reservation Status: ${res.reservationStatus || "Pending"} (Click to change: Pending, Approved, Declined)`}
+                                                            aria-label="Change Reservation Status"
+                                                            className={`p-1.5 rounded-lg border transition shadow-sm ${
+                                                                isApproved
+                                                                    ? "text-emerald-700 hover:bg-emerald-100 bg-emerald-50 border-emerald-200"
+                                                                    : isDeclined
+                                                                      ? "text-rose-700 hover:bg-rose-100 bg-rose-50 border-rose-200"
+                                                                      : "text-amber-800 hover:bg-amber-100 bg-amber-50 border-amber-200"
+                                                            }`}
+                                                        >
+                                                            {isApproved ? (
+                                                                <svg
+                                                                    className="w-4 h-4"
+                                                                    fill="none"
+                                                                    viewBox="0 0 24 24"
+                                                                    stroke="currentColor"
+                                                                    strokeWidth={
+                                                                        2.5
+                                                                    }
+                                                                >
+                                                                    <path
+                                                                        strokeLinecap="round"
+                                                                        strokeLinejoin="round"
+                                                                        d="M5 13l4 4L19 7"
+                                                                    />
+                                                                </svg>
+                                                            ) : isDeclined ? (
+                                                                <svg
+                                                                    className="w-4 h-4"
+                                                                    fill="none"
+                                                                    viewBox="0 0 24 24"
+                                                                    stroke="currentColor"
+                                                                    strokeWidth={
+                                                                        2.5
+                                                                    }
+                                                                >
+                                                                    <path
+                                                                        strokeLinecap="round"
+                                                                        strokeLinejoin="round"
+                                                                        d="M6 18L18 6M6 6l12 12"
+                                                                    />
+                                                                </svg>
+                                                            ) : (
+                                                                <svg
+                                                                    className="w-4 h-4"
+                                                                    fill="none"
+                                                                    viewBox="0 0 24 24"
+                                                                    stroke="currentColor"
                                                                     strokeWidth={
                                                                         2
                                                                     }
-                                                                    d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
-                                                                />
-                                                            </svg>
+                                                                >
+                                                                    <path
+                                                                        strokeLinecap="round"
+                                                                        strokeLinejoin="round"
+                                                                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                                                    />
+                                                                </svg>
+                                                            )}
                                                         </button>
                                                     </div>
                                                 </td>
@@ -1034,31 +1474,35 @@ export default function Index() {
                                         className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
                                             (selectedRes.paymentStatus || "")
                                                 .toLowerCase()
-                                                .includes("no payment") ||
-                                            (selectedRes.paymentStatus || "")
+                                                .includes("paid") &&
+                                            !(selectedRes.paymentStatus || "")
                                                 .toLowerCase()
-                                                .includes("pending") ||
-                                            !selectedRes.paymentStatus
-                                                ? "bg-amber-100 text-amber-900 border border-amber-200"
+                                                .includes("unpaid")
+                                                ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
                                                 : (
                                                         selectedRes.paymentStatus ||
                                                         ""
                                                     )
                                                         .toLowerCase()
-                                                        .includes("paid")
-                                                  ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                                                  : "bg-slate-100 text-slate-800 border border-slate-200"
+                                                        .includes("unpaid")
+                                                  ? "bg-rose-100 text-rose-800 border border-rose-200"
+                                                  : "bg-amber-100 text-amber-900 border border-amber-200"
                                         }`}
                                     >
-                                        {(selectedRes.paymentStatus || "")
-                                            .toLowerCase()
-                                            .includes("no payment") ||
-                                        (selectedRes.paymentStatus || "")
-                                            .toLowerCase()
-                                            .includes("pending") ||
-                                        !selectedRes.paymentStatus
-                                            ? "Pending"
-                                            : selectedRes.paymentStatus}
+                                        Payment:{" "}
+                                        {selectedRes.paymentStatus || "Pending"}
+                                    </span>
+                                    <span
+                                        className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                                            selectedRes.reservationStatus ===
+                                            "Approved"
+                                                ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                                : "bg-amber-100 text-amber-900 border border-amber-200"
+                                        }`}
+                                    >
+                                        Reservation:{" "}
+                                        {selectedRes.reservationStatus ||
+                                            "Pending"}
                                     </span>
                                 </div>
                                 <h3 className="text-lg font-black text-slate-900 mt-1">
@@ -1100,102 +1544,93 @@ export default function Index() {
                                 <h4 className="font-bold uppercase tracking-wider text-slate-500 text-[10px]">
                                     Primary Driver
                                 </h4>
-                                <div className="font-bold text-slate-900 text-sm">
-                                    {selectedRes.firstName}{" "}
-                                    {selectedRes.lastName}
+                                <div className="space-y-1">
+                                    <p className="font-bold text-slate-900 text-sm">
+                                        {selectedRes.firstName}{" "}
+                                        {selectedRes.lastName}
+                                    </p>
+                                    <p className="text-slate-600">
+                                        Email:{" "}
+                                        <a
+                                            href={`mailto:${selectedRes.email}`}
+                                            className="text-purple hover:underline"
+                                        >
+                                            {selectedRes.email}
+                                        </a>
+                                    </p>
+                                    <p className="text-slate-600">
+                                        Mobile: {selectedRes.phone || "N/A"}
+                                    </p>
+                                    <p className="text-slate-600">
+                                        Age: {selectedRes.age || "N/A"} •
+                                        Residency:{" "}
+                                        {selectedRes.residency || "N/A"}
+                                    </p>
                                 </div>
-                                <p className="text-slate-600">
-                                    <span className="font-semibold text-slate-700">
-                                        Email:
-                                    </span>{" "}
-                                    <a
-                                        href={`mailto:${selectedRes.email}`}
-                                        className="text-vivid-red hover:underline"
-                                    >
-                                        {selectedRes.email}
-                                    </a>
-                                </p>
-                                <p className="text-slate-600">
-                                    <span className="font-semibold text-slate-700">
-                                        Phone:
-                                    </span>{" "}
-                                    <a
-                                        href={`tel:${selectedRes.phone}`}
-                                        className="text-dark-purple hover:underline"
-                                    >
-                                        {selectedRes.phone || "N/A"}
-                                    </a>
-                                </p>
-                                <p className="text-slate-600">
-                                    <span className="font-semibold text-slate-700">
-                                        Age Qualification:
-                                    </span>{" "}
-                                    {selectedRes.age || "25+"}
-                                </p>
-                                <p className="text-slate-600">
-                                    <span className="font-semibold text-slate-700">
-                                        Residency:
-                                    </span>{" "}
-                                    {selectedRes.residency || "United States"}
-                                </p>
                             </div>
 
-                            {/* Schedule & Rate */}
+                            {/* Schedule & Pickup */}
                             <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
                                 <h4 className="font-bold uppercase tracking-wider text-slate-500 text-[10px]">
-                                    Rental Itinerary & Payment
+                                    Trip Schedule
                                 </h4>
-                                <p className="text-slate-700">
-                                    <span className="font-semibold">
-                                        Pickup:
-                                    </span>{" "}
-                                    {selectedRes.pickupDate} (
-                                    {selectedRes.pickupTime})
-                                </p>
-                                <p
-                                    className="text-slate-600 text-[11px] truncate"
-                                    title={selectedRes.pickupLocation}
-                                >
-                                    📍 {selectedRes.pickupLocation}
-                                </p>
-                                <p className="text-slate-700 mt-1">
-                                    <span className="font-semibold">
-                                        Return:
-                                    </span>{" "}
-                                    {selectedRes.returnDate} (
-                                    {selectedRes.returnTime})
-                                </p>
-                                <p
-                                    className="text-slate-600 text-[11px] truncate"
-                                    title={selectedRes.returnLocation}
-                                >
-                                    📍{" "}
-                                    {selectedRes.returnLocation ||
-                                        selectedRes.pickupLocation}
-                                </p>
-                                <p className="text-slate-700 pt-1 border-t border-slate-200">
-                                    <span className="font-semibold">
-                                        Payment Option:
-                                    </span>{" "}
-                                    {selectedRes.paymentOption || "In Person"}
-                                </p>
-                                <div className="text-base font-extrabold text-emerald-600">
-                                    Total:{" "}
+                                <div className="space-y-1.5">
+                                    <div>
+                                        <span className="font-bold text-slate-800">
+                                            Pickup:
+                                        </span>{" "}
+                                        {selectedRes.pickupDate} at{" "}
+                                        {selectedRes.pickupTime}
+                                        <p className="text-[11px] text-slate-500">
+                                            {selectedRes.pickupLocation}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <span className="font-bold text-slate-800">
+                                            Return:
+                                        </span>{" "}
+                                        {selectedRes.returnDate} at{" "}
+                                        {selectedRes.returnTime}
+                                        <p className="text-[11px] text-slate-500">
+                                            {selectedRes.returnLocation ||
+                                                selectedRes.pickupLocation}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Financial / Coupon Summary */}
+                        <div className="mt-4 p-4 rounded-2xl bg-purple/5 border border-purple/10 flex flex-wrap items-center justify-between gap-4 text-xs">
+                            <div>
+                                <span className="text-[10px] uppercase font-bold text-slate-500 block">
+                                    Payment Method &amp; Option
+                                </span>
+                                <span className="font-bold text-slate-900 text-sm">
+                                    {cleanPaymentOption(
+                                        selectedRes.paymentOption,
+                                    )}
+                                </span>
+                                {selectedRes.couponCode && (
+                                    <div className="mt-1">
+                                        <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-[11px]">
+                                            Applied Coupon:{" "}
+                                            {selectedRes.couponCode}
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="text-right">
+                                <span className="text-[10px] uppercase font-bold text-slate-500 block">
+                                    Total Amount
+                                </span>
+                                <span className="text-xl font-black text-slate-900">
                                     {formatCurrency(
                                         selectedRes.estimatedTotal ||
                                             selectedRes.rentalRate ||
                                             0,
                                     )}
-                                    {selectedRes.discount > 0 && (
-                                        <span className="text-xs text-slate-400 font-normal ml-1">
-                                            (Savings:{" "}
-                                            {formatCurrency(
-                                                selectedRes.discount,
-                                            )}
-                                            )
-                                        </span>
-                                    )}
-                                </div>
+                                </span>
                             </div>
                         </div>
 
@@ -1279,6 +1714,468 @@ export default function Index() {
                 </div>
             )}
 
+            {/* PAYMENT APPROVAL MODAL */}
+            {paymentModalRes && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
+                    onClick={() => setPaymentModalRes(null)}
+                >
+                    <div
+                        className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-gray-100 relative"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+                            <div>
+                                <h3 className="text-base font-black text-slate-900">
+                                    Approve &amp; Update Payment
+                                </h3>
+                                <p className="text-xs text-slate-500">
+                                    Reservation #
+                                    {paymentModalRes.confirmationNumber}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setPaymentModalRes(null)}
+                                className="text-slate-400 hover:text-slate-600 font-bold"
+                            >
+                                &times;
+                            </button>
+                        </div>
+
+                        {/* Note about separate approval */}
+                        <div className="mb-4 p-3 rounded-xl bg-purple/10 border border-purple/20 text-xs text-purple font-medium">
+                            <strong>Note:</strong> Payment approval and
+                            Reservation approval are completely separate.
+                            Marking payment as Paid will not automatically
+                            approve the reservation.
+                        </div>
+
+                        <div className="space-y-4 text-xs">
+                            {/* Payment Status Dropdown */}
+                            <div>
+                                <label className="block font-bold uppercase text-slate-700 mb-1">
+                                    Payment Status
+                                </label>
+                                <select
+                                    value={approvalPaymentStatus}
+                                    onChange={(e) =>
+                                        setApprovalPaymentStatus(
+                                            e.target.value as any,
+                                        )
+                                    }
+                                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 text-slate-800 font-semibold rounded-xl focus:ring-2 focus:ring-purple/40"
+                                >
+                                    <option value="Paid">
+                                        Paid (Payment Received)
+                                    </option>
+                                    <option value="Pending">
+                                        Pending (Awaiting Payment)
+                                    </option>
+                                    <option value="Unpaid">Unpaid</option>
+                                </select>
+                            </div>
+
+                            {/* Payment Method / Option */}
+                            <div>
+                                <label className="block font-bold uppercase text-slate-700 mb-1">
+                                    Payment Option (Google Sheet column saves
+                                    clean name only)
+                                </label>
+                                <select
+                                    value={approvalPaymentOption}
+                                    onChange={(e) =>
+                                        setApprovalPaymentOption(e.target.value)
+                                    }
+                                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 text-slate-800 font-semibold rounded-xl focus:ring-2 focus:ring-purple/40"
+                                >
+                                    <option value="Zelle">Zelle</option>
+                                    <option value="Cash App">Cash App</option>
+                                    <option value="In Person">
+                                        In Person / Cash
+                                    </option>
+                                </select>
+                            </div>
+
+                            {/* Coverage (Full or Partial deposit) */}
+                            <div>
+                                <label className="block font-bold uppercase text-slate-700 mb-1">
+                                    Payment Scope
+                                </label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setApprovalCoverage("full")
+                                        }
+                                        className={`py-2 px-3 rounded-xl font-bold border transition text-center ${
+                                            approvalCoverage === "full"
+                                                ? "bg-dark-purple text-white border-dark-purple shadow-sm"
+                                                : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
+                                        }`}
+                                    >
+                                        Full Amount
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setApprovalCoverage("partial")
+                                        }
+                                        className={`py-2 px-3 rounded-xl font-bold border transition text-center ${
+                                            approvalCoverage === "partial"
+                                                ? "bg-dark-purple text-white border-dark-purple shadow-sm"
+                                                : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
+                                        }`}
+                                    >
+                                        Partial / Deposit
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Modal Action Buttons */}
+                        <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-end gap-2.5">
+                            <button
+                                type="button"
+                                onClick={() => setPaymentModalRes(null)}
+                                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold text-xs transition"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleSavePaymentApproval}
+                                disabled={isUpdatingPayment}
+                                className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition shadow-sm disabled:opacity-50"
+                            >
+                                {isUpdatingPayment
+                                    ? "Saving..."
+                                    : "Confirm Payment Status"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* RESERVATION STATUS CHANGE MODAL */}
+            {resStatusModalRes && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
+                    onClick={() => setResStatusModalRes(null)}
+                >
+                    <div
+                        className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-gray-100 relative text-center"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="w-14 h-14 mx-auto rounded-2xl bg-purple/10 text-purple flex items-center justify-center mb-3">
+                            <svg
+                                className="w-7 h-7"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                />
+                            </svg>
+                        </div>
+
+                        <h3 className="text-base font-black text-slate-900">
+                            Change Reservation Status
+                        </h3>
+                        <p className="text-xs text-slate-500 mt-1">
+                            Reservation #{resStatusModalRes.confirmationNumber}{" "}
+                            for {resStatusModalRes.firstName}{" "}
+                            {resStatusModalRes.lastName}
+                        </p>
+
+                        <div className="my-5 p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 text-left space-y-3">
+                            <div className="flex items-center justify-between text-xs">
+                                <span className="text-slate-500 font-semibold">
+                                    Current Status:
+                                </span>
+                                <span
+                                    className={`px-2.5 py-0.5 rounded-full font-bold text-[11px] ${
+                                        (
+                                            resStatusModalRes.reservationStatus ||
+                                            ""
+                                        )
+                                            .toLowerCase()
+                                            .includes("approv")
+                                            ? "bg-emerald-100 text-emerald-800"
+                                            : (
+                                                    resStatusModalRes.reservationStatus ||
+                                                    ""
+                                                )
+                                                    .toLowerCase()
+                                                    .includes("decline")
+                                              ? "bg-rose-100 text-rose-800"
+                                              : "bg-amber-100 text-amber-900"
+                                    }`}
+                                >
+                                    {resStatusModalRes.reservationStatus ||
+                                        "Pending"}
+                                </span>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-2">
+                                    Select New Status:
+                                </label>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {(
+                                        [
+                                            "Pending",
+                                            "Approved",
+                                            "Declined",
+                                        ] as const
+                                    ).map((status) => {
+                                        const isSelected =
+                                            targetResStatus === status;
+                                        const colorClass =
+                                            status === "Approved"
+                                                ? isSelected
+                                                    ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
+                                                    : "bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100"
+                                                : status === "Declined"
+                                                  ? isSelected
+                                                      ? "bg-rose-600 text-white border-rose-600 shadow-sm"
+                                                      : "bg-rose-50 text-rose-800 border-rose-200 hover:bg-rose-100"
+                                                  : isSelected
+                                                    ? "bg-amber-600 text-white border-amber-600 shadow-sm"
+                                                    : "bg-amber-50 text-amber-900 border-amber-200 hover:bg-amber-100";
+
+                                        return (
+                                            <button
+                                                key={status}
+                                                type="button"
+                                                onClick={() =>
+                                                    setTargetResStatus(status)
+                                                }
+                                                className={`py-2 px-2 rounded-xl text-xs font-bold border transition text-center flex items-center justify-center gap-1.5 ${colorClass}`}
+                                            >
+                                                {status === "Approved"}
+                                                {status === "Declined"}
+                                                {status === "Pending"}
+                                                <span>{status}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2.5">
+                            <button
+                                type="button"
+                                onClick={() => setResStatusModalRes(null)}
+                                className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs transition"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleSaveResStatus}
+                                disabled={isUpdatingResStatus}
+                                className={`px-4 py-2.5 rounded-xl text-white font-bold text-xs transition shadow-sm ${
+                                    targetResStatus === "Approved"
+                                        ? "bg-emerald-600 hover:bg-emerald-700"
+                                        : targetResStatus === "Declined"
+                                          ? "bg-rose-600 hover:bg-rose-700"
+                                          : "bg-amber-600 hover:bg-amber-700"
+                                }`}
+                            >
+                                {isUpdatingResStatus
+                                    ? "Saving..."
+                                    : `Mark as ${targetResStatus}`}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* EDIT RESERVATION MODAL */}
+            {editingRes && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
+                    onClick={() => setEditingRes(null)}
+                >
+                    <div
+                        className="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-gray-100 relative max-h-[90vh] overflow-y-auto"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+                            <div>
+                                <h3 className="text-base font-black text-slate-900">
+                                    Edit Reservation Details
+                                </h3>
+                                <p className="text-xs text-slate-500">
+                                    #{editingRes.confirmationNumber}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setEditingRes(null)}
+                                className="text-slate-400 hover:text-slate-600 font-bold text-lg"
+                            >
+                                &times;
+                            </button>
+                        </div>
+
+                        <form
+                            onSubmit={handleSaveEditForm}
+                            className="space-y-4 text-xs"
+                        >
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block font-bold text-slate-700 uppercase mb-1">
+                                        First Name
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={editForm.firstName}
+                                        onChange={(e) =>
+                                            setEditForm({
+                                                ...editForm,
+                                                firstName: e.target.value,
+                                            })
+                                        }
+                                        className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block font-bold text-slate-700 uppercase mb-1">
+                                        Last Name
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={editForm.lastName}
+                                        onChange={(e) =>
+                                            setEditForm({
+                                                ...editForm,
+                                                lastName: e.target.value,
+                                            })
+                                        }
+                                        className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40"
+                                        required
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block font-bold text-slate-700 uppercase mb-1">
+                                        Email
+                                    </label>
+                                    <input
+                                        type="email"
+                                        value={editForm.email}
+                                        onChange={(e) =>
+                                            setEditForm({
+                                                ...editForm,
+                                                email: e.target.value,
+                                            })
+                                        }
+                                        className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block font-bold text-slate-700 uppercase mb-1">
+                                        Phone
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={editForm.phone}
+                                        onChange={(e) =>
+                                            setEditForm({
+                                                ...editForm,
+                                                phone: e.target.value,
+                                            })
+                                        }
+                                        className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block font-bold text-slate-700 uppercase mb-1">
+                                        Pickup Date
+                                    </label>
+                                    <input
+                                        type="date"
+                                        value={editForm.pickupDate}
+                                        onChange={(e) =>
+                                            setEditForm({
+                                                ...editForm,
+                                                pickupDate: e.target.value,
+                                            })
+                                        }
+                                        className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block font-bold text-slate-700 uppercase mb-1">
+                                        Return Date
+                                    </label>
+                                    <input
+                                        type="date"
+                                        value={editForm.returnDate}
+                                        onChange={(e) =>
+                                            setEditForm({
+                                                ...editForm,
+                                                returnDate: e.target.value,
+                                            })
+                                        }
+                                        className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40"
+                                        required
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block font-bold text-slate-700 uppercase mb-1">
+                                    Notes
+                                </label>
+                                <textarea
+                                    rows={2}
+                                    value={editForm.notes}
+                                    onChange={(e) =>
+                                        setEditForm({
+                                            ...editForm,
+                                            notes: e.target.value,
+                                        })
+                                    }
+                                    className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40"
+                                />
+                            </div>
+
+                            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                                <button
+                                    type="button"
+                                    onClick={() => setEditingRes(null)}
+                                    className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-5 py-2 rounded-xl bg-dark-purple text-white font-bold hover:bg-purple transition shadow-sm"
+                                >
+                                    Save Changes
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
             {/* ALERT MODAL */}
             {alertModal.isOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
@@ -1292,11 +2189,11 @@ export default function Index() {
                                 fill="none"
                                 viewBox="0 0 24 24"
                                 stroke="currentColor"
+                                strokeWidth={2.5}
                             >
                                 <path
                                     strokeLinecap="round"
                                     strokeLinejoin="round"
-                                    strokeWidth={2.5}
                                     d="M5 13l4 4L19 7"
                                 />
                             </svg>

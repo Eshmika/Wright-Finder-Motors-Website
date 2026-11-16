@@ -303,6 +303,8 @@ export interface ReservationRecord {
     carTitle: string;
     rentalRate: number;
     discount: number;
+    couponCode?: string;
+    couponDiscount?: number;
     estimatedTotal: number;
     firstName: string;
     lastName: string;
@@ -318,6 +320,7 @@ export interface ReservationRecord {
     returnTime: string;
     paymentOption: string;
     paymentStatus: string;
+    reservationStatus?: string;
     notes: string;
     // Joined vehicle details
     vehicle?: DetailedVehicle;
@@ -346,6 +349,11 @@ export async function fetchAllReservations(): Promise<ReservationRecord[]> {
     const carTitleIdx = getIndex("Car Title");
     const rentalRateIdx = getIndex("Rental Rate");
     const discountIdx = getIndex("Discount");
+    const couponCodeIdx =
+        getIndex("Coupon Code") !== -1
+            ? getIndex("Coupon Code")
+            : getIndex("Coupon");
+    const couponDiscountIdx = getIndex("Coupon Discount");
     let estTotalIdx = getIndex("Estimated Total");
     if (estTotalIdx === -1) {
         estTotalIdx = getIndex("Total Estimate");
@@ -373,6 +381,10 @@ export async function fetchAllReservations(): Promise<ReservationRecord[]> {
             : getIndex("Return Time");
     const paymentOptionIdx = getIndex("Payment Option");
     const paymentStatusIdx = getIndex("Payment Status");
+    const resStatusIdx =
+        getIndex("Reservation Status") !== -1
+            ? getIndex("Reservation Status")
+            : getIndex("Status");
     const notesIdx =
         getIndex("Special Notes") !== -1
             ? getIndex("Special Notes")
@@ -398,10 +410,48 @@ export async function fetchAllReservations(): Promise<ReservationRecord[]> {
             discountIdx !== -1
                 ? parseFloat(row[discountIdx]?.replace(/[^0-9.]/g, "") || "0")
                 : 0;
+        const couponCode =
+            couponCodeIdx !== -1 ? row[couponCodeIdx]?.trim() || "" : "";
+        const couponDiscount =
+            couponDiscountIdx !== -1
+                ? parseFloat(
+                      row[couponDiscountIdx]?.replace(/[^0-9.]/g, "") || "0",
+                  )
+                : 0;
         const estimatedTotal =
             estTotalIdx !== -1
                 ? parseFloat(row[estTotalIdx]?.replace(/[^0-9.]/g, "") || "0")
                 : 0;
+
+        const rawPaymentStatus =
+            paymentStatusIdx !== -1 ? row[paymentStatusIdx]?.trim() || "" : "";
+        let paymentStatus = "Pending";
+        const plower = rawPaymentStatus.toLowerCase();
+        if (plower.includes("paid") && !plower.includes("unpaid")) {
+            paymentStatus = "Paid";
+        } else if (plower.includes("unpaid")) {
+            paymentStatus = "Unpaid";
+        } else if (
+            plower.includes("pending") ||
+            plower.includes("no payment") ||
+            !rawPaymentStatus
+        ) {
+            paymentStatus = "Pending";
+        } else {
+            paymentStatus = rawPaymentStatus;
+        }
+
+        const rawResStatus =
+            resStatusIdx !== -1 ? row[resStatusIdx]?.trim() || "" : "";
+        let reservationStatus = "Pending";
+        const rlower = rawResStatus.toLowerCase();
+        if (rlower.includes("approv")) {
+            reservationStatus = "Approved";
+        } else if (rlower.includes("decline") || rlower.includes("reject")) {
+            reservationStatus = "Declined";
+        } else {
+            reservationStatus = "Pending";
+        }
 
         reservations.push({
             confirmationNumber,
@@ -411,6 +461,8 @@ export async function fetchAllReservations(): Promise<ReservationRecord[]> {
             carTitle: carTitleIdx !== -1 ? row[carTitleIdx]?.trim() || "" : "",
             rentalRate,
             discount,
+            couponCode,
+            couponDiscount,
             estimatedTotal,
             firstName:
                 firstNameIdx !== -1 ? row[firstNameIdx]?.trim() || "" : "",
@@ -436,11 +488,8 @@ export async function fetchAllReservations(): Promise<ReservationRecord[]> {
                 paymentOptionIdx !== -1
                     ? row[paymentOptionIdx]?.trim() || ""
                     : "",
-            paymentStatus:
-                paymentStatusIdx !== -1
-                    ? row[paymentStatusIdx]?.trim() ||
-                      "No payment received (Pending Reservation)"
-                    : "No payment received (Pending Reservation)",
+            paymentStatus,
+            reservationStatus,
             notes: notesIdx !== -1 ? row[notesIdx]?.trim() || "" : "",
         });
     }

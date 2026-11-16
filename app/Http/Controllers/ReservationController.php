@@ -61,7 +61,8 @@ class ReservationController extends Controller
         if (!isset($data['estimatedTotal']) && isset($data['totalEstimate'])) {
             $data['estimatedTotal'] = $data['totalEstimate'];
         }
-        $data['paymentStatus'] = 'No payment received (Pending Reservation)';
+        $data['paymentStatus'] = 'Pending';
+        $data['reservationStatus'] = 'Pending';
         $data['timestamp'] = date('Y-m-d H:i:s') . ' EST';
 
         // Check Webhook / Google Apps Script endpoint URL
@@ -107,7 +108,8 @@ class ReservationController extends Controller
         return response()->json([
             'status' => 'success',
             'confirmationNumber' => $data['confirmationNumber'],
-            'paymentStatus' => 'No payment received (Pending Reservation)',
+            'paymentStatus' => 'Pending',
+            'reservationStatus' => 'Pending',
             'googleSheetSaved' => $googleSheetSaved,
             'message' => 'Reservation successfully placed!',
             'details' => $googleSheetMessage,
