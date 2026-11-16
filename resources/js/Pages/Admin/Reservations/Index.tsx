@@ -530,6 +530,21 @@ export default function Index() {
         });
     };
 
+    // Calculate Status Card Counts
+    const totalReservationsCount = reservations.length;
+    const pendingReservationsCount = reservations.filter((r) => {
+        const s = (r.reservationStatus || "Pending").toLowerCase();
+        return !s.includes("approv") && !s.includes("decline");
+    }).length;
+    const approvedReservationsCount = reservations.filter((r) => {
+        const s = (r.reservationStatus || "").toLowerCase();
+        return s.includes("approv");
+    }).length;
+    const declinedReservationsCount = reservations.filter((r) => {
+        const s = (r.reservationStatus || "").toLowerCase();
+        return s.includes("decline");
+    }).length;
+
     return (
         <AuthenticatedLayout
             header={
@@ -596,6 +611,145 @@ export default function Index() {
             <Head title="Rental Reservations - Wright Finder Motors" />
 
             <div className="space-y-5">
+                {/* Status KPI Cards */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {/* 1. Total Reservations */}
+                    <div
+                        onClick={() => setStatusFilter("all")}
+                        className={`bg-white rounded-2xl p-4 sm:p-5 shadow-sm border transition-all cursor-pointer flex items-center gap-4 ${
+                            statusFilter === "all"
+                                ? "border-purple shadow-md ring-2 ring-purple/20"
+                                : "border-slate-200/80 hover:border-slate-300 hover:shadow"
+                        }`}
+                    >
+                        <div className="w-12 h-12 rounded-2xl bg-purple text-white flex items-center justify-center shrink-0 shadow-md shadow-purple/20">
+                            <svg
+                                className="w-6 h-6"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                />
+                            </svg>
+                        </div>
+                        <div className="min-w-0">
+                            <div className="text-2xl sm:text-3xl font-black text-slate-900 leading-none">
+                                {totalReservationsCount}
+                            </div>
+                            <div className="text-xs font-semibold text-slate-600 mt-1 truncate">
+                                Total Reservations
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 2. Pending */}
+                    <div
+                        onClick={() => setStatusFilter("pending")}
+                        className={`bg-white rounded-2xl p-4 sm:p-5 shadow-sm border transition-all cursor-pointer flex items-center gap-4 ${
+                            statusFilter === "pending"
+                                ? "border-amber-400 shadow-md ring-2 ring-amber-400/20"
+                                : "border-slate-200/80 hover:border-slate-300 hover:shadow"
+                        }`}
+                    >
+                        <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200/80 text-amber-600 flex items-center justify-center shrink-0 shadow-sm">
+                            <svg
+                                className="w-6 h-6"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2.2}
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                                />
+                            </svg>
+                        </div>
+                        <div className="min-w-0">
+                            <div className="text-2xl sm:text-3xl font-black text-slate-900 leading-none">
+                                {pendingReservationsCount}
+                            </div>
+                            <div className="text-xs font-semibold text-slate-600 mt-1 truncate">
+                                Pending
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 3. Approved */}
+                    <div
+                        onClick={() => setStatusFilter("approved")}
+                        className={`bg-white rounded-2xl p-4 sm:p-5 shadow-sm border transition-all cursor-pointer flex items-center gap-4 ${
+                            statusFilter === "approved"
+                                ? "border-emerald-500 shadow-md ring-2 ring-emerald-500/20"
+                                : "border-slate-200/80 hover:border-slate-300 hover:shadow"
+                        }`}
+                    >
+                        <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-200/80 text-emerald-600 flex items-center justify-center shrink-0 shadow-sm">
+                            <svg
+                                className="w-6 h-6"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2.5}
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                                />
+                            </svg>
+                        </div>
+                        <div className="min-w-0">
+                            <div className="text-2xl sm:text-3xl font-black text-slate-900 leading-none">
+                                {approvedReservationsCount}
+                            </div>
+                            <div className="text-xs font-semibold text-slate-600 mt-1 truncate">
+                                Approved
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 4. Declined */}
+                    <div
+                        onClick={() => setStatusFilter("declined")}
+                        className={`bg-white rounded-2xl p-4 sm:p-5 shadow-sm border transition-all cursor-pointer flex items-center gap-4 ${
+                            statusFilter === "declined"
+                                ? "border-rose-500 shadow-md ring-2 ring-rose-500/20"
+                                : "border-slate-200/80 hover:border-slate-300 hover:shadow"
+                        }`}
+                    >
+                        <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-200/80 text-rose-600 flex items-center justify-center shrink-0 shadow-sm">
+                            <svg
+                                className="w-6 h-6"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2.5}
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+                                />
+                            </svg>
+                        </div>
+                        <div className="min-w-0">
+                            <div className="text-2xl sm:text-3xl font-black text-slate-900 leading-none">
+                                {declinedReservationsCount}
+                            </div>
+                            <div className="text-xs font-semibold text-slate-600 mt-1 truncate">
+                                Declined
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 {/* Top Control Bar: Search, Status, Payment, Sort, Reset */}
                 <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/80 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                     {/* Search Input */}
