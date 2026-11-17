@@ -40,6 +40,10 @@ export default function Index() {
     const [selectedRes, setSelectedRes] = useState<ReservationRecord | null>(
         null,
     );
+    // Print Receipt State (independent of details modal)
+    const [receiptRes, setReceiptRes] = useState<ReservationRecord | null>(
+        null,
+    );
 
     // Edit Modal State
     const [editingRes, setEditingRes] = useState<ReservationRecord | null>(
@@ -445,12 +449,12 @@ export default function Index() {
         setCurrentPage(1);
     }, [searchTerm, sortBy, statusFilter, paymentFilter]);
 
-    // Print individual reservation
+    // Print individual reservation receipt directly as PDF
     const handlePrintReservation = (res: ReservationRecord) => {
-        setSelectedRes(res);
+        setReceiptRes(res);
         setTimeout(() => {
             window.print();
-        }, 200);
+        }, 150);
     };
 
     // Open Payment Approval Modal
@@ -4777,7 +4781,9 @@ export default function Index() {
                 </div>
             )}
             {/* PRINT RECEIPT COMPONENT (Rendered only on print media) */}
-            {selectedRes && <RentalReceipt reservation={selectedRes} />}
+            {(receiptRes || selectedRes) && (
+                <RentalReceipt reservation={(receiptRes || selectedRes)!} />
+            )}
         </AuthenticatedLayout>
     );
 }
