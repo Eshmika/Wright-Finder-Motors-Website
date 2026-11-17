@@ -9,6 +9,32 @@ import {
 import { Head, Link, router } from "@inertiajs/react";
 import React, { useEffect, useState } from "react";
 
+const DEFAULT_PICKUP_HUB = "Dayton,Ohio: Wright finder motors (primary hub)";
+
+const TIME_SLOTS = [
+    "08:00 AM",
+    "09:00 AM",
+    "10:00 AM",
+    "11:00 AM",
+    "12:00 PM",
+    "01:00 PM",
+    "02:00 PM",
+    "03:00 PM",
+    "04:00 PM",
+    "05:00 PM",
+    "06:00 PM",
+    "07:00 PM",
+];
+
+const cleanPaymentOption = (opt?: string): string => {
+    if (!opt) return "Zelle";
+    const o = opt.toLowerCase();
+    if (o.includes("zelle")) return "Zelle";
+    if (o.includes("cash app") || o.includes("cashapp")) return "Cash App";
+    if (o.includes("in person") || o.includes("cash")) return "In Person";
+    return opt;
+};
+
 interface EditProps {
     confirmationNumber: string;
 }
@@ -20,6 +46,22 @@ export default function Edit({ confirmationNumber }: EditProps) {
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState<boolean>(false);
+
+    // Validation errors matching RentReservation
+    const [validationErrors, setValidationErrors] = useState<
+        Record<string, string>
+    >({});
+
+    // Location selection types
+    const [pickupLocationType, setPickupLocationType] = useState<
+        "hub" | "other"
+    >("hub");
+    const [customPickupLocation, setCustomPickupLocation] = useState("");
+
+    const [returnLocationType, setReturnLocationType] = useState<
+        "same" | "hub" | "other"
+    >("same");
+    const [customReturnLocation, setCustomReturnLocation] = useState("");
 
     // Form fields for reservation data only
     const [form, setForm] = useState<{
@@ -35,6 +77,7 @@ export default function Edit({ confirmationNumber }: EditProps) {
         returnDate: string;
         returnTime: string;
         returnLocation: string;
+        paymentOption: string;
         notes: string;
         reservationStatus: string;
         paymentStatus: string;
@@ -46,11 +89,12 @@ export default function Edit({ confirmationNumber }: EditProps) {
         age: "25+",
         residency: "United States",
         pickupDate: "",
-        pickupTime: "",
-        pickupLocation: "",
+        pickupTime: "10:00 AM",
+        pickupLocation: DEFAULT_PICKUP_HUB,
         returnDate: "",
-        returnTime: "",
-        returnLocation: "",
+        returnTime: "10:00 AM",
+        returnLocation: DEFAULT_PICKUP_HUB,
+        paymentOption: "Zelle",
         notes: "",
         reservationStatus: "Pending",
         paymentStatus: "Pending",
@@ -109,6 +153,47 @@ export default function Edit({ confirmationNumber }: EditProps) {
                     vehicle: matchedCar,
                 };
                 setReservation(fullRes);
+
+                // Determine pickup location type
+                const rawPickup = found.pickupLocation || "";
+                if (
+                    rawPickup.trim().toLowerCase() ===
+                    DEFAULT_PICKUP_HUB.toLowerCase()
+                ) {
+                    setPickupLocationType("hub");
+                    setCustomPickupLocation("");
+                } else if (rawPickup.trim()) {
+                    setPickupLocationType("other");
+                    setCustomPickupLocation(rawPickup);
+                } else {
+                    setPickupLocationType("hub");
+                    setCustomPickupLocation("");
+                }
+
+                // Determine return location type
+                const rawReturn = found.returnLocation || "";
+                if (
+                    rawPickup &&
+                    rawReturn &&
+                    rawReturn.trim().toLowerCase() ===
+                        rawPickup.trim().toLowerCase()
+                ) {
+                    setReturnLocationType("same");
+                    setCustomReturnLocation("");
+                } else if (
+                    rawReturn.trim().toLowerCase() ===
+                    DEFAULT_PICKUP_HUB.toLowerCase()
+                ) {
+                    setReturnLocationType("hub");
+                    setCustomReturnLocation("");
+                } else if (rawReturn.trim()) {
+                    setReturnLocationType("other");
+                    setCustomReturnLocation(rawReturn);
+                } else {
+                    setReturnLocationType("same");
+                    setCustomReturnLocation("");
+                }
+
                 setForm({
                     firstName: found.firstName || "",
                     lastName: found.lastName || "",
@@ -118,14 +203,16 @@ export default function Edit({ confirmationNumber }: EditProps) {
                     residency: found.residency || "United States",
                     pickupDate: found.pickupDate || "",
                     pickupTime: found.pickupTime || "10:00 AM",
-                    pickupLocation: found.pickupLocation || "",
+                    pickupLocation: found.pickupLocation || DEFAULT_PICKUP_HUB,
                     returnDate: found.returnDate || "",
                     returnTime: found.returnTime || "10:00 AM",
-                    returnLocation: found.returnLocation || "",
+                    returnLocation: found.returnLocation || DEFAULT_PICKUP_HUB,
+                    paymentOption: cleanPaymentOption(found.paymentOption),
                     notes: found.notes || "",
                     reservationStatus: found.reservationStatus || "Pending",
                     paymentStatus: found.paymentStatus || "Pending",
                 });
+                setValidationErrors({});
             }
         } catch (err: any) {
             console.error("Failed to load reservation for edit:", err);
@@ -139,9 +226,80 @@ export default function Edit({ confirmationNumber }: EditProps) {
         loadData();
     }, [confirmationNumber]);
 
+    // Format phone number as user types: (XXX) XXX-XXXX
+    const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const raw = e.target.value.replace(/\D/g, "");
+        let formatted = raw;
+        if (raw.length > 0) {
+            if (raw.length <= 3) {
+                formatted = `(${raw}`;
+            } else if (raw.length <= 6) {
+                formatted = `(${raw.slice(0, 3)}) ${raw.slice(3)}`;
+            } else {
+                formatted = `(${raw.slice(0, 3)}) ${raw.slice(3, 6)}-${raw.slice(6, 10)}`;
+            }
+        }
+        setForm((prev) => ({ ...prev, phone: formatted }));
+        if (validationErrors.phone) {
+            setValidationErrors((prev) => ({ ...prev, phone: "" }));
+        }
+    };
+
+    const validateForm = (): boolean => {
+        const errors: Record<string, string> = {};
+
+        if (!form.email.trim()) {
+            errors.email = "Email is required.";
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+            errors.email = "Please enter a valid email address.";
+        }
+
+        const phoneDigits = form.phone.replace(/\D/g, "");
+        if (form.phone.trim() && phoneDigits.length < 10) {
+            errors.phone = "Please enter a valid 10-digit mobile number.";
+        }
+
+        if (pickupLocationType === "other" && !customPickupLocation.trim()) {
+            errors.pickupLocation = "Please specify your pickup location.";
+        } else if (!form.pickupLocation.trim()) {
+            errors.pickupLocation = "Pickup location is required.";
+        }
+
+        if (returnLocationType === "other" && !customReturnLocation.trim()) {
+            errors.returnLocation = "Please specify your return location.";
+        } else if (!form.returnLocation.trim()) {
+            errors.returnLocation = "Return location is required.";
+        }
+
+        if (!form.pickupDate) {
+            errors.pickupDate = "Pickup date is required.";
+        }
+        if (!form.pickupTime) {
+            errors.pickupTime = "Pickup time is required.";
+        }
+        if (!form.returnDate) {
+            errors.returnDate = "Return date is required.";
+        }
+        if (!form.returnTime) {
+            errors.returnTime = "Return time is required.";
+        }
+
+        if (
+            form.pickupDate &&
+            form.returnDate &&
+            new Date(form.returnDate) < new Date(form.pickupDate)
+        ) {
+            errors.returnDate = "Return date must be on or after pickup date.";
+        }
+
+        setValidationErrors(errors);
+        return Object.keys(errors).length === 0;
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!reservation) return;
+        if (!validateForm()) return;
         setIsSaving(true);
 
         const confNum = reservation.confirmationNumber;
@@ -373,12 +531,12 @@ export default function Edit({ confirmationNumber }: EditProps) {
                             </div>
                         </div>
 
-                        {/* Status Settings */}
+                        {/* Status & Payment Settings */}
                         <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-sm space-y-3">
                             <div className="flex items-center gap-2 text-xs font-black text-slate-900 pb-2 border-b border-slate-100 uppercase tracking-wider">
-                                <span>Status Settings</span>
+                                <span>Status &amp; Payment Settings</span>
                             </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                 <div>
                                     <label className="block font-bold text-slate-700 text-[11px] uppercase mb-1">
                                         Reservation Status
@@ -420,6 +578,31 @@ export default function Edit({ confirmationNumber }: EditProps) {
                                         <option value="Pending">Pending</option>
                                         <option value="Paid">Paid</option>
                                         <option value="Unpaid">Unpaid</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block font-bold text-slate-700 text-[11px] uppercase mb-1">
+                                        Payment Option
+                                    </label>
+                                    <select
+                                        value={form.paymentOption}
+                                        onChange={(e) =>
+                                            setForm({
+                                                ...form,
+                                                paymentOption: e.target.value,
+                                            })
+                                        }
+                                        className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-bold text-slate-800"
+                                    >
+                                        <option value="Zelle">
+                                            Zelle Payment
+                                        </option>
+                                        <option value="Cash App">
+                                            Cash App
+                                        </option>
+                                        <option value="In Person">
+                                            In Person / Cash
+                                        </option>
                                     </select>
                                 </div>
                             </div>
@@ -484,36 +667,67 @@ export default function Edit({ confirmationNumber }: EditProps) {
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block font-bold text-slate-700 text-[11px] uppercase mb-1">
-                                        Email Address
+                                        Email Address{" "}
+                                        <span className="text-vivid-red">
+                                            *
+                                        </span>
                                     </label>
                                     <input
                                         type="email"
                                         value={form.email}
-                                        onChange={(e) =>
+                                        onChange={(e) => {
                                             setForm({
                                                 ...form,
                                                 email: e.target.value,
-                                            })
-                                        }
-                                        className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-semibold"
+                                            });
+                                            if (validationErrors.email) {
+                                                setValidationErrors((prev) => ({
+                                                    ...prev,
+                                                    email: "",
+                                                }));
+                                            }
+                                        }}
+                                        placeholder="john.doe@example.com"
+                                        className={`w-full px-3 py-2 border rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-semibold ${
+                                            validationErrors.email
+                                                ? "border-red-500"
+                                                : "border-slate-200"
+                                        }`}
                                         required
                                     />
+                                    {validationErrors.email && (
+                                        <p className="text-red-500 text-[10px] mt-1 font-semibold">
+                                            {validationErrors.email}
+                                        </p>
+                                    )}
                                 </div>
                                 <div>
                                     <label className="block font-bold text-slate-700 text-[11px] uppercase mb-1">
-                                        Mobile Phone
+                                        Mobile Phone{" "}
+                                        <span className="text-gray-400 font-normal lowercase text-[10px]">
+                                            (optional)
+                                        </span>
                                     </label>
                                     <input
-                                        type="text"
+                                        type="tel"
                                         value={form.phone}
-                                        onChange={(e) =>
-                                            setForm({
-                                                ...form,
-                                                phone: e.target.value,
-                                            })
-                                        }
-                                        className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-semibold"
+                                        onChange={handlePhoneChange}
+                                        placeholder="(555) 123-4567"
+                                        maxLength={14}
+                                        className={`w-full px-3 py-2 border rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-semibold font-mono ${
+                                            validationErrors.phone
+                                                ? "border-red-500"
+                                                : "border-slate-200"
+                                        }`}
                                     />
+                                    <span className="text-[10px] text-gray-400 mt-0.5 block">
+                                        Format: (XXX) XXX-XXXX
+                                    </span>
+                                    {validationErrors.phone && (
+                                        <p className="text-red-500 text-[10px] mt-0.5 font-semibold">
+                                            {validationErrors.phone}
+                                        </p>
+                                    )}
                                 </div>
                             </div>
 
@@ -596,109 +810,321 @@ export default function Edit({ confirmationNumber }: EditProps) {
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block font-bold text-slate-700 text-[11px] uppercase mb-1">
-                                        Pickup Date
+                                        Pickup Date{" "}
+                                        <span className="text-vivid-red">
+                                            *
+                                        </span>
                                     </label>
                                     <input
                                         type="date"
                                         value={form.pickupDate}
-                                        onChange={(e) =>
+                                        onChange={(e) => {
                                             setForm({
                                                 ...form,
                                                 pickupDate: e.target.value,
-                                            })
-                                        }
-                                        className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-semibold"
+                                            });
+                                            if (validationErrors.pickupDate) {
+                                                setValidationErrors((prev) => ({
+                                                    ...prev,
+                                                    pickupDate: "",
+                                                }));
+                                            }
+                                        }}
+                                        className={`w-full px-3 py-2 border rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-semibold ${
+                                            validationErrors.pickupDate
+                                                ? "border-red-500"
+                                                : "border-slate-200"
+                                        }`}
                                         required
                                     />
+                                    {validationErrors.pickupDate && (
+                                        <p className="text-red-500 text-[10px] mt-1 font-semibold">
+                                            {validationErrors.pickupDate}
+                                        </p>
+                                    )}
                                 </div>
                                 <div>
                                     <label className="block font-bold text-slate-700 text-[11px] uppercase mb-1">
-                                        Pickup Time (EST)
+                                        Pickup Time (EST){" "}
+                                        <span className="text-vivid-red">
+                                            *
+                                        </span>
                                     </label>
-                                    <input
-                                        type="text"
-                                        placeholder="10:00 AM"
+                                    <select
                                         value={form.pickupTime}
-                                        onChange={(e) =>
+                                        onChange={(e) => {
                                             setForm({
                                                 ...form,
                                                 pickupTime: e.target.value,
-                                            })
-                                        }
-                                        className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-semibold"
-                                    />
+                                            });
+                                            if (validationErrors.pickupTime) {
+                                                setValidationErrors((prev) => ({
+                                                    ...prev,
+                                                    pickupTime: "",
+                                                }));
+                                            }
+                                        }}
+                                        className={`w-full px-3 py-2 border rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-semibold ${
+                                            validationErrors.pickupTime
+                                                ? "border-red-500"
+                                                : "border-slate-200"
+                                        }`}
+                                    >
+                                        {TIME_SLOTS.map((t) => (
+                                            <option key={t} value={t}>
+                                                {t} EST
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {validationErrors.pickupTime && (
+                                        <p className="text-red-500 text-[10px] mt-1 font-semibold">
+                                            {validationErrors.pickupTime}
+                                        </p>
+                                    )}
                                 </div>
                             </div>
 
                             <div>
                                 <label className="block font-bold text-slate-700 text-[11px] uppercase mb-1">
-                                    Pickup Location
+                                    Pickup Location{" "}
+                                    <span className="text-vivid-red">*</span>
                                 </label>
-                                <input
-                                    type="text"
-                                    value={form.pickupLocation}
-                                    onChange={(e) =>
-                                        setForm({
-                                            ...form,
-                                            pickupLocation: e.target.value,
-                                        })
-                                    }
+                                <select
+                                    value={pickupLocationType}
+                                    onChange={(e) => {
+                                        const val = e.target.value as
+                                            | "hub"
+                                            | "other";
+                                        setPickupLocationType(val);
+                                        const newPickup =
+                                            val === "hub"
+                                                ? DEFAULT_PICKUP_HUB
+                                                : customPickupLocation.trim();
+                                        setForm((prev) => ({
+                                            ...prev,
+                                            pickupLocation: newPickup,
+                                            returnLocation:
+                                                returnLocationType === "same"
+                                                    ? newPickup
+                                                    : prev.returnLocation,
+                                        }));
+                                    }}
                                     className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-semibold"
-                                />
+                                >
+                                    <option value="hub">
+                                        Dayton,Ohio: Wright finder motors
+                                        (primary hub)
+                                    </option>
+                                    <option value="other">
+                                        Other (type custom location)
+                                    </option>
+                                </select>
+
+                                {pickupLocationType === "other" && (
+                                    <div className="mt-2.5">
+                                        <input
+                                            type="text"
+                                            value={customPickupLocation}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                setCustomPickupLocation(val);
+                                                setForm((prev) => ({
+                                                    ...prev,
+                                                    pickupLocation: val,
+                                                    returnLocation:
+                                                        returnLocationType ===
+                                                        "same"
+                                                            ? val
+                                                            : prev.returnLocation,
+                                                }));
+                                                if (
+                                                    validationErrors.pickupLocation
+                                                ) {
+                                                    setValidationErrors(
+                                                        (prev) => ({
+                                                            ...prev,
+                                                            pickupLocation: "",
+                                                        }),
+                                                    );
+                                                }
+                                            }}
+                                            placeholder="Enter custom pickup address / city..."
+                                            className={`w-full px-3 py-2 border rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-semibold ${
+                                                validationErrors.pickupLocation
+                                                    ? "border-red-500"
+                                                    : "border-slate-200"
+                                            }`}
+                                        />
+                                        {validationErrors.pickupLocation && (
+                                            <p className="text-red-500 text-[10px] mt-1 font-semibold">
+                                                {
+                                                    validationErrors.pickupLocation
+                                                }
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
                             </div>
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
                                 <div>
                                     <label className="block font-bold text-slate-700 text-[11px] uppercase mb-1">
-                                        Return Date
+                                        Return Date{" "}
+                                        <span className="text-vivid-red">
+                                            *
+                                        </span>
                                     </label>
                                     <input
                                         type="date"
                                         value={form.returnDate}
-                                        onChange={(e) =>
+                                        onChange={(e) => {
                                             setForm({
                                                 ...form,
                                                 returnDate: e.target.value,
-                                            })
-                                        }
-                                        className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-semibold"
+                                            });
+                                            if (validationErrors.returnDate) {
+                                                setValidationErrors((prev) => ({
+                                                    ...prev,
+                                                    returnDate: "",
+                                                }));
+                                            }
+                                        }}
+                                        className={`w-full px-3 py-2 border rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-semibold ${
+                                            validationErrors.returnDate
+                                                ? "border-red-500"
+                                                : "border-slate-200"
+                                        }`}
                                         required
                                     />
+                                    {validationErrors.returnDate && (
+                                        <p className="text-red-500 text-[10px] mt-1 font-semibold">
+                                            {validationErrors.returnDate}
+                                        </p>
+                                    )}
                                 </div>
                                 <div>
                                     <label className="block font-bold text-slate-700 text-[11px] uppercase mb-1">
-                                        Return Time (EST)
+                                        Return Time (EST){" "}
+                                        <span className="text-vivid-red">
+                                            *
+                                        </span>
                                     </label>
-                                    <input
-                                        type="text"
-                                        placeholder="10:00 AM"
+                                    <select
                                         value={form.returnTime}
-                                        onChange={(e) =>
+                                        onChange={(e) => {
                                             setForm({
                                                 ...form,
                                                 returnTime: e.target.value,
-                                            })
-                                        }
-                                        className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-semibold"
-                                    />
+                                            });
+                                            if (validationErrors.returnTime) {
+                                                setValidationErrors((prev) => ({
+                                                    ...prev,
+                                                    returnTime: "",
+                                                }));
+                                            }
+                                        }}
+                                        className={`w-full px-3 py-2 border rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-semibold ${
+                                            validationErrors.returnTime
+                                                ? "border-red-500"
+                                                : "border-slate-200"
+                                        }`}
+                                    >
+                                        {TIME_SLOTS.map((t) => (
+                                            <option key={t} value={t}>
+                                                {t} EST
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {validationErrors.returnTime && (
+                                        <p className="text-red-500 text-[10px] mt-1 font-semibold">
+                                            {validationErrors.returnTime}
+                                        </p>
+                                    )}
                                 </div>
                             </div>
 
                             <div>
                                 <label className="block font-bold text-slate-700 text-[11px] uppercase mb-1">
-                                    Return Location
+                                    Return Location{" "}
+                                    <span className="text-vivid-red">*</span>
                                 </label>
-                                <input
-                                    type="text"
-                                    value={form.returnLocation}
-                                    onChange={(e) =>
-                                        setForm({
-                                            ...form,
-                                            returnLocation: e.target.value,
-                                        })
-                                    }
+                                <select
+                                    value={returnLocationType}
+                                    onChange={(e) => {
+                                        const val = e.target.value as
+                                            | "same"
+                                            | "hub"
+                                            | "other";
+                                        setReturnLocationType(val);
+                                        const currentPickup =
+                                            pickupLocationType === "hub"
+                                                ? DEFAULT_PICKUP_HUB
+                                                : customPickupLocation.trim() ||
+                                                  DEFAULT_PICKUP_HUB;
+                                        const newReturn =
+                                            val === "same"
+                                                ? currentPickup
+                                                : val === "hub"
+                                                  ? DEFAULT_PICKUP_HUB
+                                                  : customReturnLocation.trim();
+                                        setForm((prev) => ({
+                                            ...prev,
+                                            returnLocation: newReturn,
+                                        }));
+                                    }}
                                     className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-semibold"
-                                />
+                                >
+                                    <option value="same">
+                                        Same as Pickup Location
+                                    </option>
+                                    <option value="hub">
+                                        Dayton,Ohio: Wright finder motors
+                                        (primary hub)
+                                    </option>
+                                    <option value="other">
+                                        Other (type custom location)
+                                    </option>
+                                </select>
+
+                                {returnLocationType === "other" && (
+                                    <div className="mt-2.5">
+                                        <input
+                                            type="text"
+                                            value={customReturnLocation}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                setCustomReturnLocation(val);
+                                                setForm((prev) => ({
+                                                    ...prev,
+                                                    returnLocation: val,
+                                                }));
+                                                if (
+                                                    validationErrors.returnLocation
+                                                ) {
+                                                    setValidationErrors(
+                                                        (prev) => ({
+                                                            ...prev,
+                                                            returnLocation: "",
+                                                        }),
+                                                    );
+                                                }
+                                            }}
+                                            placeholder="Enter custom return address / city..."
+                                            className={`w-full px-3 py-2 border rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-semibold ${
+                                                validationErrors.returnLocation
+                                                    ? "border-red-500"
+                                                    : "border-slate-200"
+                                            }`}
+                                        />
+                                        {validationErrors.returnLocation && (
+                                            <p className="text-red-500 text-[10px] mt-1 font-semibold">
+                                                {
+                                                    validationErrors.returnLocation
+                                                }
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </div>
 
