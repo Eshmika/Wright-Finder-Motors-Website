@@ -1,9 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Head, Link } from "@inertiajs/react";
 import Header from "@/Components/Header";
 import Footer from "@/Components/Footer";
 import { PageProps } from "@/types";
-import { DetailedVehicle, fetchAllVehicles } from "@/Services/vehicleService";
+import {
+    DetailedVehicle,
+    fetchAllVehicles,
+    fetchAllReservations,
+    ReservationRecord,
+} from "@/Services/vehicleService";
 import { Coupon, fetchAllCoupons } from "@/Services/couponService";
 
 interface RentReservationProps extends PageProps {
@@ -107,14 +112,78 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
         Record<string, string>
     >({});
 
-    // Load vehicle details
+    // Existing reservations for this vehicle (to check date overlap)
+    const [allReservations, setAllReservations] = useState<ReservationRecord[]>(
+        [],
+    );
+
+    // Helper: Normalize date string to YYYY-MM-DD
+    const normalizeDateStr = (dStr?: string): string => {
+        if (!dStr) return "";
+        const clean = dStr.trim();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) return clean;
+        const parsed = new Date(clean);
+        if (!isNaN(parsed.getTime())) {
+            const year = parsed.getFullYear();
+            const month = String(parsed.getMonth() + 1).padStart(2, "0");
+            const day = String(parsed.getDate()).padStart(2, "0");
+            return `${year}-${month}-${day}`;
+        }
+        return clean;
+    };
+
+    // Helper: Format date for friendly display e.g. "Oct 15, 2026"
+    const formatDisplayDate = (dStr?: string): string => {
+        if (!dStr) return "N/A";
+        try {
+            const norm = normalizeDateStr(dStr);
+            const parts = norm.split("-");
+            if (parts.length === 3) {
+                const year = parseInt(parts[0], 10);
+                const month = parseInt(parts[1], 10) - 1;
+                const day = parseInt(parts[2], 10);
+                const d = new Date(year, month, day);
+                const months = [
+                    "Jan",
+                    "Feb",
+                    "Mar",
+                    "Apr",
+                    "May",
+                    "Jun",
+                    "Jul",
+                    "Aug",
+                    "Sep",
+                    "Oct",
+                    "Nov",
+                    "Dec",
+                ];
+                return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+            }
+            return dStr;
+        } catch {
+            return dStr;
+        }
+    };
+
+    // Load vehicle details and existing reservations
     useEffect(() => {
         let isMounted = true;
         async function loadCar() {
             try {
                 setIsLoading(true);
                 setError(null);
-                const all = await fetchAllVehicles();
+                const [all, allRes] = await Promise.all([
+                    fetchAllVehicles(),
+                    fetchAllReservations().catch((err) => {
+                        console.warn("Could not load reservations:", err);
+                        return [] as ReservationRecord[];
+                    }),
+                ]);
+
+                if (isMounted) {
+                    setAllReservations(allRes || []);
+                }
+
                 const decodedId = decodeURIComponent(id || "")
                     .trim()
                     .toLowerCase();
@@ -153,6 +222,50 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
             isMounted = false;
         };
     }, [id]);
+
+    // Approved reservations for this specific car
+    const approvedBookingsForCar = useMemo(() => {
+        const carId = (vehicle?.id || id || "").trim().toLowerCase();
+        if (!carId) return [];
+
+        return allReservations.filter((r) => {
+            const rCarId = (r.carId || "").trim().toLowerCase();
+            if (rCarId !== carId) return false;
+
+            const status = (r.reservationStatus || "").trim().toLowerCase();
+            if (!status.includes("approv")) return false;
+
+            const pDate = normalizeDateStr(r.pickupDate);
+            const rDate = normalizeDateStr(r.returnDate);
+            return Boolean(pDate && rDate);
+        });
+    }, [allReservations, vehicle?.id, id]);
+
+    // Check if currently selected pickup & return dates overlap with any approved reservation
+    const dateConflict = useMemo(() => {
+        const selStart = normalizeDateStr(pickupDate);
+        const selEnd = normalizeDateStr(returnDate);
+
+        if (!selStart || !selEnd) return null;
+        if (selEnd < selStart) return null;
+
+        for (const booking of approvedBookingsForCar) {
+            const bStart = normalizeDateStr(booking.pickupDate);
+            const bEnd = normalizeDateStr(booking.returnDate);
+            if (!bStart || !bEnd) continue;
+
+            // Two date ranges [A, B] and [C, D] overlap if A <= D and B >= C
+            if (selStart <= bEnd && selEnd >= bStart) {
+                return {
+                    conflictBooking: booking,
+                    startFormatted: formatDisplayDate(bStart),
+                    endFormatted: formatDisplayDate(bEnd),
+                };
+            }
+        }
+
+        return null;
+    }, [pickupDate, returnDate, approvedBookingsForCar]);
 
     // Format phone number as user types: (XXX) XXX-XXXX
     const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -350,6 +463,10 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
             ) {
                 errors.returnDate =
                     "Return date must be on or after pickup date.";
+            }
+
+            if (dateConflict) {
+                errors.dateConflict = `This vehicle is already booked and approved from ${dateConflict.startFormatted} to ${dateConflict.endFormatted}. Please select different dates.`;
             }
         }
 
@@ -1058,6 +1175,62 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                                 </span>
                                             </div>
 
+                                            {/* Date Conflict Warning Banner */}
+                                            {dateConflict && (
+                                                <div className="p-4 rounded-2xl bg-rose-50 border-2 border-rose-200 text-rose-900 shadow-sm flex items-start gap-3.5 animate-pulse">
+                                                    <div className="w-8 h-8 rounded-xl bg-rose-500 text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+                                                        <svg
+                                                            className="w-4 h-4"
+                                                            fill="none"
+                                                            viewBox="0 0 24 24"
+                                                            stroke="currentColor"
+                                                            strokeWidth={2.5}
+                                                        >
+                                                            <path
+                                                                strokeLinecap="round"
+                                                                strokeLinejoin="round"
+                                                                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                                                            />
+                                                        </svg>
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <h4 className="font-black text-rose-800 text-sm tracking-tight flex items-center gap-2">
+                                                            <span>
+                                                                Selected Date
+                                                                Range Not
+                                                                Available
+                                                            </span>
+                                                            <span className="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-rose-200/80 text-rose-900">
+                                                                Already Booked
+                                                            </span>
+                                                        </h4>
+                                                        <p className="text-xs text-rose-700 mt-1 leading-relaxed">
+                                                            This vehicle has an{" "}
+                                                            <strong>
+                                                                approved
+                                                                reservation
+                                                            </strong>{" "}
+                                                            from{" "}
+                                                            <strong className="underline underline-offset-2">
+                                                                {
+                                                                    dateConflict.startFormatted
+                                                                }
+                                                            </strong>{" "}
+                                                            to{" "}
+                                                            <strong className="underline underline-offset-2">
+                                                                {
+                                                                    dateConflict.endFormatted
+                                                                }
+                                                            </strong>
+                                                            . Please select a
+                                                            different pickup and
+                                                            return date range to
+                                                            proceed.
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            )}
+
                                             {/* Pickup Details */}
                                             <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-200/80 space-y-4">
                                                 <div className="flex items-center space-x-2 text-dark-blue font-bold text-xs uppercase tracking-wider">
@@ -1141,14 +1314,44 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                                         <input
                                                             type="date"
                                                             value={pickupDate}
-                                                            onChange={(e) =>
+                                                            onChange={(e) => {
                                                                 setPickupDate(
                                                                     e.target
                                                                         .value,
-                                                                )
-                                                            }
-                                                            className="w-full bg-white border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-vivid-red font-medium"
+                                                                );
+                                                                if (
+                                                                    validationErrors.pickupDate ||
+                                                                    validationErrors.dateConflict
+                                                                ) {
+                                                                    setValidationErrors(
+                                                                        (
+                                                                            prev,
+                                                                        ) => {
+                                                                            const copy =
+                                                                                {
+                                                                                    ...prev,
+                                                                                };
+                                                                            delete copy.pickupDate;
+                                                                            delete copy.dateConflict;
+                                                                            return copy;
+                                                                        },
+                                                                    );
+                                                                }
+                                                            }}
+                                                            className={`w-full bg-white border rounded-xl px-3.5 py-2.5 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-500/20 ${
+                                                                validationErrors.pickupDate ||
+                                                                dateConflict
+                                                                    ? "border-red-500 focus:border-red-500"
+                                                                    : "border-gray-200 focus:border-vivid-red"
+                                                            } font-medium`}
                                                         />
+                                                        {validationErrors.pickupDate && (
+                                                            <p className="text-red-500 text-[10px] mt-1 font-semibold">
+                                                                {
+                                                                    validationErrors.pickupDate
+                                                                }
+                                                            </p>
+                                                        )}
                                                     </div>
 
                                                     <div>
@@ -1282,15 +1485,34 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                                         <input
                                                             type="date"
                                                             value={returnDate}
-                                                            onChange={(e) =>
+                                                            onChange={(e) => {
                                                                 setReturnDate(
                                                                     e.target
                                                                         .value,
-                                                                )
-                                                            }
+                                                                );
+                                                                if (
+                                                                    validationErrors.returnDate ||
+                                                                    validationErrors.dateConflict
+                                                                ) {
+                                                                    setValidationErrors(
+                                                                        (
+                                                                            prev,
+                                                                        ) => {
+                                                                            const copy =
+                                                                                {
+                                                                                    ...prev,
+                                                                                };
+                                                                            delete copy.returnDate;
+                                                                            delete copy.dateConflict;
+                                                                            return copy;
+                                                                        },
+                                                                    );
+                                                                }
+                                                            }}
                                                             className={`w-full bg-white border rounded-xl px-3.5 py-2.5 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-500/20 ${
-                                                                validationErrors.returnDate
-                                                                    ? "border-red-500"
+                                                                validationErrors.returnDate ||
+                                                                dateConflict
+                                                                    ? "border-red-500 focus:border-red-500"
                                                                     : "border-gray-200 focus:border-vivid-red"
                                                             }`}
                                                         />
@@ -1301,6 +1523,14 @@ export default function RentReservation({ auth, id }: RentReservationProps) {
                                                                 }
                                                             </p>
                                                         )}
+                                                        {validationErrors.dateConflict &&
+                                                            !validationErrors.returnDate && (
+                                                                <p className="text-red-500 text-[10px] mt-1 font-semibold">
+                                                                    {
+                                                                        validationErrors.dateConflict
+                                                                    }
+                                                                </p>
+                                                            )}
                                                     </div>
 
                                                     <div>
