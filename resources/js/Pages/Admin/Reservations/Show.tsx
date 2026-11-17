@@ -1571,56 +1571,174 @@ export default function Show({ confirmationNumber }: ShowProps) {
 
                         {/* Page Footer Actions */}
                         <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
-                            <div className="flex items-center gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        handleQuickStatusChange("Approved")
-                                    }
-                                    disabled={isUpdatingStatus}
-                                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition shadow-sm"
-                                >
-                                    ✓ Approve
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        handleQuickStatusChange("Declined")
-                                    }
-                                    disabled={isUpdatingStatus}
-                                    className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition shadow-sm"
-                                >
-                                    ✕ Decline
-                                </button>
-                                <Link
-                                    href={route("admin.reservations.edit", {
-                                        confirmationNumber:
-                                            reservation.confirmationNumber,
-                                    })}
-                                    className="px-4 py-2 rounded-xl border border-purple/30 bg-purple/10 text-purple hover:bg-purple hover:text-white font-bold text-xs transition shadow-sm"
-                                >
-                                    Edit Reservation
-                                </Link>
-                                <button
-                                    type="button"
-                                    onClick={handleOpenOfferModal}
-                                    className="px-4 py-2 rounded-xl border border-purple/40 bg-purple text-white hover:bg-dark-purple font-bold text-xs transition shadow-sm inline-flex items-center gap-1.5"
-                                >
-                                    <svg
-                                        className="w-3.5 h-3.5"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                        strokeWidth={2}
+                            <div className="flex flex-wrap items-center gap-2">
+                                {/* PENDING: Approve, Decline, Edit Reservation, Offer alternative, Cancel */}
+                                {isPending && (
+                                    <>
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                handleQuickStatusChange(
+                                                    "Approved",
+                                                )
+                                            }
+                                            disabled={isUpdatingStatus}
+                                            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition shadow-sm"
+                                        >
+                                            ✓ Approve
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                handleQuickStatusChange(
+                                                    "Declined",
+                                                )
+                                            }
+                                            disabled={isUpdatingStatus}
+                                            className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition shadow-sm"
+                                        >
+                                            ✕ Decline
+                                        </button>
+                                        <Link
+                                            href={route(
+                                                "admin.reservations.edit",
+                                                {
+                                                    confirmationNumber:
+                                                        reservation.confirmationNumber,
+                                                },
+                                            )}
+                                            className="px-4 py-2 rounded-xl border border-purple/30 bg-purple/10 text-purple hover:bg-purple hover:text-white font-bold text-xs transition shadow-sm"
+                                        >
+                                            Edit Reservation
+                                        </Link>
+                                        <button
+                                            type="button"
+                                            onClick={handleOpenOfferModal}
+                                            className="px-4 py-2 rounded-xl border border-purple/40 bg-purple text-white hover:bg-dark-purple font-bold text-xs transition shadow-sm inline-flex items-center gap-1.5"
+                                        >
+                                            <svg
+                                                className="w-3.5 h-3.5"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                                strokeWidth={2}
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+                                                />
+                                            </svg>
+                                            <span>Offer alternative</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={handleOpenCancelModal}
+                                            className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-rose-100 text-slate-700 hover:text-rose-700 border border-slate-200 hover:border-rose-300 font-bold text-xs transition shadow-sm"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </>
+                                )}
+
+                                {/* APPROVED: Edit Reservation, Cancel */}
+                                {isApproved && (
+                                    <>
+                                        <Link
+                                            href={route(
+                                                "admin.reservations.edit",
+                                                {
+                                                    confirmationNumber:
+                                                        reservation.confirmationNumber,
+                                                },
+                                            )}
+                                            className="px-4 py-2 rounded-xl border border-purple/30 bg-purple/10 text-purple hover:bg-purple hover:text-white font-bold text-xs transition shadow-sm"
+                                        >
+                                            Edit Reservation
+                                        </Link>
+                                        <button
+                                            type="button"
+                                            onClick={handleOpenCancelModal}
+                                            className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-rose-100 text-slate-700 hover:text-rose-700 border border-slate-200 hover:border-rose-300 font-bold text-xs transition shadow-sm"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </>
+                                )}
+
+                                {/* ACTIVE: Edit Reservation, Process Return, Cancel */}
+                                {isActive && (
+                                    <>
+                                        <Link
+                                            href={route(
+                                                "admin.reservations.edit",
+                                                {
+                                                    confirmationNumber:
+                                                        reservation.confirmationNumber,
+                                                },
+                                            )}
+                                            className="px-4 py-2 rounded-xl border border-purple/30 bg-purple/10 text-purple hover:bg-purple hover:text-white font-bold text-xs transition shadow-sm"
+                                        >
+                                            Edit Reservation
+                                        </Link>
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                handleQuickStatusChange(
+                                                    "Completed",
+                                                )
+                                            }
+                                            disabled={isUpdatingStatus}
+                                            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition shadow-sm"
+                                        >
+                                            ✓ Process Return
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={handleOpenCancelModal}
+                                            className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-rose-100 text-slate-700 hover:text-rose-700 border border-slate-200 hover:border-rose-300 font-bold text-xs transition shadow-sm"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </>
+                                )}
+
+                                {/* COMPLETED: Print Receipt */}
+                                {isCompleted && (
+                                    <button
+                                        type="button"
+                                        onClick={() => window.print()}
+                                        className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-xs transition shadow-sm inline-flex items-center gap-1.5"
                                     >
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
-                                        />
-                                    </svg>
-                                    <span>Offer alternative</span>
-                                </button>
+                                        <svg
+                                            className="w-4 h-4"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                            strokeWidth={2}
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+                                            />
+                                        </svg>
+                                        <span>Print Receipt</span>
+                                    </button>
+                                )}
+
+                                {/* DECLINED / CANCELLED: Edit Reservation */}
+                                {(isDeclined || isCancelled) && (
+                                    <Link
+                                        href={route("admin.reservations.edit", {
+                                            confirmationNumber:
+                                                reservation.confirmationNumber,
+                                        })}
+                                        className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs transition shadow-sm"
+                                    >
+                                        Edit Reservation
+                                    </Link>
+                                )}
                             </div>
 
                             <Link

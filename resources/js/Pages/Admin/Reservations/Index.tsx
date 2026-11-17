@@ -3421,17 +3421,6 @@ export default function Index() {
                                     <div className="flex items-center gap-2">
                                         <button
                                             type="button"
-                                            onClick={() =>
-                                                handlePrintReservation(
-                                                    selectedRes,
-                                                )
-                                            }
-                                            className="px-3.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-xs font-semibold text-slate-700 transition shadow-sm"
-                                        >
-                                            Print Voucher
-                                        </button>
-                                        <button
-                                            type="button"
                                             onClick={() => setSelectedRes(null)}
                                             className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-black text-white text-xs font-bold transition shadow-sm"
                                         >
