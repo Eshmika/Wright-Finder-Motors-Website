@@ -541,6 +541,90 @@ function doPost(e) {
                     .setValue(data.reservationStatus);
             }
 
+            // Optional updates for reservation details, extension, or customer edits
+            for (var c = 0; c < headers.length; c++) {
+                var hdr = headers[c]
+                    ? headers[c].toString().trim().toLowerCase()
+                    : "";
+                var colNum = c + 1;
+                if (
+                    data.firstName !== undefined &&
+                    (hdr === "first name" || hdr === "firstname")
+                ) {
+                    resSheet
+                        .getRange(targetRow, colNum)
+                        .setValue(data.firstName);
+                } else if (
+                    data.lastName !== undefined &&
+                    (hdr === "last name" || hdr === "lastname")
+                ) {
+                    resSheet
+                        .getRange(targetRow, colNum)
+                        .setValue(data.lastName);
+                } else if (data.email !== undefined && hdr === "email") {
+                    resSheet.getRange(targetRow, colNum).setValue(data.email);
+                } else if (
+                    data.phone !== undefined &&
+                    (hdr === "mobile phone" || hdr === "phone")
+                ) {
+                    resSheet.getRange(targetRow, colNum).setValue(data.phone);
+                } else if (
+                    data.pickupDate !== undefined &&
+                    hdr === "pickup date"
+                ) {
+                    resSheet
+                        .getRange(targetRow, colNum)
+                        .setValue(data.pickupDate);
+                } else if (
+                    data.pickupTime !== undefined &&
+                    (hdr === "pickup time (est)" || hdr === "pickup time")
+                ) {
+                    resSheet
+                        .getRange(targetRow, colNum)
+                        .setValue(data.pickupTime);
+                } else if (
+                    data.pickupLocation !== undefined &&
+                    hdr === "pickup location"
+                ) {
+                    resSheet
+                        .getRange(targetRow, colNum)
+                        .setValue(data.pickupLocation);
+                } else if (
+                    data.returnDate !== undefined &&
+                    hdr === "return date"
+                ) {
+                    resSheet
+                        .getRange(targetRow, colNum)
+                        .setValue(data.returnDate);
+                } else if (
+                    data.returnTime !== undefined &&
+                    (hdr === "return time (est)" || hdr === "return time")
+                ) {
+                    resSheet
+                        .getRange(targetRow, colNum)
+                        .setValue(data.returnTime);
+                } else if (
+                    data.returnLocation !== undefined &&
+                    hdr === "return location"
+                ) {
+                    resSheet
+                        .getRange(targetRow, colNum)
+                        .setValue(data.returnLocation);
+                } else if (
+                    data.notes !== undefined &&
+                    (hdr === "special notes" || hdr === "notes")
+                ) {
+                    resSheet.getRange(targetRow, colNum).setValue(data.notes);
+                } else if (
+                    data.estimatedTotal !== undefined &&
+                    (hdr === "estimated total" || hdr === "total estimate")
+                ) {
+                    resSheet
+                        .getRange(targetRow, colNum)
+                        .setValue(data.estimatedTotal);
+                }
+            }
+
             return ContentService.createTextOutput(
                 JSON.stringify({
                     status: "success",

@@ -3,6 +3,7 @@ import {
     DetailedVehicle,
     fetchAllReservations,
     fetchAllVehicles,
+    formatDriveImageUrl,
     ReservationRecord,
 } from "@/Services/vehicleService";
 import { Head, Link } from "@inertiajs/react";
@@ -43,6 +44,7 @@ export default function Index() {
     const [editingRes, setEditingRes] = useState<ReservationRecord | null>(
         null,
     );
+    const [isSavingEdit, setIsSavingEdit] = useState<boolean>(false);
     const [editForm, setEditForm] = useState<{
         firstName: string;
         lastName: string;
@@ -68,6 +70,14 @@ export default function Index() {
         returnLocation: "",
         notes: "",
     });
+
+    // Extend Rental State inside Reservation Details
+    const [extendDays, setExtendDays] = useState<number>(2);
+    const [extendChargeType, setExtendChargeType] = useState<
+        "free" | "daily" | "custom"
+    >("free");
+    const [customExtendAmount, setCustomExtendAmount] = useState<number>(150);
+    const [isExtending, setIsExtending] = useState<boolean>(false);
 
     // Payment Approval Modal State
     const [paymentModalRes, setPaymentModalRes] =
@@ -162,6 +172,49 @@ export default function Index() {
     const formatCurrency = (val: number) => {
         if (isNaN(val) || val <= 0) return "$0";
         return `$${val.toLocaleString()}`;
+    };
+
+    // Format Timestamp helper: "2026-10-21 23:23:45 EST" -> "Oct 21, 2026 at 11:23 PM"
+    const formatReservationTimestamp = (rawTs?: string): string => {
+        if (!rawTs) return "N/A";
+        try {
+            // Strip timezone suffix for parsing if needed
+            const cleaned = rawTs
+                .replace(/\s+(EST|EDT|PST|PDT|CST|CDT|UTC|GMT)$/i, "")
+                .trim();
+            const dateObj = new Date(cleaned);
+            if (!isNaN(dateObj.getTime())) {
+                const months = [
+                    "Jan",
+                    "Feb",
+                    "Mar",
+                    "Apr",
+                    "May",
+                    "Jun",
+                    "Jul",
+                    "Aug",
+                    "Sep",
+                    "Oct",
+                    "Nov",
+                    "Dec",
+                ];
+                const m = months[dateObj.getMonth()];
+                const d = dateObj.getDate();
+                const y = dateObj.getFullYear();
+                let hours = dateObj.getHours();
+                const minutes = dateObj
+                    .getMinutes()
+                    .toString()
+                    .padStart(2, "0");
+                const ampm = hours >= 12 ? "PM" : "AM";
+                hours = hours % 12;
+                hours = hours ? hours : 12;
+                return `${m} ${d}, ${y} at ${hours}:${minutes} ${ampm}`;
+            }
+        } catch {
+            // fallback below
+        }
+        return rawTs;
     };
 
     // Helper: calculate total rental days from pickup date to return date
@@ -505,28 +558,251 @@ export default function Index() {
     };
 
     // Save Edit Form
-    const handleSaveEditForm = (e: React.FormEvent) => {
+    const handleSaveEditForm = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!editingRes) return;
+        setIsSavingEdit(true);
 
         const confNum = editingRes.confirmationNumber;
+        const updatedRes: ReservationRecord = {
+            ...editingRes,
+            ...editForm,
+        };
+
         setReservations((prev) =>
             prev.map((r) =>
-                r.confirmationNumber === confNum
-                    ? {
-                          ...r,
-                          ...editForm,
-                      }
-                    : r,
+                r.confirmationNumber === confNum ? updatedRes : r,
             ),
         );
 
+        if (selectedRes && selectedRes.confirmationNumber === confNum) {
+            setSelectedRes(updatedRes);
+        }
+
+        const webhook =
+            scriptWebhookUrl.trim() ||
+            localStorage.getItem("WFM_APPS_SCRIPT_URL") ||
+            "";
+
+        if (webhook) {
+            try {
+                await fetch(webhook, {
+                    method: "POST",
+                    headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify({
+                        action: "update_reservation_status",
+                        confirmationNumber: confNum,
+                        ...editForm,
+                    }),
+                });
+            } catch (err) {
+                console.error("Save edit webhook error:", err);
+            }
+        }
+
+        setIsSavingEdit(false);
         setEditingRes(null);
         setAlertModal({
             isOpen: true,
             type: "success",
             title: "Reservation Details Updated!",
             message: `Customer & rental dates for #${confNum} updated successfully.`,
+        });
+    };
+
+    // Helper: calculate new return date when extended by X days
+    const calculateExtendedReturnDate = (
+        currentReturnDate: string,
+        daysToAdd: number,
+    ): string => {
+        if (!currentReturnDate) return "";
+        try {
+            const parts = currentReturnDate.split("-");
+            if (parts.length === 3) {
+                const year = parseInt(parts[0], 10);
+                const month = parseInt(parts[1], 10) - 1;
+                const day = parseInt(parts[2], 10);
+                const d = new Date(year, month, day);
+                d.setDate(d.getDate() + daysToAdd);
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, "0");
+                const dd = String(d.getDate()).padStart(2, "0");
+                return `${yyyy}-${mm}-${dd}`;
+            }
+            const d = new Date(currentReturnDate);
+            d.setDate(d.getDate() + daysToAdd);
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, "0");
+            const dd = String(d.getDate()).padStart(2, "0");
+            return `${yyyy}-${mm}-${dd}`;
+        } catch {
+            return currentReturnDate;
+        }
+    };
+
+    // Format Date string: "2026-11-17" -> "Nov 17, 2026"
+    const formatDisplayDate = (dStr?: string): string => {
+        if (!dStr) return "N/A";
+        try {
+            const parts = dStr.split("-");
+            if (parts.length === 3) {
+                const year = parseInt(parts[0], 10);
+                const month = parseInt(parts[1], 10) - 1;
+                const day = parseInt(parts[2], 10);
+                const d = new Date(year, month, day);
+                const months = [
+                    "Jan",
+                    "Feb",
+                    "Mar",
+                    "Apr",
+                    "May",
+                    "Jun",
+                    "Jul",
+                    "Aug",
+                    "Sep",
+                    "Oct",
+                    "Nov",
+                    "Dec",
+                ];
+                return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+            }
+            const d = new Date(dStr);
+            if (!isNaN(d.getTime())) {
+                const months = [
+                    "Jan",
+                    "Feb",
+                    "Mar",
+                    "Apr",
+                    "May",
+                    "Jun",
+                    "Jul",
+                    "Aug",
+                    "Sep",
+                    "Oct",
+                    "Nov",
+                    "Dec",
+                ];
+                return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+            }
+        } catch {}
+        return dStr;
+    };
+
+    // Handle Quick Status Change from Details Panel (e.g. Approve / Decline)
+    const handleQuickStatusChange = async (
+        res: ReservationRecord,
+        newStatus: "Approved" | "Declined" | "Pending",
+    ) => {
+        const confNum = res.confirmationNumber;
+        const updated = { ...res, reservationStatus: newStatus };
+
+        setReservations((prev) =>
+            prev.map((r) => (r.confirmationNumber === confNum ? updated : r)),
+        );
+        setSelectedRes(updated);
+
+        const webhook =
+            scriptWebhookUrl.trim() ||
+            localStorage.getItem("WFM_APPS_SCRIPT_URL") ||
+            "";
+
+        if (webhook) {
+            try {
+                await fetch(webhook, {
+                    method: "POST",
+                    headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify({
+                        action: "update_reservation_status",
+                        confirmationNumber: confNum,
+                        reservationStatus: newStatus,
+                    }),
+                });
+            } catch (err) {
+                console.error("Quick status webhook error:", err);
+            }
+        }
+
+        setAlertModal({
+            isOpen: true,
+            type: "success",
+            title: "Reservation Status Updated!",
+            message: `Reservation #${confNum} is now marked as "${newStatus}".`,
+        });
+    };
+
+    // Handle Extend Rental Save
+    const handleApplyExtension = async () => {
+        if (!selectedRes) return;
+        setIsExtending(true);
+
+        const currentReturnDate = selectedRes.returnDate;
+        const newReturnDate = calculateExtendedReturnDate(
+            currentReturnDate,
+            extendDays,
+        );
+
+        const car = selectedRes.vehicle;
+        const dailyRentRate =
+            car && car.rentPrice !== undefined && car.rentPrice > 0
+                ? car.rentPrice
+                : car
+                  ? car.originalPrice || car.price
+                  : selectedRes.rentalRate || 0;
+
+        let extraCharge = 0;
+        if (extendChargeType === "daily") {
+            extraCharge = dailyRentRate * extendDays;
+        } else if (extendChargeType === "custom") {
+            extraCharge = customExtendAmount || 0;
+        }
+
+        const prevTotal = selectedRes.estimatedTotal || 0;
+        const newEstimatedTotal = prevTotal + extraCharge;
+
+        const updated: ReservationRecord = {
+            ...selectedRes,
+            returnDate: newReturnDate,
+            estimatedTotal: newEstimatedTotal,
+            notes: selectedRes.notes
+                ? `${selectedRes.notes}\n[Extended +${extendDays} day(s) until ${newReturnDate}. Additional: $${extraCharge}]`
+                : `[Extended +${extendDays} day(s) until ${newReturnDate}. Additional: $${extraCharge}]`,
+        };
+
+        const confNum = selectedRes.confirmationNumber;
+        setReservations((prev) =>
+            prev.map((r) => (r.confirmationNumber === confNum ? updated : r)),
+        );
+        setSelectedRes(updated);
+
+        const webhook =
+            scriptWebhookUrl.trim() ||
+            localStorage.getItem("WFM_APPS_SCRIPT_URL") ||
+            "";
+
+        if (webhook) {
+            try {
+                await fetch(webhook, {
+                    method: "POST",
+                    headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify({
+                        action: "update_reservation_status",
+                        confirmationNumber: confNum,
+                        returnDate: newReturnDate,
+                        estimatedTotal: newEstimatedTotal,
+                        notes: updated.notes,
+                    }),
+                });
+            } catch (err) {
+                console.error("Extend rental webhook error:", err);
+            }
+        }
+
+        setIsExtending(false);
+        setAlertModal({
+            isOpen: true,
+            type: "success",
+            title: "Rental Extended!",
+            message: `Reservation #${confNum} extended by ${extendDays} days until ${formatDisplayDate(newReturnDate)} (+$${extraCharge}).`,
         });
     };
 
@@ -1604,269 +1880,792 @@ export default function Index() {
                 </div>
             </div>
 
-            {/* DETAIL MODAL FOR RESERVATION */}
-            {selectedRes && (
-                <div
-                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
-                    onClick={() => setSelectedRes(null)}
-                >
-                    <div
-                        className="w-full max-w-2xl bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-gray-100 transform transition-all relative overflow-hidden max-h-[90vh] overflow-y-auto"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        {/* Top Accent */}
-                        <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-dark-purple via-purple to-vivid-red" />
+            {/* DETAIL MODAL / PANEL FOR RESERVATION */}
+            {selectedRes &&
+                (() => {
+                    const days = getRentalDays(
+                        selectedRes.pickupDate,
+                        selectedRes.returnDate,
+                    );
+                    const car = selectedRes.vehicle;
+                    const dailyRentRate =
+                        car && car.rentPrice !== undefined && car.rentPrice > 0
+                            ? car.rentPrice
+                            : car
+                              ? car.originalPrice || car.price
+                              : selectedRes.rentalRate || 0;
+                    const beforeCouponCost = dailyRentRate * days;
+                    const hasCoupon = Boolean(
+                        selectedRes.couponCode && selectedRes.couponCode.trim(),
+                    );
+                    const totalCost =
+                        selectedRes.estimatedTotal || beforeCouponCost;
+                    const savingsCost = Math.max(
+                        0,
+                        beforeCouponCost - totalCost,
+                    );
+                    const savingsPercent =
+                        beforeCouponCost > 0
+                            ? Math.round((savingsCost / beforeCouponCost) * 100)
+                            : 0;
 
-                        {/* Modal Header */}
-                        <div className="flex items-start justify-between gap-3 pb-4 border-b border-slate-100 mb-5">
-                            <div>
-                                <div className="flex items-center gap-2">
-                                    <span className="text-[10px] font-mono font-bold uppercase bg-dark-purple text-white px-2.5 py-0.5 rounded-full">
-                                        #{selectedRes.confirmationNumber}
-                                    </span>
-                                    <span
-                                        className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                                            (selectedRes.paymentStatus || "")
-                                                .toLowerCase()
-                                                .includes("paid") &&
-                                            !(selectedRes.paymentStatus || "")
-                                                .toLowerCase()
-                                                .includes("unpaid")
-                                                ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                                                : (
-                                                        selectedRes.paymentStatus ||
-                                                        ""
-                                                    )
-                                                        .toLowerCase()
-                                                        .includes("unpaid")
-                                                  ? "bg-rose-100 text-rose-800 border border-rose-200"
-                                                  : "bg-amber-100 text-amber-900 border border-amber-200"
-                                        }`}
-                                    >
-                                        Payment:{" "}
-                                        {selectedRes.paymentStatus || "Pending"}
-                                    </span>
-                                    <span
-                                        className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                                            selectedRes.reservationStatus ===
-                                            "Approved"
-                                                ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                                                : "bg-amber-100 text-amber-900 border border-amber-200"
-                                        }`}
-                                    >
-                                        Reservation:{" "}
-                                        {selectedRes.reservationStatus ||
-                                            "Pending"}
-                                    </span>
-                                </div>
-                                <h3 className="text-lg font-black text-slate-900 mt-1">
-                                    {selectedRes.carTitle ||
-                                        (selectedRes.vehicle
-                                            ? `${selectedRes.vehicle.make} ${selectedRes.vehicle.model}`
-                                            : "Vehicle Rental")}
-                                </h3>
-                                <p className="text-xs text-slate-500">
-                                    Recorded on:{" "}
-                                    {selectedRes.timestamp || "Recent"}
-                                </p>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => setSelectedRes(null)}
-                                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
+                    const resStatus =
+                        selectedRes.reservationStatus || "Pending";
+                    const rLower = resStatus.toLowerCase();
+                    const isApproved = rLower.includes("approv");
+                    const isDeclined = rLower.includes("decline");
+                    const isPending = !isApproved && !isDeclined;
+
+                    // Extend rental calculations
+                    const extendedReturnDateStr = calculateExtendedReturnDate(
+                        selectedRes.returnDate,
+                        extendDays,
+                    );
+                    let extensionAdditionalCharge = 0;
+                    if (extendChargeType === "daily") {
+                        extensionAdditionalCharge = dailyRentRate * extendDays;
+                    } else if (extendChargeType === "custom") {
+                        extensionAdditionalCharge = customExtendAmount || 0;
+                    }
+                    const newTotalWithExtension =
+                        totalCost + extensionAdditionalCharge;
+
+                    // Car details
+                    const carImageUrl =
+                        car?.mainImageUrl ||
+                        formatDriveImageUrl(car?.images?.[0] || "");
+                    const carTitleStr =
+                        [car?.year, car?.make, car?.model]
+                            .filter(Boolean)
+                            .join(" ") ||
+                        selectedRes.carTitle ||
+                        "Vehicle Details";
+                    const bodyStyleFuelStr = `${car?.bodyStyle || "Sedan"} • ${car?.fuelType || "Gasoline"}`;
+                    const stockIdStr = selectedRes.carId || car?.id || "N/A";
+
+                    return (
+                        <div
+                            className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in overflow-y-auto"
+                            onClick={() => setSelectedRes(null)}
+                        >
+                            <div
+                                className="w-full max-w-xl bg-white rounded-3xl shadow-2xl border border-slate-100 transform transition-all relative overflow-hidden my-auto max-h-[92vh] flex flex-col"
+                                onClick={(e) => e.stopPropagation()}
                             >
-                                <svg
-                                    className="w-5 h-5"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M6 18L18 6M6 6l12 12"
-                                    />
-                                </svg>
-                            </button>
-                        </div>
-
-                        {/* Customer & Booking Details */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                            {/* Primary Driver */}
-                            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
-                                <h4 className="font-bold uppercase tracking-wider text-slate-500 text-[10px]">
-                                    Primary Driver
-                                </h4>
-                                <div className="space-y-1">
-                                    <p className="font-bold text-slate-900 text-sm">
-                                        {selectedRes.firstName}{" "}
-                                        {selectedRes.lastName}
-                                    </p>
-                                    <p className="text-slate-600">
-                                        Email:{" "}
-                                        <a
-                                            href={`mailto:${selectedRes.email}`}
-                                            className="text-purple hover:underline"
-                                        >
-                                            {selectedRes.email}
-                                        </a>
-                                    </p>
-                                    <p className="text-slate-600">
-                                        Mobile: {selectedRes.phone || "N/A"}
-                                    </p>
-                                    <p className="text-slate-600">
-                                        Age: {selectedRes.age || "N/A"} •
-                                        Residency:{" "}
-                                        {selectedRes.residency || "N/A"}
-                                    </p>
+                                {/* Top Purple Header Bar */}
+                                <div className="bg-gradient-to-r from-[#591ba5] via-[#6d28d9] to-[#7c3aed] text-white px-5 py-3.5 flex items-center justify-between shrink-0 shadow-md">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="w-8 h-8 rounded-xl bg-white/15 flex items-center justify-center text-white">
+                                            <svg
+                                                className="w-4 h-4"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                                strokeWidth={2.2}
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                                />
+                                            </svg>
+                                        </div>
+                                        <h3 className="text-sm font-black tracking-wide text-white">
+                                            Reservation Details
+                                        </h3>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedRes(null)}
+                                        className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition"
+                                    >
+                                        ✕
+                                    </button>
                                 </div>
-                            </div>
 
-                            {/* Schedule & Pickup */}
-                            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
-                                <h4 className="font-bold uppercase tracking-wider text-slate-500 text-[10px]">
-                                    Trip Schedule
-                                </h4>
-                                <div className="space-y-1.5">
-                                    <div>
-                                        <span className="font-bold text-slate-800">
-                                            Pickup:
-                                        </span>{" "}
-                                        {selectedRes.pickupDate} at{" "}
-                                        {selectedRes.pickupTime}
-                                        <p className="text-[11px] text-slate-500">
-                                            {selectedRes.pickupLocation}
-                                        </p>
+                                {/* Scrollable Content Body */}
+                                <div className="p-4 sm:p-5 overflow-y-auto space-y-4 text-xs font-sans">
+                                    {/* Reservation Status & Confirmation Header */}
+                                    <div className="space-y-1">
+                                        <div>
+                                            <span
+                                                className={`inline-block px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider ${
+                                                    isApproved
+                                                        ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                                        : isDeclined
+                                                          ? "bg-rose-100 text-rose-800 border border-rose-200"
+                                                          : "bg-amber-100 text-amber-900 border border-amber-200"
+                                                }`}
+                                            >
+                                                {resStatus}
+                                            </span>
+                                        </div>
+                                        <div className="text-lg sm:text-xl font-black text-slate-900 flex items-center gap-1.5 flex-wrap">
+                                            <span>Reservation:</span>
+                                            <span className="text-purple font-mono">
+                                                {selectedRes.confirmationNumber}
+                                            </span>
+                                        </div>
+                                        <div className="text-xs text-slate-500 font-medium">
+                                            Requested on:{" "}
+                                            {formatReservationTimestamp(
+                                                selectedRes.timestamp,
+                                            )}
+                                        </div>
                                     </div>
-                                    <div>
-                                        <span className="font-bold text-slate-800">
-                                            Return:
-                                        </span>{" "}
-                                        {selectedRes.returnDate} at{" "}
-                                        {selectedRes.returnTime}
-                                        <p className="text-[11px] text-slate-500">
-                                            {selectedRes.returnLocation ||
-                                                selectedRes.pickupLocation}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
 
-                        {/* Financial / Coupon Summary */}
-                        <div className="mt-4 p-4 rounded-2xl bg-purple/5 border border-purple/10 flex flex-wrap items-center justify-between gap-4 text-xs">
-                            <div>
-                                <span className="text-[10px] uppercase font-bold text-slate-500 block">
-                                    Payment Method &amp; Option
-                                </span>
-                                <span className="font-bold text-slate-900 text-sm">
-                                    {cleanPaymentOption(
-                                        selectedRes.paymentOption,
-                                    )}
-                                </span>
-                                {selectedRes.couponCode && (
-                                    <div className="mt-1">
-                                        <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-[11px]">
-                                            Applied Coupon:{" "}
-                                            {selectedRes.couponCode}
-                                        </span>
-                                    </div>
-                                )}
-                            </div>
-                            <div className="text-right">
-                                <span className="text-[10px] uppercase font-bold text-slate-500 block">
-                                    Total Amount
-                                </span>
-                                <span className="text-xl font-black text-slate-900">
-                                    {formatCurrency(
-                                        selectedRes.estimatedTotal ||
-                                            selectedRes.rentalRate ||
-                                            0,
-                                    )}
-                                </span>
-                            </div>
-                        </div>
+                                    {/* Vehicle Information Section */}
+                                    <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/80 flex items-center gap-4">
+                                        {/* Left side: Vehicle car image */}
+                                        <div className="w-28 sm:w-36 h-20 sm:h-24 rounded-xl overflow-hidden bg-white border border-slate-200/80 shrink-0 flex items-center justify-center shadow-sm">
+                                            {carImageUrl ? (
+                                                <img
+                                                    src={carImageUrl}
+                                                    alt={carTitleStr}
+                                                    className="w-full h-full object-cover"
+                                                    loading="lazy"
+                                                    onError={(e) => {
+                                                        (
+                                                            e.currentTarget as HTMLElement
+                                                        ).style.display =
+                                                            "none";
+                                                    }}
+                                                />
+                                            ) : (
+                                                <span className="text-2xl text-slate-300">
+                                                    🚗
+                                                </span>
+                                            )}
+                                        </div>
 
-                        {/* Special Notes if available */}
-                        {selectedRes.notes && (
-                            <div className="mt-4 p-4 rounded-2xl bg-amber-50/60 border border-amber-200 text-xs">
-                                <h4 className="font-bold text-amber-900 text-[11px] mb-1">
-                                    Special Notes / Customer Requests
-                                </h4>
-                                <p className="text-slate-700 whitespace-pre-wrap">
-                                    {selectedRes.notes}
-                                </p>
-                            </div>
-                        )}
-
-                        {/* Connected Vehicle Spec Sheet Preview */}
-                        {selectedRes.vehicle && (
-                            <div className="mt-4 p-4 rounded-2xl bg-slate-900 text-white flex items-center justify-between gap-4">
-                                <div className="flex items-center gap-3 min-w-0">
-                                    <div className="w-14 h-12 rounded-xl bg-slate-800 overflow-hidden shrink-0 border border-white/10">
-                                        {selectedRes.vehicle.mainImageUrl ? (
-                                            <img
-                                                src={
-                                                    selectedRes.vehicle
-                                                        .mainImageUrl
-                                                }
-                                                alt={selectedRes.vehicle.make}
-                                                className="w-full h-full object-cover"
-                                            />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-slate-500">
-                                                🚗
+                                        {/* Right side: Vehicle specs */}
+                                        <div className="min-w-0 flex-1 space-y-1">
+                                            <div className="text-sm font-black text-slate-900 leading-snug truncate">
+                                                {carTitleStr}
                                             </div>
-                                        )}
+                                            <div className="text-xs font-semibold text-slate-600">
+                                                {bodyStyleFuelStr}
+                                            </div>
+                                            <div className="text-xs font-semibold text-slate-500">
+                                                Stock ID:{" "}
+                                                <span className="font-mono font-bold text-slate-800">
+                                                    {stockIdStr}
+                                                </span>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="min-w-0">
-                                        <h5 className="font-bold text-sm truncate">
-                                            {selectedRes.vehicle.make}{" "}
-                                            {selectedRes.vehicle.model} (
-                                            {selectedRes.vehicle.year})
-                                        </h5>
-                                        <p className="text-[11px] text-slate-400 truncate">
-                                            Stock #{selectedRes.vehicle.id} •{" "}
-                                            {selectedRes.vehicle.transmission ||
-                                                "Automatic"}{" "}
-                                            •{" "}
-                                            {selectedRes.vehicle.driveline ||
-                                                "FWD"}
-                                        </p>
+
+                                    {/* Customer Information Section */}
+                                    <div className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-sm space-y-2">
+                                        <div className="flex items-center gap-2 text-xs font-black text-slate-900 pb-1.5 border-b border-slate-100">
+                                            <svg
+                                                className="w-4 h-4 text-purple shrink-0"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                                strokeWidth={2}
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                                                />
+                                            </svg>
+                                            <span>Customer Information</span>
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+                                            <div>
+                                                <span className="text-slate-400 block font-semibold text-[11px]">
+                                                    Name:
+                                                </span>
+                                                <span className="font-bold text-slate-800">
+                                                    {selectedRes.firstName}{" "}
+                                                    {selectedRes.lastName}
+                                                </span>
+                                            </div>
+                                            <div className="truncate">
+                                                <span className="text-slate-400 block font-semibold text-[11px]">
+                                                    Email:
+                                                </span>
+                                                <a
+                                                    href={`mailto:${selectedRes.email}`}
+                                                    className="font-bold text-purple hover:underline truncate block"
+                                                    title={selectedRes.email}
+                                                >
+                                                    {selectedRes.email || "N/A"}
+                                                </a>
+                                            </div>
+                                            <div>
+                                                <span className="text-slate-400 block font-semibold text-[11px]">
+                                                    Phone:
+                                                </span>
+                                                <span className="font-bold text-slate-800">
+                                                    {selectedRes.phone || "N/A"}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Rental Schedule Section */}
+                                    <div className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-sm space-y-2.5">
+                                        <div className="flex items-center gap-2 text-xs font-black text-slate-900 pb-1.5 border-b border-slate-100">
+                                            <svg
+                                                className="w-4 h-4 text-purple shrink-0"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                                strokeWidth={2}
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                                />
+                                            </svg>
+                                            <span>Rental Schedule</span>
+                                        </div>
+                                        <div className="space-y-2 text-xs">
+                                            <div>
+                                                <div className="font-bold text-slate-800 flex items-center gap-1.5">
+                                                    <span className="text-emerald-600">
+                                                        📅
+                                                    </span>
+                                                    <span>Pickup:</span>
+                                                    <span className="text-slate-900">
+                                                        {formatDisplayDate(
+                                                            selectedRes.pickupDate,
+                                                        )}{" "}
+                                                        at{" "}
+                                                        {selectedRes.pickupTime ||
+                                                            "10:00 AM"}{" "}
+                                                        (EST)
+                                                    </span>
+                                                </div>
+                                                <div className="text-[11px] text-slate-500 pl-6 flex items-center gap-1 mt-0.5">
+                                                    <span>📍</span>
+                                                    <span>
+                                                        {selectedRes.pickupLocation ||
+                                                            "Dayton, Ohio: Wright finder motors (primary hub)"}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <div className="font-bold text-slate-800 flex items-center gap-1.5">
+                                                    <span className="text-rose-600">
+                                                        📅
+                                                    </span>
+                                                    <span>Return:</span>
+                                                    <span className="text-slate-900">
+                                                        {formatDisplayDate(
+                                                            selectedRes.returnDate,
+                                                        )}{" "}
+                                                        at{" "}
+                                                        {selectedRes.returnTime ||
+                                                            "10:00 AM"}{" "}
+                                                        (EST)
+                                                    </span>
+                                                </div>
+                                                <div className="text-[11px] text-slate-500 pl-6 flex items-center gap-1 mt-0.5">
+                                                    <span>📍</span>
+                                                    <span>
+                                                        {selectedRes.returnLocation ||
+                                                            selectedRes.pickupLocation ||
+                                                            "Dayton, Ohio: Wright finder motors (primary hub)"}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <div className="pt-1 border-t border-slate-100 flex items-center justify-between text-xs">
+                                                <span className="text-slate-500 font-semibold">
+                                                    Duration:
+                                                </span>
+                                                <span className="font-black text-slate-900">
+                                                    {days}{" "}
+                                                    {days === 1
+                                                        ? "Day"
+                                                        : "Days"}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Pricing & Savings Section */}
+                                    <div className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-sm space-y-2">
+                                        <div className="flex items-center gap-2 text-xs font-black text-slate-900 pb-1.5 border-b border-slate-100">
+                                            <svg
+                                                className="w-4 h-4 text-emerald-600 shrink-0"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                                strokeWidth={2}
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                                />
+                                            </svg>
+                                            <span>Pricing &amp; Savings</span>
+                                        </div>
+                                        <div className="space-y-1.5 text-xs">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-slate-600 font-medium">
+                                                    Before Coupon ({days} days x{" "}
+                                                    {formatCurrency(
+                                                        dailyRentRate,
+                                                    )}
+                                                    /day):
+                                                </span>
+                                                <span className="font-bold text-slate-900">
+                                                    {formatCurrency(
+                                                        beforeCouponCost,
+                                                    )}
+                                                </span>
+                                            </div>
+
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-slate-600 font-medium">
+                                                    Coupon:{" "}
+                                                    {hasCoupon ? (
+                                                        <span className="font-bold text-emerald-600">
+                                                            {
+                                                                selectedRes.couponCode
+                                                            }
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-slate-400">
+                                                            -
+                                                        </span>
+                                                    )}
+                                                </span>
+                                                <span className="font-bold text-emerald-600">
+                                                    {hasCoupon
+                                                        ? `-${formatCurrency(savingsCost)}`
+                                                        : "$0"}
+                                                </span>
+                                            </div>
+
+                                            <div className="flex items-center justify-between p-2 rounded-xl bg-purple/5 border border-purple/10">
+                                                <span className="font-black text-slate-900">
+                                                    After Coupon (Total):
+                                                </span>
+                                                <span className="text-base font-black text-slate-900">
+                                                    {formatCurrency(totalCost)}
+                                                </span>
+                                            </div>
+
+                                            <div className="flex items-center justify-between p-2 rounded-xl bg-emerald-50 border border-emerald-200">
+                                                <span className="font-bold text-emerald-800">
+                                                    Total Savings:
+                                                </span>
+                                                <span className="font-black text-emerald-700">
+                                                    {formatCurrency(
+                                                        savingsCost,
+                                                    )}{" "}
+                                                    {savingsPercent > 0
+                                                        ? `(${savingsPercent}%)`
+                                                        : ""}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Payment Information Section */}
+                                    <div className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-sm space-y-2">
+                                        <div className="flex items-center gap-2 text-xs font-black text-slate-900 pb-1.5 border-b border-slate-100">
+                                            <svg
+                                                className="w-4 h-4 text-purple shrink-0"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                                strokeWidth={2}
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+                                                />
+                                            </svg>
+                                            <span>Payment Information</span>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3 text-xs">
+                                            <div>
+                                                <span className="text-slate-400 block font-semibold text-[11px] mb-1">
+                                                    Payment Status:
+                                                </span>
+                                                <span
+                                                    className={`inline-block px-3 py-1 rounded-full text-[11px] font-bold ${
+                                                        (
+                                                            selectedRes.paymentStatus ||
+                                                            ""
+                                                        )
+                                                            .toLowerCase()
+                                                            .includes("paid") &&
+                                                        !(
+                                                            selectedRes.paymentStatus ||
+                                                            ""
+                                                        )
+                                                            .toLowerCase()
+                                                            .includes("unpaid")
+                                                            ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                                            : (
+                                                                    selectedRes.paymentStatus ||
+                                                                    ""
+                                                                )
+                                                                    .toLowerCase()
+                                                                    .includes(
+                                                                        "unpaid",
+                                                                    )
+                                                              ? "bg-rose-100 text-rose-800 border border-rose-200"
+                                                              : "bg-amber-100 text-amber-900 border border-amber-200"
+                                                    }`}
+                                                >
+                                                    {selectedRes.paymentStatus ||
+                                                        "Pending"}
+                                                </span>
+                                            </div>
+                                            <div>
+                                                <span className="text-slate-400 block font-semibold text-[11px] mb-1">
+                                                    Payment Method:
+                                                </span>
+                                                <span className="font-bold text-slate-800 text-sm">
+                                                    {cleanPaymentOption(
+                                                        selectedRes.paymentOption,
+                                                    )}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Extend Rental Section */}
+                                    <div className="p-4 rounded-2xl bg-[#faf7ff] border border-purple/20 space-y-3">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-7 h-7 rounded-lg bg-purple/10 text-purple flex items-center justify-center shrink-0">
+                                                <svg
+                                                    className="w-4 h-4"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                    stroke="currentColor"
+                                                    strokeWidth={2}
+                                                >
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                                                    />
+                                                </svg>
+                                            </div>
+                                            <div>
+                                                <h4 className="text-xs font-black text-purple">
+                                                    Extend Rental
+                                                </h4>
+                                                <p className="text-[11px] text-slate-500">
+                                                    Add more rental days or
+                                                    adjust the extension charge.
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                                            {/* Left side: Add Days */}
+                                            <div className="space-y-1.5">
+                                                <label className="block text-[11px] font-bold text-slate-700">
+                                                    Add Days:
+                                                </label>
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            setExtendDays((d) =>
+                                                                Math.max(
+                                                                    1,
+                                                                    d - 1,
+                                                                ),
+                                                            )
+                                                        }
+                                                        className="w-9 h-9 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 font-bold text-base flex items-center justify-center text-slate-700 transition shadow-sm"
+                                                    >
+                                                        -
+                                                    </button>
+                                                    <div className="w-14 h-9 rounded-xl bg-white border border-slate-300 font-black text-sm flex items-center justify-center text-slate-900 shadow-inner">
+                                                        {extendDays}
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            setExtendDays(
+                                                                (d) => d + 1,
+                                                            )
+                                                        }
+                                                        className="w-9 h-9 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 font-bold text-base flex items-center justify-center text-slate-700 transition shadow-sm"
+                                                    >
+                                                        +
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {/* Right side: Extension Charge Option */}
+                                            <div className="space-y-2">
+                                                <label className="block text-[11px] font-bold text-slate-700">
+                                                    Extension Charge Option:
+                                                </label>
+                                                <div className="space-y-1.5 text-xs">
+                                                    <label className="flex items-center gap-2 cursor-pointer">
+                                                        <input
+                                                            type="radio"
+                                                            name="extendCharge"
+                                                            checked={
+                                                                extendChargeType ===
+                                                                "free"
+                                                            }
+                                                            onChange={() =>
+                                                                setExtendChargeType(
+                                                                    "free",
+                                                                )
+                                                            }
+                                                            className="text-purple focus:ring-purple/40"
+                                                        />
+                                                        <span className="text-slate-700 font-medium">
+                                                            No Charge
+                                                            (Complimentary)
+                                                        </span>
+                                                    </label>
+                                                    <label className="flex items-center gap-2 cursor-pointer">
+                                                        <input
+                                                            type="radio"
+                                                            name="extendCharge"
+                                                            checked={
+                                                                extendChargeType ===
+                                                                "daily"
+                                                            }
+                                                            onChange={() =>
+                                                                setExtendChargeType(
+                                                                    "daily",
+                                                                )
+                                                            }
+                                                            className="text-purple focus:ring-purple/40"
+                                                        />
+                                                        <span className="text-slate-700 font-medium">
+                                                            Use Daily Rate (
+                                                            {formatCurrency(
+                                                                dailyRentRate,
+                                                            )}
+                                                            /day) -{" "}
+                                                            <span className="font-bold text-slate-900">
+                                                                {formatCurrency(
+                                                                    dailyRentRate *
+                                                                        extendDays,
+                                                                )}
+                                                            </span>
+                                                        </span>
+                                                    </label>
+                                                    <label className="flex items-center gap-2 cursor-pointer">
+                                                        <input
+                                                            type="radio"
+                                                            name="extendCharge"
+                                                            checked={
+                                                                extendChargeType ===
+                                                                "custom"
+                                                            }
+                                                            onChange={() =>
+                                                                setExtendChargeType(
+                                                                    "custom",
+                                                                )
+                                                            }
+                                                            className="text-purple focus:ring-purple/40"
+                                                        />
+                                                        <span className="text-slate-700 font-medium">
+                                                            Custom Amount
+                                                        </span>
+                                                        <div className="flex items-center gap-1 ml-auto">
+                                                            <span className="font-bold text-slate-500">
+                                                                $
+                                                            </span>
+                                                            <input
+                                                                type="number"
+                                                                min={0}
+                                                                value={
+                                                                    customExtendAmount
+                                                                }
+                                                                onChange={(
+                                                                    e,
+                                                                ) => {
+                                                                    setExtendChargeType(
+                                                                        "custom",
+                                                                    );
+                                                                    setCustomExtendAmount(
+                                                                        parseFloat(
+                                                                            e
+                                                                                .target
+                                                                                .value,
+                                                                        ) || 0,
+                                                                    );
+                                                                }}
+                                                                className="w-20 px-2.5 py-1 text-xs font-bold border border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-purple/40"
+                                                            />
+                                                        </div>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Extension Summary Card */}
+                                        <div className="p-3 rounded-xl bg-purple/10 border border-purple/20 text-xs text-purple space-y-1">
+                                            <div className="flex items-center gap-1.5 font-bold">
+                                                <span>ℹ️</span>
+                                                <span>
+                                                    New Return Date &amp; Time:{" "}
+                                                    {formatDisplayDate(
+                                                        extendedReturnDateStr,
+                                                    )}{" "}
+                                                    at{" "}
+                                                    {selectedRes.returnTime ||
+                                                        "10:00 AM"}{" "}
+                                                    (EST)
+                                                </span>
+                                            </div>
+                                            <div className="text-[11px] font-semibold text-slate-700 pl-5">
+                                                Additional Charge:{" "}
+                                                <strong className="text-purple font-black">
+                                                    {formatCurrency(
+                                                        extensionAdditionalCharge,
+                                                    )}
+                                                </strong>{" "}
+                                                | New Total:{" "}
+                                                <strong className="text-slate-900 font-black">
+                                                    {formatCurrency(
+                                                        newTotalWithExtension,
+                                                    )}
+                                                </strong>
+                                            </div>
+                                        </div>
+
+                                        {/* Extend button & cancel button */}
+                                        <div className="flex items-center justify-end gap-2 pt-1">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setExtendDays(2);
+                                                    setExtendChargeType("free");
+                                                }}
+                                                className="px-3.5 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 transition"
+                                            >
+                                                Reset Extension
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={handleApplyExtension}
+                                                disabled={isExtending}
+                                                className="px-4 py-1.5 rounded-xl bg-purple hover:bg-dark-purple text-white text-xs font-bold transition shadow-sm disabled:opacity-50 flex items-center gap-1.5"
+                                            >
+                                                <span>📅</span>
+                                                <span>
+                                                    {isExtending
+                                                        ? "Extending..."
+                                                        : "Confirm Extension"}
+                                                </span>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Special Notes if available */}
+                                    {selectedRes.notes && (
+                                        <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 text-xs">
+                                            <h4 className="font-bold text-amber-900 text-[11px] mb-1">
+                                                Special Notes / Customer
+                                                Requests
+                                            </h4>
+                                            <p className="text-slate-700 whitespace-pre-wrap">
+                                                {selectedRes.notes}
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Panel Footer Action Buttons */}
+                                <div className="p-3.5 bg-slate-50 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-2 shrink-0">
+                                    <div className="flex items-center gap-2">
+                                        {/* Approve Button */}
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                handleQuickStatusChange(
+                                                    selectedRes,
+                                                    "Approved",
+                                                )
+                                            }
+                                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition shadow-sm"
+                                        >
+                                            <span>✓</span>
+                                            <span>Approve</span>
+                                        </button>
+
+                                        {/* Decline Button */}
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                handleQuickStatusChange(
+                                                    selectedRes,
+                                                    "Declined",
+                                                )
+                                            }
+                                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition shadow-sm"
+                                        >
+                                            <span>✕</span>
+                                            <span>Decline</span>
+                                        </button>
+
+                                        {/* Edit Button */}
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                handleOpenEditModal(selectedRes)
+                                            }
+                                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-purple/30 bg-purple/10 text-purple hover:bg-purple hover:text-white font-bold text-xs transition shadow-sm"
+                                        >
+                                            <svg
+                                                className="w-3.5 h-3.5"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                                strokeWidth={2}
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                                />
+                                            </svg>
+                                            <span>Edit</span>
+                                        </button>
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                handlePrintReservation(
+                                                    selectedRes,
+                                                )
+                                            }
+                                            className="px-3.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-xs font-semibold text-slate-700 transition shadow-sm"
+                                        >
+                                            Print Voucher
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setSelectedRes(null)}
+                                            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-black text-white text-xs font-bold transition shadow-sm"
+                                        >
+                                            Close
+                                        </button>
                                     </div>
                                 </div>
-                                <Link
-                                    href={`${route("admin.cars.show", { id: selectedRes.vehicle.id })}?from=rent`}
-                                    className="px-3.5 py-1.5 rounded-xl bg-vivid-red text-white text-xs font-bold hover:bg-red-600 transition shadow shrink-0"
-                                >
-                                    Car Details
-                                </Link>
                             </div>
-                        )}
-
-                        {/* Modal Footer Buttons */}
-                        <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-end gap-2.5">
-                            <button
-                                type="button"
-                                onClick={() =>
-                                    handlePrintReservation(selectedRes)
-                                }
-                                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold hover:bg-slate-50 text-slate-700 transition"
-                            >
-                                Print Voucher
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setSelectedRes(null)}
-                                className="px-5 py-2 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition shadow-sm"
-                            >
-                                Close
-                            </button>
                         </div>
-                    </div>
-                </div>
-            )}
+                    );
+                })()}
 
             {/* PAYMENT APPROVAL MODAL */}
             {paymentModalRes && (
@@ -2151,151 +2950,304 @@ export default function Index() {
                 </div>
             )}
 
-            {/* EDIT RESERVATION MODAL */}
+            {/* EDIT RESERVATION MODAL / PANEL */}
             {editingRes && (
                 <div
-                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
+                    className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in overflow-y-auto"
                     onClick={() => setEditingRes(null)}
                 >
                     <div
-                        className="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-gray-100 relative max-h-[90vh] overflow-y-auto"
+                        className="w-full max-w-xl bg-white rounded-3xl shadow-2xl border border-slate-100 transform transition-all relative overflow-hidden my-auto max-h-[92vh] flex flex-col"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
-                            <div>
-                                <h3 className="text-base font-black text-slate-900">
-                                    Edit Reservation Details
-                                </h3>
-                                <p className="text-xs text-slate-500">
-                                    #{editingRes.confirmationNumber}
-                                </p>
+                        {/* Top Purple Header Bar */}
+                        <div className="bg-gradient-to-r from-[#591ba5] via-[#6d28d9] to-[#7c3aed] text-white px-5 py-3.5 flex items-center justify-between shrink-0 shadow-md">
+                            <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-xl bg-white/15 flex items-center justify-center text-white">
+                                    <svg
+                                        className="w-4 h-4"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        strokeWidth={2.2}
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                        />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-black tracking-wide text-white">
+                                        Edit Reservation Details
+                                    </h3>
+                                    <p className="text-[11px] text-purple-200">
+                                        Update client information &amp; rental
+                                        schedule (Vehicle details unchanged)
+                                    </p>
+                                </div>
                             </div>
                             <button
                                 type="button"
                                 onClick={() => setEditingRes(null)}
-                                className="text-slate-400 hover:text-slate-600 font-bold text-lg"
+                                className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition"
                             >
-                                &times;
+                                ✕
                             </button>
                         </div>
 
+                        {/* Form Content */}
                         <form
                             onSubmit={handleSaveEditForm}
-                            className="space-y-4 text-xs"
+                            className="p-4 sm:p-6 overflow-y-auto space-y-4 text-xs font-sans"
                         >
-                            <div className="grid grid-cols-2 gap-3">
+                            {/* Confirmation Number Banner */}
+                            <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
                                 <div>
-                                    <label className="block font-bold text-slate-700 uppercase mb-1">
-                                        First Name
+                                    <span className="text-[10px] font-bold uppercase text-slate-400 block">
+                                        Confirmation
+                                    </span>
+                                    <span className="text-sm font-black text-purple font-mono">
+                                        #{editingRes.confirmationNumber}
+                                    </span>
+                                </div>
+                                <div className="text-right">
+                                    <span className="text-[10px] font-bold uppercase text-slate-400 block">
+                                        Status
+                                    </span>
+                                    <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
+                                        {editingRes.reservationStatus ||
+                                            "Pending"}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Client Information Section */}
+                            <div className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-sm space-y-3">
+                                <div className="flex items-center gap-2 text-xs font-black text-slate-900 pb-2 border-b border-slate-100">
+                                    <svg
+                                        className="w-4 h-4 text-purple shrink-0"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        strokeWidth={2}
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                                        />
+                                    </svg>
+                                    <span>Client Information</span>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block font-bold text-slate-700 text-[11px] uppercase mb-1">
+                                            First Name
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={editForm.firstName}
+                                            onChange={(e) =>
+                                                setEditForm({
+                                                    ...editForm,
+                                                    firstName: e.target.value,
+                                                })
+                                            }
+                                            className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-semibold"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block font-bold text-slate-700 text-[11px] uppercase mb-1">
+                                            Last Name
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={editForm.lastName}
+                                            onChange={(e) =>
+                                                setEditForm({
+                                                    ...editForm,
+                                                    lastName: e.target.value,
+                                                })
+                                            }
+                                            className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-semibold"
+                                            required
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block font-bold text-slate-700 text-[11px] uppercase mb-1">
+                                            Email Address
+                                        </label>
+                                        <input
+                                            type="email"
+                                            value={editForm.email}
+                                            onChange={(e) =>
+                                                setEditForm({
+                                                    ...editForm,
+                                                    email: e.target.value,
+                                                })
+                                            }
+                                            className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-semibold"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block font-bold text-slate-700 text-[11px] uppercase mb-1">
+                                            Mobile Phone
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={editForm.phone}
+                                            onChange={(e) =>
+                                                setEditForm({
+                                                    ...editForm,
+                                                    phone: e.target.value,
+                                                })
+                                            }
+                                            className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-semibold"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Rental Schedule Section */}
+                            <div className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-sm space-y-3">
+                                <div className="flex items-center gap-2 text-xs font-black text-slate-900 pb-2 border-b border-slate-100">
+                                    <svg
+                                        className="w-4 h-4 text-purple shrink-0"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        strokeWidth={2}
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                        />
+                                    </svg>
+                                    <span>Rental Schedule</span>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block font-bold text-slate-700 text-[11px] uppercase mb-1">
+                                            Pickup Date
+                                        </label>
+                                        <input
+                                            type="date"
+                                            value={editForm.pickupDate}
+                                            onChange={(e) =>
+                                                setEditForm({
+                                                    ...editForm,
+                                                    pickupDate: e.target.value,
+                                                })
+                                            }
+                                            className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-semibold"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block font-bold text-slate-700 text-[11px] uppercase mb-1">
+                                            Pickup Time (EST)
+                                        </label>
+                                        <input
+                                            type="text"
+                                            placeholder="10:00 AM"
+                                            value={editForm.pickupTime}
+                                            onChange={(e) =>
+                                                setEditForm({
+                                                    ...editForm,
+                                                    pickupTime: e.target.value,
+                                                })
+                                            }
+                                            className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-semibold"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block font-bold text-slate-700 text-[11px] uppercase mb-1">
+                                        Pickup Location
                                     </label>
                                     <input
                                         type="text"
-                                        value={editForm.firstName}
+                                        value={editForm.pickupLocation}
                                         onChange={(e) =>
                                             setEditForm({
                                                 ...editForm,
-                                                firstName: e.target.value,
+                                                pickupLocation: e.target.value,
                                             })
                                         }
-                                        className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40"
-                                        required
+                                        className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-semibold"
                                     />
                                 </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-slate-100">
+                                    <div>
+                                        <label className="block font-bold text-slate-700 text-[11px] uppercase mb-1">
+                                            Return Date
+                                        </label>
+                                        <input
+                                            type="date"
+                                            value={editForm.returnDate}
+                                            onChange={(e) =>
+                                                setEditForm({
+                                                    ...editForm,
+                                                    returnDate: e.target.value,
+                                                })
+                                            }
+                                            className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-semibold"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block font-bold text-slate-700 text-[11px] uppercase mb-1">
+                                            Return Time (EST)
+                                        </label>
+                                        <input
+                                            type="text"
+                                            placeholder="10:00 AM"
+                                            value={editForm.returnTime}
+                                            onChange={(e) =>
+                                                setEditForm({
+                                                    ...editForm,
+                                                    returnTime: e.target.value,
+                                                })
+                                            }
+                                            className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-semibold"
+                                        />
+                                    </div>
+                                </div>
+
                                 <div>
-                                    <label className="block font-bold text-slate-700 uppercase mb-1">
-                                        Last Name
+                                    <label className="block font-bold text-slate-700 text-[11px] uppercase mb-1">
+                                        Return Location
                                     </label>
                                     <input
                                         type="text"
-                                        value={editForm.lastName}
+                                        value={editForm.returnLocation}
                                         onChange={(e) =>
                                             setEditForm({
                                                 ...editForm,
-                                                lastName: e.target.value,
+                                                returnLocation: e.target.value,
                                             })
                                         }
-                                        className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40"
-                                        required
+                                        className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-semibold"
                                     />
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="block font-bold text-slate-700 uppercase mb-1">
-                                        Email
-                                    </label>
-                                    <input
-                                        type="email"
-                                        value={editForm.email}
-                                        onChange={(e) =>
-                                            setEditForm({
-                                                ...editForm,
-                                                email: e.target.value,
-                                            })
-                                        }
-                                        className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40"
-                                        required
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block font-bold text-slate-700 uppercase mb-1">
-                                        Phone
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={editForm.phone}
-                                        onChange={(e) =>
-                                            setEditForm({
-                                                ...editForm,
-                                                phone: e.target.value,
-                                            })
-                                        }
-                                        className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="block font-bold text-slate-700 uppercase mb-1">
-                                        Pickup Date
-                                    </label>
-                                    <input
-                                        type="date"
-                                        value={editForm.pickupDate}
-                                        onChange={(e) =>
-                                            setEditForm({
-                                                ...editForm,
-                                                pickupDate: e.target.value,
-                                            })
-                                        }
-                                        className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40"
-                                        required
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block font-bold text-slate-700 uppercase mb-1">
-                                        Return Date
-                                    </label>
-                                    <input
-                                        type="date"
-                                        value={editForm.returnDate}
-                                        onChange={(e) =>
-                                            setEditForm({
-                                                ...editForm,
-                                                returnDate: e.target.value,
-                                            })
-                                        }
-                                        className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40"
-                                        required
-                                    />
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="block font-bold text-slate-700 uppercase mb-1">
-                                    Notes
+                            {/* Special Notes Section */}
+                            <div className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-sm space-y-2">
+                                <label className="block font-bold text-slate-700 text-[11px] uppercase">
+                                    Special Notes / Customer Requests
                                 </label>
                                 <textarea
                                     rows={2}
@@ -2306,23 +3258,31 @@ export default function Index() {
                                             notes: e.target.value,
                                         })
                                     }
-                                    className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40"
+                                    className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs"
+                                    placeholder="Enter additional instructions or customer requests..."
                                 />
                             </div>
 
-                            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                            {/* Action Buttons */}
+                            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
                                 <button
                                     type="button"
                                     onClick={() => setEditingRes(null)}
-                                    className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold"
+                                    className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs transition"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="submit"
-                                    className="px-5 py-2 rounded-xl bg-dark-purple text-white font-bold hover:bg-purple transition shadow-sm"
+                                    disabled={isSavingEdit}
+                                    className="px-5 py-2 rounded-xl bg-purple hover:bg-dark-purple text-white font-bold text-xs transition shadow-sm disabled:opacity-50 flex items-center gap-1.5"
                                 >
-                                    Save Changes
+                                    <span>💾</span>
+                                    <span>
+                                        {isSavingEdit
+                                            ? "Saving Changes..."
+                                            : "Save Changes"}
+                                    </span>
                                 </button>
                             </div>
                         </form>
