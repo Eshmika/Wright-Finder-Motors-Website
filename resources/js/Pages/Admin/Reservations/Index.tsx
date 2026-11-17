@@ -2580,26 +2580,89 @@ export default function Index() {
                         selectedRes.returnDate,
                     );
                     const car = selectedRes.vehicle;
-                    const dailyRentRate =
+
+                    // Vehicle original price and daily discount
+                    const vehicleOriginalDaily =
                         car && car.rentPrice !== undefined && car.rentPrice > 0
                             ? car.rentPrice
                             : car
-                              ? car.originalPrice || car.price
+                              ? car.originalPrice ||
+                                car.price ||
+                                selectedRes.rentalRate ||
+                                0
                               : selectedRes.rentalRate || 0;
-                    const beforeCouponCost = dailyRentRate * days;
+
+                    const vehicleDailyDiscount =
+                        car && car.rentDiscount !== undefined
+                            ? car.rentDiscount
+                            : car
+                              ? car.discount || 0
+                              : 0;
+
+                    const vehicleTotalDiscount = vehicleDailyDiscount * days;
+
+                    const dailyRentRate =
+                        selectedRes.rentalRate ||
+                        (vehicleDailyDiscount > 0 &&
+                        vehicleOriginalDaily >= vehicleDailyDiscount
+                            ? vehicleOriginalDaily - vehicleDailyDiscount
+                            : vehicleOriginalDaily);
+
+                    const rentalSubtotal = dailyRentRate * days;
+                    const grossTotal =
+                        vehicleDailyDiscount > 0
+                            ? vehicleOriginalDaily * days
+                            : rentalSubtotal;
+
                     const hasCoupon = Boolean(
                         selectedRes.couponCode && selectedRes.couponCode.trim(),
                     );
-                    const totalCost =
-                        selectedRes.estimatedTotal || beforeCouponCost;
-                    const savingsCost = Math.max(
-                        0,
-                        beforeCouponCost - totalCost,
-                    );
-                    const savingsPercent =
-                        beforeCouponCost > 0
-                            ? Math.round((savingsCost / beforeCouponCost) * 100)
+
+                    const couponDiscountAmount =
+                        selectedRes.couponDiscount !== undefined &&
+                        selectedRes.couponDiscount > 0
+                            ? selectedRes.couponDiscount
+                            : hasCoupon
+                              ? Math.max(
+                                    0,
+                                    rentalSubtotal -
+                                        (selectedRes.estimatedTotal ||
+                                            rentalSubtotal),
+                                )
+                              : 0;
+
+                    const couponPercent =
+                        hasCoupon &&
+                        rentalSubtotal > 0 &&
+                        couponDiscountAmount > 0
+                            ? Math.round(
+                                  (couponDiscountAmount / rentalSubtotal) * 100,
+                              )
                             : 0;
+
+                    const otherDiscountAmount =
+                        vehicleTotalDiscount > 0
+                            ? vehicleTotalDiscount
+                            : selectedRes.discount !== undefined &&
+                                selectedRes.discount > couponDiscountAmount
+                              ? selectedRes.discount - couponDiscountAmount
+                              : 0;
+
+                    const totalCost =
+                        selectedRes.estimatedTotal &&
+                        selectedRes.estimatedTotal > 0
+                            ? selectedRes.estimatedTotal
+                            : Math.max(
+                                  0,
+                                  rentalSubtotal - couponDiscountAmount,
+                              );
+
+                    const totalSavings =
+                        couponDiscountAmount + otherDiscountAmount;
+                    const totalSavingsPercent =
+                        grossTotal > 0 && totalSavings > 0
+                            ? Math.round((totalSavings / grossTotal) * 100)
+                            : couponPercent;
 
                     const resStatus =
                         selectedRes.reservationStatus || "Pending";
@@ -2903,7 +2966,11 @@ export default function Index() {
                                         <div className="space-y-1.5 text-xs">
                                             <div className="flex items-center justify-between">
                                                 <span className="text-slate-600 font-medium">
-                                                    Before Coupon ({days} days x{" "}
+                                                    Rental Rate ({days}{" "}
+                                                    {days === 1
+                                                        ? "day"
+                                                        : "days"}{" "}
+                                                    x{" "}
                                                     {formatCurrency(
                                                         dailyRentRate,
                                                     )}
@@ -2911,19 +2978,25 @@ export default function Index() {
                                                 </span>
                                                 <span className="font-bold text-slate-900">
                                                     {formatCurrency(
-                                                        beforeCouponCost,
+                                                        rentalSubtotal,
                                                     )}
                                                 </span>
                                             </div>
 
+                                            {/* Coupon discount with percentage */}
                                             <div className="flex items-center justify-between">
-                                                <span className="text-slate-600 font-medium">
-                                                    Coupon:{" "}
+                                                <span className="text-slate-600 font-medium flex items-center gap-1.5 flex-wrap">
+                                                    <span>
+                                                        Coupon Discount:
+                                                    </span>
                                                     {hasCoupon ? (
-                                                        <span className="font-bold text-emerald-600">
+                                                        <span className="font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
                                                             {
                                                                 selectedRes.couponCode
                                                             }
+                                                            {couponPercent > 0
+                                                                ? ` (${couponPercent}%)`
+                                                                : ""}
                                                         </span>
                                                     ) : (
                                                         <span className="text-slate-400">
@@ -2932,15 +3005,34 @@ export default function Index() {
                                                     )}
                                                 </span>
                                                 <span className="font-bold text-emerald-600">
-                                                    {hasCoupon
-                                                        ? `-${formatCurrency(savingsCost)}`
-                                                        : "$0"}
+                                                    {hasCoupon &&
+                                                    couponDiscountAmount > 0
+                                                        ? `-${formatCurrency(couponDiscountAmount)}`
+                                                        : couponPercent > 0
+                                                          ? `${couponPercent}%`
+                                                          : "$0"}
                                                 </span>
                                             </div>
 
+                                            {/* Other discount (Vehicle Promotion) shown nextly if present */}
+                                            {otherDiscountAmount > 0 && (
+                                                <div className="flex items-center justify-between text-emerald-700">
+                                                    <span className="font-medium">
+                                                        Other Discount (Vehicle
+                                                        Promotion):
+                                                    </span>
+                                                    <span className="font-bold">
+                                                        -
+                                                        {formatCurrency(
+                                                            otherDiscountAmount,
+                                                        )}
+                                                    </span>
+                                                </div>
+                                            )}
+
                                             <div className="flex items-center justify-between p-2 rounded-xl bg-purple/5 border border-purple/10">
                                                 <span className="font-black text-slate-900">
-                                                    After Coupon (Total):
+                                                    Estimated Total:
                                                 </span>
                                                 <span className="text-base font-black text-slate-900">
                                                     {formatCurrency(totalCost)}
@@ -2953,10 +3045,10 @@ export default function Index() {
                                                 </span>
                                                 <span className="font-black text-emerald-700">
                                                     {formatCurrency(
-                                                        savingsCost,
+                                                        totalSavings,
                                                     )}{" "}
-                                                    {savingsPercent > 0
-                                                        ? `(${savingsPercent}%)`
+                                                    {totalSavingsPercent > 0
+                                                        ? `(${totalSavingsPercent}%)`
                                                         : ""}
                                                 </span>
                                             </div>

@@ -77,20 +77,65 @@ export default function RentalReceipt({ reservation }: RentalReceiptProps) {
 
     const days = getRentalDays(reservation.pickupDate, reservation.returnDate);
     const car = reservation.vehicle;
-    const dailyRentRate =
+
+    const vehicleOriginalDaily =
         car && car.rentPrice !== undefined && car.rentPrice > 0
             ? car.rentPrice
             : car
-              ? car.originalPrice || car.price
+              ? car.originalPrice || car.price || reservation.rentalRate || 0
               : reservation.rentalRate || 0;
 
-    const beforeCouponCost = dailyRentRate * days;
-    const totalCost = reservation.estimatedTotal || beforeCouponCost;
-    const savingsCost = Math.max(0, beforeCouponCost - totalCost);
-    const savingsPercent =
-        beforeCouponCost > 0
-            ? Math.round((savingsCost / beforeCouponCost) * 100)
+    const vehicleDailyDiscount =
+        car && car.rentDiscount !== undefined
+            ? car.rentDiscount
+            : car
+              ? car.discount || 0
+              : 0;
+
+    const vehicleTotalDiscount = vehicleDailyDiscount * days;
+
+    const dailyRentRate =
+        reservation.rentalRate ||
+        (vehicleDailyDiscount > 0 &&
+        vehicleOriginalDaily >= vehicleDailyDiscount
+            ? vehicleOriginalDaily - vehicleDailyDiscount
+            : vehicleOriginalDaily);
+
+    const rentalSubtotal = dailyRentRate * days;
+
+    const hasCoupon = Boolean(
+        reservation.couponCode && reservation.couponCode.trim(),
+    );
+
+    const couponDiscountAmount =
+        reservation.couponDiscount !== undefined &&
+        reservation.couponDiscount > 0
+            ? reservation.couponDiscount
+            : hasCoupon
+              ? Math.max(
+                    0,
+                    rentalSubtotal -
+                        (reservation.estimatedTotal || rentalSubtotal),
+                )
+              : 0;
+
+    const couponPercent =
+        hasCoupon && rentalSubtotal > 0 && couponDiscountAmount > 0
+            ? Math.round((couponDiscountAmount / rentalSubtotal) * 100)
             : 0;
+
+    const otherDiscountAmount =
+        vehicleTotalDiscount > 0
+            ? vehicleTotalDiscount
+            : reservation.discount !== undefined &&
+                reservation.discount > couponDiscountAmount
+              ? reservation.discount - couponDiscountAmount
+              : 0;
+
+    const totalCost =
+        reservation.estimatedTotal && reservation.estimatedTotal > 0
+            ? reservation.estimatedTotal
+            : Math.max(0, rentalSubtotal - couponDiscountAmount);
 
     const carTitleStr = car
         ? [car.year, car.make, car.model, car.trim].filter(Boolean).join(" ")
@@ -340,26 +385,44 @@ export default function RentalReceipt({ reservation }: RentalReceiptProps) {
                                     {days}
                                 </td>
                                 <td className="py-3 px-4 text-right font-bold text-slate-900">
-                                    {formatCurrency(beforeCouponCost)}
+                                    {formatCurrency(rentalSubtotal)}
                                 </td>
                             </tr>
 
-                            {savingsCost > 0 && (
+                            {/* Coupon Discount */}
+                            {hasCoupon && (
                                 <tr className="bg-emerald-50/50">
                                     <td
                                         colSpan={3}
                                         className="py-2.5 px-4 font-semibold text-emerald-800"
                                     >
-                                        Discount / Promotional Voucher
-                                        {reservation.couponCode
-                                            ? ` (${reservation.couponCode})`
-                                            : ""}
-                                        {savingsPercent > 0
-                                            ? ` — ${savingsPercent}% off`
+                                        Coupon Discount:{" "}
+                                        {reservation.couponCode}
+                                        {couponPercent > 0
+                                            ? ` (${couponPercent}%)`
                                             : ""}
                                     </td>
                                     <td className="py-2.5 px-4 text-right font-bold text-emerald-700">
-                                        -{formatCurrency(savingsCost)}
+                                        {couponDiscountAmount > 0
+                                            ? `-${formatCurrency(couponDiscountAmount)}`
+                                            : couponPercent > 0
+                                              ? `${couponPercent}%`
+                                              : "$0.00"}
+                                    </td>
+                                </tr>
+                            )}
+
+                            {/* Other Discount (Vehicle Promotion) shown nextly if present */}
+                            {otherDiscountAmount > 0 && (
+                                <tr className="bg-slate-50/60">
+                                    <td
+                                        colSpan={3}
+                                        className="py-2.5 px-4 font-semibold text-emerald-800"
+                                    >
+                                        Other Discount (Vehicle Promotion)
+                                    </td>
+                                    <td className="py-2.5 px-4 text-right font-bold text-emerald-700">
+                                        -{formatCurrency(otherDiscountAmount)}
                                     </td>
                                 </tr>
                             )}
@@ -371,13 +434,23 @@ export default function RentalReceipt({ reservation }: RentalReceiptProps) {
                         <div className="flex justify-between text-xs text-slate-600">
                             <span>Subtotal:</span>
                             <span className="font-semibold text-slate-800">
-                                {formatCurrency(beforeCouponCost)}
+                                {formatCurrency(rentalSubtotal)}
                             </span>
                         </div>
-                        {savingsCost > 0 && (
+                        {couponDiscountAmount > 0 && (
                             <div className="flex justify-between text-xs text-emerald-700 font-semibold">
-                                <span>Discount Savings:</span>
-                                <span>-{formatCurrency(savingsCost)}</span>
+                                <span>Coupon Savings:</span>
+                                <span>
+                                    -{formatCurrency(couponDiscountAmount)}
+                                </span>
+                            </div>
+                        )}
+                        {otherDiscountAmount > 0 && (
+                            <div className="flex justify-between text-xs text-emerald-700 font-semibold">
+                                <span>Other Savings:</span>
+                                <span>
+                                    -{formatCurrency(otherDiscountAmount)}
+                                </span>
                             </div>
                         )}
                         <div className="flex justify-between text-sm font-black text-slate-900 pt-2 border-t border-slate-200">
