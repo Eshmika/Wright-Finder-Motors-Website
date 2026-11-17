@@ -1,4 +1,5 @@
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
+import RentalReceipt from "@/Components/Admin/RentalReceipt";
 import {
     DetailedVehicle,
     fetchAllReservations,
@@ -1210,7 +1211,7 @@ export default function Index() {
         >
             <Head title="Rental Reservations - Wright Finder Motors" />
 
-            <div className="space-y-5">
+            <div className="space-y-5 print:hidden">
                 {/* Status KPI Cards */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
                     {/* 1. Total Reservations */}
@@ -4775,6 +4776,8 @@ export default function Index() {
                     </div>
                 </div>
             )}
+            {/* PRINT RECEIPT COMPONENT (Rendered only on print media) */}
+            {selectedRes && <RentalReceipt reservation={selectedRes} />}
         </AuthenticatedLayout>
     );
 }

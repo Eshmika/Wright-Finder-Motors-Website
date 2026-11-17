@@ -1,4 +1,5 @@
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
+import RentalReceipt from "@/Components/Admin/RentalReceipt";
 import {
     DetailedVehicle,
     fetchAllReservations,
@@ -974,7 +975,7 @@ export default function Show({ confirmationNumber }: ShowProps) {
                 title={`Reservation #${reservation.confirmationNumber} - Details`}
             />
 
-            <div className="space-y-6 pb-12">
+            <div className="space-y-6 pb-12 print:hidden">
                 {/* Main Card with Dealership Header */}
                 <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 overflow-hidden">
                     {/* Purple Top Banner */}
@@ -2486,6 +2487,8 @@ export default function Show({ confirmationNumber }: ShowProps) {
                     </div>
                 </div>
             )}
+            {/* PRINT RECEIPT COMPONENT (Rendered on A4 print media) */}
+            {reservation && <RentalReceipt reservation={reservation} />}
         </AuthenticatedLayout>
     );
 }
