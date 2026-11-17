@@ -1350,212 +1350,228 @@ export default function Show({ confirmationNumber }: ShowProps) {
                             </div>
                         </div>
 
-                        {/* Extend Rental Section */}
-                        <div className="p-6 rounded-3xl bg-[#faf7ff] border border-purple/20 space-y-4">
-                            <div className="flex items-center gap-3">
-                                <div className="w-9 h-9 rounded-xl bg-purple/10 text-purple flex items-center justify-center shrink-0">
-                                    <svg
-                                        className="w-5 h-5"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                        strokeWidth={2}
-                                    >
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                                        />
-                                    </svg>
-                                </div>
-                                <div>
-                                    <h4 className="text-sm font-black text-purple">
-                                        Extend Rental
-                                    </h4>
-                                    <p className="text-xs text-slate-500">
-                                        Add more rental days or adjust the
-                                        extension charge.
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-1">
-                                {/* Left side: Add Days */}
-                                <div className="space-y-2">
-                                    <label className="block text-xs font-bold text-slate-700">
-                                        Add Days:
-                                    </label>
-                                    <div className="flex items-center gap-3">
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                setExtendDays((d) =>
-                                                    Math.max(1, d - 1),
-                                                )
-                                            }
-                                            className="w-10 h-10 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 font-bold text-lg flex items-center justify-center text-slate-700 transition shadow-sm"
+                        {/* Extend Rental Section (Hidden if Completed) */}
+                        {!isCompleted && (
+                            <div className="p-6 rounded-3xl bg-[#faf7ff] border border-purple/20 space-y-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-9 h-9 rounded-xl bg-purple/10 text-purple flex items-center justify-center shrink-0">
+                                        <svg
+                                            className="w-5 h-5"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                            strokeWidth={2}
                                         >
-                                            -
-                                        </button>
-                                        <div className="w-16 h-10 rounded-xl bg-white border border-slate-300 font-black text-base flex items-center justify-center text-slate-900 shadow-inner">
-                                            {extendDays}
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                setExtendDays((d) => d + 1)
-                                            }
-                                            className="w-10 h-10 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 font-bold text-lg flex items-center justify-center text-slate-700 transition shadow-sm"
-                                        >
-                                            +
-                                        </button>
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                                            />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h4 className="text-sm font-black text-purple">
+                                            Extend Rental
+                                        </h4>
+                                        <p className="text-xs text-slate-500">
+                                            Add more rental days or adjust the
+                                            extension charge.
+                                        </p>
                                     </div>
                                 </div>
 
-                                {/* Right side: Extension Charge Option */}
-                                <div className="space-y-2">
-                                    <label className="block text-xs font-bold text-slate-700">
-                                        Extension Charge Option:
-                                    </label>
-                                    <div className="space-y-2 text-xs">
-                                        <label className="flex items-center gap-2 cursor-pointer">
-                                            <input
-                                                type="radio"
-                                                name="extendCharge"
-                                                checked={
-                                                    extendChargeType === "free"
-                                                }
-                                                onChange={() =>
-                                                    setExtendChargeType("free")
-                                                }
-                                                className="text-purple focus:ring-purple/40"
-                                            />
-                                            <span className="text-slate-700 font-semibold">
-                                                No Charge (Complimentary)
-                                            </span>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-1">
+                                    {/* Left side: Add Days */}
+                                    <div className="space-y-2">
+                                        <label className="block text-xs font-bold text-slate-700">
+                                            Add Days:
                                         </label>
-                                        <label className="flex items-center gap-2 cursor-pointer">
-                                            <input
-                                                type="radio"
-                                                name="extendCharge"
-                                                checked={
-                                                    extendChargeType === "daily"
-                                                }
-                                                onChange={() =>
-                                                    setExtendChargeType("daily")
-                                                }
-                                                className="text-purple focus:ring-purple/40"
-                                            />
-                                            <span className="text-slate-700 font-semibold">
-                                                Use Daily Rate (
-                                                {formatCurrency(dailyRentRate)}
-                                                /day) -{" "}
-                                                <strong className="text-slate-900">
-                                                    {formatCurrency(
-                                                        dailyRentRate *
-                                                            extendDays,
-                                                    )}
-                                                </strong>
-                                            </span>
-                                        </label>
-                                        <label className="flex items-center gap-2 cursor-pointer">
-                                            <input
-                                                type="radio"
-                                                name="extendCharge"
-                                                checked={
-                                                    extendChargeType ===
-                                                    "custom"
-                                                }
-                                                onChange={() =>
-                                                    setExtendChargeType(
-                                                        "custom",
+                                        <div className="flex items-center gap-3">
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    setExtendDays((d) =>
+                                                        Math.max(1, d - 1),
                                                     )
                                                 }
-                                                className="text-purple focus:ring-purple/40"
-                                            />
-                                            <span className="text-slate-700 font-semibold">
-                                                Custom Amount
-                                            </span>
-                                            <div className="flex items-center gap-1 ml-auto">
-                                                <span className="font-bold text-slate-500">
-                                                    $
-                                                </span>
+                                                className="w-10 h-10 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 font-bold text-lg flex items-center justify-center text-slate-700 transition shadow-sm"
+                                            >
+                                                -
+                                            </button>
+                                            <div className="w-16 h-10 rounded-xl bg-white border border-slate-300 font-black text-base flex items-center justify-center text-slate-900 shadow-inner">
+                                                {extendDays}
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    setExtendDays((d) => d + 1)
+                                                }
+                                                className="w-10 h-10 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 font-bold text-lg flex items-center justify-center text-slate-700 transition shadow-sm"
+                                            >
+                                                +
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Right side: Extension Charge Option */}
+                                    <div className="space-y-2">
+                                        <label className="block text-xs font-bold text-slate-700">
+                                            Extension Charge Option:
+                                        </label>
+                                        <div className="space-y-2 text-xs">
+                                            <label className="flex items-center gap-2 cursor-pointer">
                                                 <input
-                                                    type="number"
-                                                    min={0}
-                                                    value={customExtendAmount}
-                                                    onChange={(e) => {
+                                                    type="radio"
+                                                    name="extendCharge"
+                                                    checked={
+                                                        extendChargeType ===
+                                                        "free"
+                                                    }
+                                                    onChange={() =>
+                                                        setExtendChargeType(
+                                                            "free",
+                                                        )
+                                                    }
+                                                    className="text-purple focus:ring-purple/40"
+                                                />
+                                                <span className="text-slate-700 font-semibold">
+                                                    No Charge (Complimentary)
+                                                </span>
+                                            </label>
+                                            <label className="flex items-center gap-2 cursor-pointer">
+                                                <input
+                                                    type="radio"
+                                                    name="extendCharge"
+                                                    checked={
+                                                        extendChargeType ===
+                                                        "daily"
+                                                    }
+                                                    onChange={() =>
+                                                        setExtendChargeType(
+                                                            "daily",
+                                                        )
+                                                    }
+                                                    className="text-purple focus:ring-purple/40"
+                                                />
+                                                <span className="text-slate-700 font-semibold">
+                                                    Use Daily Rate (
+                                                    {formatCurrency(
+                                                        dailyRentRate,
+                                                    )}
+                                                    /day) -{" "}
+                                                    <strong className="text-slate-900">
+                                                        {formatCurrency(
+                                                            dailyRentRate *
+                                                                extendDays,
+                                                        )}
+                                                    </strong>
+                                                </span>
+                                            </label>
+                                            <label className="flex items-center gap-2 cursor-pointer">
+                                                <input
+                                                    type="radio"
+                                                    name="extendCharge"
+                                                    checked={
+                                                        extendChargeType ===
+                                                        "custom"
+                                                    }
+                                                    onChange={() =>
                                                         setExtendChargeType(
                                                             "custom",
-                                                        );
-                                                        setCustomExtendAmount(
-                                                            parseFloat(
-                                                                e.target.value,
-                                                            ) || 0,
-                                                        );
-                                                    }}
-                                                    className="w-24 px-3 py-1.5 text-xs font-bold border border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-purple/40 text-purple"
+                                                        )
+                                                    }
+                                                    className="text-purple focus:ring-purple/40"
                                                 />
-                                            </div>
-                                        </label>
+                                                <span className="text-slate-700 font-semibold">
+                                                    Custom Amount
+                                                </span>
+                                                <div className="flex items-center gap-1 ml-auto">
+                                                    <span className="font-bold text-slate-500">
+                                                        $
+                                                    </span>
+                                                    <input
+                                                        type="number"
+                                                        min={0}
+                                                        value={
+                                                            customExtendAmount
+                                                        }
+                                                        onChange={(e) => {
+                                                            setExtendChargeType(
+                                                                "custom",
+                                                            );
+                                                            setCustomExtendAmount(
+                                                                parseFloat(
+                                                                    e.target
+                                                                        .value,
+                                                                ) || 0,
+                                                            );
+                                                        }}
+                                                        className="w-24 px-3 py-1.5 text-xs font-bold border border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-purple/40 text-purple"
+                                                    />
+                                                </div>
+                                            </label>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            {/* Extension Summary Card */}
-                            <div className="p-4 rounded-2xl bg-purple/10 border border-purple/20 text-xs text-purple space-y-1.5">
-                                <div className="flex items-center gap-2 font-bold text-sm">
-                                    <span>ℹ️</span>
-                                    <span>
-                                        New Return Date &amp; Time:{" "}
-                                        {formatDisplayDate(
-                                            extendedReturnDateStr,
-                                        )}{" "}
-                                        at{" "}
-                                        {reservation.returnTime || "10:00 AM"}{" "}
-                                        (EST)
-                                    </span>
+                                {/* Extension Summary Card */}
+                                <div className="p-4 rounded-2xl bg-purple/10 border border-purple/20 text-xs text-purple space-y-1.5">
+                                    <div className="flex items-center gap-2 font-bold text-sm">
+                                        <span>ℹ️</span>
+                                        <span>
+                                            New Return Date &amp; Time:{" "}
+                                            {formatDisplayDate(
+                                                extendedReturnDateStr,
+                                            )}{" "}
+                                            at{" "}
+                                            {reservation.returnTime ||
+                                                "10:00 AM"}{" "}
+                                            (EST)
+                                        </span>
+                                    </div>
+                                    <div className="text-xs font-semibold text-slate-700 pl-6">
+                                        Additional Charge:{" "}
+                                        <strong className="text-purple font-black">
+                                            {formatCurrency(
+                                                extensionAdditionalCharge,
+                                            )}
+                                        </strong>{" "}
+                                        | New Total:{" "}
+                                        <strong className="text-slate-900 font-black">
+                                            {formatCurrency(
+                                                newTotalWithExtension,
+                                            )}
+                                        </strong>
+                                    </div>
                                 </div>
-                                <div className="text-xs font-semibold text-slate-700 pl-6">
-                                    Additional Charge:{" "}
-                                    <strong className="text-purple font-black">
-                                        {formatCurrency(
-                                            extensionAdditionalCharge,
-                                        )}
-                                    </strong>{" "}
-                                    | New Total:{" "}
-                                    <strong className="text-slate-900 font-black">
-                                        {formatCurrency(newTotalWithExtension)}
-                                    </strong>
-                                </div>
-                            </div>
 
-                            {/* Extend & Cancel Stepper Buttons */}
-                            <div className="flex items-center justify-end gap-3 pt-2">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setExtendDays(2);
-                                        setExtendChargeType("free");
-                                    }}
-                                    className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 transition"
-                                >
-                                    Reset Extension
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={handleApplyExtension}
-                                    disabled={isExtending}
-                                    className="px-5 py-2 rounded-xl bg-purple hover:bg-dark-purple text-white text-xs font-bold transition shadow-sm disabled:opacity-50 flex items-center gap-2"
-                                >
-                                    <span>
-                                        {isExtending
-                                            ? "Extending..."
-                                            : "Confirm Extension"}
-                                    </span>
-                                </button>
+                                {/* Extend & Cancel Stepper Buttons */}
+                                <div className="flex items-center justify-end gap-3 pt-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setExtendDays(2);
+                                            setExtendChargeType("free");
+                                        }}
+                                        className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 transition"
+                                    >
+                                        Reset Extension
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleApplyExtension}
+                                        disabled={isExtending}
+                                        className="px-5 py-2 rounded-xl bg-purple hover:bg-dark-purple text-white text-xs font-bold transition shadow-sm disabled:opacity-50 flex items-center gap-2"
+                                    >
+                                        <span>
+                                            {isExtending
+                                                ? "Extending..."
+                                                : "Confirm Extension"}
+                                        </span>
+                                    </button>
+                                </div>
                             </div>
-                        </div>
+                        )}
 
                         {/* Special Notes if available */}
                         {reservation.notes && (

@@ -772,7 +772,7 @@ export default function Index() {
         return dStr;
     };
 
-    // Handle Quick Status Change from Details Panel (e.g. Approve / Decline / Process Return)
+    // Handle Quick Status Change from Actions or Details Panel (e.g. Approve / Decline / Process Return)
     const handleQuickStatusChange = async (
         res: ReservationRecord,
         newStatus:
@@ -782,6 +782,7 @@ export default function Index() {
             | "Active"
             | "Completed"
             | "Cancelled",
+        openDetails: boolean = false,
     ) => {
         // Validation: Reservation Status can be approved only when Payment Status is Paid
         if (newStatus === "Approved") {
@@ -805,7 +806,13 @@ export default function Index() {
         setReservations((prev) =>
             prev.map((r) => (r.confirmationNumber === confNum ? updated : r)),
         );
-        setSelectedRes(updated);
+        if (openDetails) {
+            setSelectedRes(updated);
+        } else {
+            setSelectedRes((prev) =>
+                prev && prev.confirmationNumber === confNum ? updated : prev,
+            );
+        }
 
         const webhook =
             scriptWebhookUrl.trim() ||
