@@ -1304,10 +1304,11 @@ export default function Show({ confirmationNumber }: ShowProps) {
                                     <span className="text-slate-600 font-medium">
                                         Rental Rate ({days}{" "}
                                         {days === 1 ? "day" : "days"} x{" "}
-                                        {formatCurrency(dailyRentRate)}/day):
+                                        {formatCurrency(vehicleOriginalDaily)}
+                                        /day):
                                     </span>
                                     <span className="font-bold text-slate-900 text-sm">
-                                        {formatCurrency(rentalSubtotal)}
+                                        {formatCurrency(grossTotal)}
                                     </span>
                                 </div>
 

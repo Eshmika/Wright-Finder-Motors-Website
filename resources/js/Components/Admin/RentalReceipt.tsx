@@ -102,6 +102,8 @@ export default function RentalReceipt({ reservation }: RentalReceiptProps) {
             : vehicleOriginalDaily);
 
     const rentalSubtotal = dailyRentRate * days;
+    const grossTotal =
+        vehicleDailyDiscount > 0 ? vehicleOriginalDaily * days : rentalSubtotal;
 
     const hasCoupon = Boolean(
         reservation.couponCode && reservation.couponCode.trim(),
@@ -379,13 +381,13 @@ export default function RentalReceipt({ reservation }: RentalReceiptProps) {
                                     Vehicle Daily Rental — {carTitleStr}
                                 </td>
                                 <td className="py-3 px-4 text-center font-medium">
-                                    {formatCurrency(dailyRentRate)}
+                                    {formatCurrency(vehicleOriginalDaily)}
                                 </td>
                                 <td className="py-3 px-4 text-center font-medium">
                                     {days}
                                 </td>
                                 <td className="py-3 px-4 text-right font-bold text-slate-900">
-                                    {formatCurrency(rentalSubtotal)}
+                                    {formatCurrency(grossTotal)}
                                 </td>
                             </tr>
 
@@ -432,9 +434,9 @@ export default function RentalReceipt({ reservation }: RentalReceiptProps) {
                     {/* Totals Summary */}
                     <div className="bg-slate-50/90 border-t border-slate-200 p-4 space-y-1.5">
                         <div className="flex justify-between text-xs text-slate-600">
-                            <span>Subtotal:</span>
+                            <span>Gross Rental Charge:</span>
                             <span className="font-semibold text-slate-800">
-                                {formatCurrency(rentalSubtotal)}
+                                {formatCurrency(grossTotal)}
                             </span>
                         </div>
                         {couponDiscountAmount > 0 && (
@@ -447,7 +449,7 @@ export default function RentalReceipt({ reservation }: RentalReceiptProps) {
                         )}
                         {otherDiscountAmount > 0 && (
                             <div className="flex justify-between text-xs text-emerald-700 font-semibold">
-                                <span>Other Savings:</span>
+                                <span>Vehicle Promotion Savings:</span>
                                 <span>
                                     -{formatCurrency(otherDiscountAmount)}
                                 </span>

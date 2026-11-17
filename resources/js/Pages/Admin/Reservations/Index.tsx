@@ -2972,14 +2972,12 @@ export default function Index() {
                                                         : "days"}{" "}
                                                     x{" "}
                                                     {formatCurrency(
-                                                        dailyRentRate,
+                                                        vehicleOriginalDaily,
                                                     )}
                                                     /day):
                                                 </span>
                                                 <span className="font-bold text-slate-900">
-                                                    {formatCurrency(
-                                                        rentalSubtotal,
-                                                    )}
+                                                    {formatCurrency(grossTotal)}
                                                 </span>
                                             </div>
 
