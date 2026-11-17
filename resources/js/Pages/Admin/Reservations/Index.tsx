@@ -2502,7 +2502,7 @@ export default function Index() {
                                                                         ) || 0,
                                                                     );
                                                                 }}
-                                                                className="w-20 px-2.5 py-1 text-xs font-bold border border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-purple/40"
+                                                                className="w-20 px-2.5 py-1 text-xs font-bold border border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-purple/40 text-black"
                                                             />
                                                         </div>
                                                     </label>
@@ -2559,7 +2559,6 @@ export default function Index() {
                                                 disabled={isExtending}
                                                 className="px-4 py-1.5 rounded-xl bg-purple hover:bg-dark-purple text-white text-xs font-bold transition shadow-sm disabled:opacity-50 flex items-center gap-1.5"
                                             >
-                                                <span>📅</span>
                                                 <span>
                                                     {isExtending
                                                         ? "Extending..."
@@ -3000,7 +2999,7 @@ export default function Index() {
                         {/* Form Content */}
                         <form
                             onSubmit={handleSaveEditForm}
-                            className="p-4 sm:p-6 overflow-y-auto space-y-4 text-xs font-sans"
+                            className="p-4 sm:p-6 overflow-y-auto space-y-4 text-xs font-sans text-purple"
                         >
                             {/* Confirmation Number Banner */}
                             <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
@@ -3277,7 +3276,6 @@ export default function Index() {
                                     disabled={isSavingEdit}
                                     className="px-5 py-2 rounded-xl bg-purple hover:bg-dark-purple text-white font-bold text-xs transition shadow-sm disabled:opacity-50 flex items-center gap-1.5"
                                 >
-                                    <span>💾</span>
                                     <span>
                                         {isSavingEdit
                                             ? "Saving Changes..."
