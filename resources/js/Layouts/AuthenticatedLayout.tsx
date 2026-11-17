@@ -49,9 +49,9 @@ export default function AuthenticatedLayout({
         url.startsWith("/profile") || route().current("profile.edit");
 
     return (
-        <div className="h-screen w-screen bg-bggray font-poppins text-slate-100 flex flex-col overflow-hidden antialiased selection:bg-vivid-red selection:text-white">
+        <div className="h-screen w-screen bg-bggray font-poppins text-slate-100 flex flex-col overflow-hidden antialiased selection:bg-vivid-red selection:text-white print:h-auto print:w-auto print:overflow-visible print:bg-white">
             {/* Top Red Header (Fixed at top, never scrolls) */}
-            <header className="shrink-0 z-40 bg-vivid-red text-white shadow-lg border-b border-red-600/40">
+            <header className="shrink-0 z-40 bg-vivid-red text-white shadow-lg border-b border-red-600/40 print:hidden">
                 <div className="flex items-center justify-between px-4 sm:px-6 py-3 md:py-3.5">
                     {/* Left: Logo & Mobile Hamburger */}
                     <div className="flex items-center space-x-3 sm:space-x-4">
@@ -517,10 +517,10 @@ export default function AuthenticatedLayout({
                 </aside>
 
                 {/* Right Panel Area (Independent scroll container with screen-fit parent) */}
-                <div className="flex-1 flex flex-col min-w-0 h-full overflow-y-auto bg-slate-50">
+                <div className="flex-1 flex flex-col min-w-0 h-full overflow-y-auto bg-slate-50 print:h-auto print:overflow-visible print:bg-white print:p-0">
                     {/* Header bar within panel if passed */}
                     {header && (
-                        <div className="shrink-0 bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
+                        <div className="shrink-0 bg-white border-b border-gray-200 px-6 py-4 shadow-sm print:hidden">
                             <div className="mx-auto flex items-center justify-between">
                                 {header}
                             </div>
@@ -528,8 +528,10 @@ export default function AuthenticatedLayout({
                     )}
 
                     {/* Scrollable content inside the panel */}
-                    <main className="flex-1 p-4 sm:p-6 lg:p-8">
-                        <div className="mx-auto">{children}</div>
+                    <main className="flex-1 p-4 sm:p-6 lg:p-8 print:p-0 print:m-0 print:overflow-visible">
+                        <div className="mx-auto print:m-0 print:p-0 print:w-full">
+                            {children}
+                        </div>
                     </main>
                 </div>
             </div>

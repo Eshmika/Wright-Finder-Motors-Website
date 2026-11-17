@@ -445,7 +445,13 @@ export async function fetchAllReservations(): Promise<ReservationRecord[]> {
             resStatusIdx !== -1 ? row[resStatusIdx]?.trim() || "" : "";
         let reservationStatus = "Pending";
         const rlower = rawResStatus.toLowerCase();
-        if (rlower.includes("approv")) {
+        if (rlower.includes("cancel")) {
+            reservationStatus = "Cancelled";
+        } else if (rlower.includes("complet")) {
+            reservationStatus = "Completed";
+        } else if (rlower.includes("active")) {
+            reservationStatus = "Active";
+        } else if (rlower.includes("approv")) {
             reservationStatus = "Approved";
         } else if (rlower.includes("decline") || rlower.includes("reject")) {
             reservationStatus = "Declined";

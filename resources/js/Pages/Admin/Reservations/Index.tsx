@@ -1,8 +1,10 @@
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
+import RentalReceipt from "@/Components/Admin/RentalReceipt";
 import {
     DetailedVehicle,
     fetchAllReservations,
     fetchAllVehicles,
+    formatDriveImageUrl,
     ReservationRecord,
 } from "@/Services/vehicleService";
 import { Head, Link } from "@inertiajs/react";
@@ -38,11 +40,16 @@ export default function Index() {
     const [selectedRes, setSelectedRes] = useState<ReservationRecord | null>(
         null,
     );
+    // Print Receipt State (independent of details modal)
+    const [receiptRes, setReceiptRes] = useState<ReservationRecord | null>(
+        null,
+    );
 
     // Edit Modal State
     const [editingRes, setEditingRes] = useState<ReservationRecord | null>(
         null,
     );
+    const [isSavingEdit, setIsSavingEdit] = useState<boolean>(false);
     const [editForm, setEditForm] = useState<{
         firstName: string;
         lastName: string;
@@ -69,6 +76,14 @@ export default function Index() {
         notes: "",
     });
 
+    // Extend Rental State inside Reservation Details
+    const [extendDays, setExtendDays] = useState<number>(2);
+    const [extendChargeType, setExtendChargeType] = useState<
+        "free" | "daily" | "custom"
+    >("free");
+    const [customExtendAmount, setCustomExtendAmount] = useState<number>(150);
+    const [isExtending, setIsExtending] = useState<boolean>(false);
+
     // Payment Approval Modal State
     const [paymentModalRes, setPaymentModalRes] =
         useState<ReservationRecord | null>(null);
@@ -86,10 +101,42 @@ export default function Index() {
     const [resStatusModalRes, setResStatusModalRes] =
         useState<ReservationRecord | null>(null);
     const [targetResStatus, setTargetResStatus] = useState<
-        "Pending" | "Approved" | "Declined"
+        | "Pending"
+        | "Approved"
+        | "Declined"
+        | "Active"
+        | "Completed"
+        | "Cancelled"
     >("Approved");
     const [isUpdatingResStatus, setIsUpdatingResStatus] =
         useState<boolean>(false);
+
+    // Cancel modal state
+    const [cancelModalRes, setCancelModalRes] =
+        useState<ReservationRecord | null>(null);
+    const [cancellationReason, setCancellationReason] = useState<string>("");
+    const [isSubmittingCancel, setIsSubmittingCancel] =
+        useState<boolean>(false);
+
+    // Extend modal from Actions column
+    const [extendModalRes, setExtendModalRes] =
+        useState<ReservationRecord | null>(null);
+
+    // Offer Alternative Modal state (when invoked from Actions column)
+    const [offerModalRes, setOfferModalRes] =
+        useState<ReservationRecord | null>(null);
+    const [allVehiclesList, setAllVehiclesList] = useState<DetailedVehicle[]>(
+        [],
+    );
+    const [selectedOfferVehicleId, setSelectedOfferVehicleId] =
+        useState<string>("");
+    const [offerPricingType, setOfferPricingType] = useState<
+        "same" | "different" | "upgrade"
+    >("same");
+    const [offerCustomRate, setOfferCustomRate] = useState<number>(0);
+    const [offerUpgradeAmount, setOfferUpgradeAmount] = useState<number>(25);
+    const [offerUpgradeNote, setOfferUpgradeNote] = useState<string>("");
+    const [isSubmittingOffer, setIsSubmittingOffer] = useState<boolean>(false);
 
     // Webhook URL from localStorage or default
     const [scriptWebhookUrl, setScriptWebhookUrl] = useState<string>(() => {
@@ -130,13 +177,46 @@ export default function Index() {
                 }
             });
 
+            setAllVehiclesList(vehList);
+
             // Connect vehicle details with reservation using Car ID
+            const todayStr = new Date().toISOString().split("T")[0];
+            const webhookUrl =
+                (typeof window !== "undefined"
+                    ? localStorage.getItem("WFM_APPS_SCRIPT_URL")
+                    : "") || "";
+
             const connectedReservations = resList.map((res) => {
                 const matchedCar = res.carId
                     ? map.get(res.carId.trim().toLowerCase())
                     : undefined;
+
+                // Auto transition to "Active" if Approved and rental start date has arrived
+                let currentStatus = res.reservationStatus || "Pending";
+                if (
+                    currentStatus === "Approved" &&
+                    res.pickupDate &&
+                    res.pickupDate <= todayStr
+                ) {
+                    currentStatus = "Active";
+                    if (webhookUrl) {
+                        fetch(webhookUrl, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "text/plain;charset=utf-8",
+                            },
+                            body: JSON.stringify({
+                                action: "update_reservation_status",
+                                confirmationNumber: res.confirmationNumber,
+                                reservationStatus: "Active",
+                            }),
+                        }).catch((e) => console.error("Auto active error:", e));
+                    }
+                }
+
                 return {
                     ...res,
+                    reservationStatus: currentStatus,
                     vehicle: matchedCar,
                 };
             });
@@ -162,6 +242,49 @@ export default function Index() {
     const formatCurrency = (val: number) => {
         if (isNaN(val) || val <= 0) return "$0";
         return `$${val.toLocaleString()}`;
+    };
+
+    // Format Timestamp helper: "2026-10-21 23:23:45 EST" -> "Oct 21, 2026 at 11:23 PM"
+    const formatReservationTimestamp = (rawTs?: string): string => {
+        if (!rawTs) return "N/A";
+        try {
+            // Strip timezone suffix for parsing if needed
+            const cleaned = rawTs
+                .replace(/\s+(EST|EDT|PST|PDT|CST|CDT|UTC|GMT)$/i, "")
+                .trim();
+            const dateObj = new Date(cleaned);
+            if (!isNaN(dateObj.getTime())) {
+                const months = [
+                    "Jan",
+                    "Feb",
+                    "Mar",
+                    "Apr",
+                    "May",
+                    "Jun",
+                    "Jul",
+                    "Aug",
+                    "Sep",
+                    "Oct",
+                    "Nov",
+                    "Dec",
+                ];
+                const m = months[dateObj.getMonth()];
+                const d = dateObj.getDate();
+                const y = dateObj.getFullYear();
+                let hours = dateObj.getHours();
+                const minutes = dateObj
+                    .getMinutes()
+                    .toString()
+                    .padStart(2, "0");
+                const ampm = hours >= 12 ? "PM" : "AM";
+                hours = hours % 12;
+                hours = hours ? hours : 12;
+                return `${m} ${d}, ${y} at ${hours}:${minutes} ${ampm}`;
+            }
+        } catch {
+            // fallback below
+        }
+        return rawTs;
     };
 
     // Helper: calculate total rental days from pickup date to return date
@@ -326,12 +449,12 @@ export default function Index() {
         setCurrentPage(1);
     }, [searchTerm, sortBy, statusFilter, paymentFilter]);
 
-    // Print individual reservation
+    // Print individual reservation receipt directly as PDF
     const handlePrintReservation = (res: ReservationRecord) => {
-        setSelectedRes(res);
+        setReceiptRes(res);
         setTimeout(() => {
             window.print();
-        }, 200);
+        }, 150);
     };
 
     // Open Payment Approval Modal
@@ -432,6 +555,25 @@ export default function Index() {
     // Save Reservation Status
     const handleSaveResStatus = async () => {
         if (!resStatusModalRes) return;
+
+        // Validation: Reservation Status can be approved only when Payment Status is Paid
+        if (targetResStatus === "Approved") {
+            const pStatus = (
+                resStatusModalRes.paymentStatus || ""
+            ).toLowerCase();
+            const isPaid =
+                pStatus.includes("paid") && !pStatus.includes("unpaid");
+            if (!isPaid) {
+                setAlertModal({
+                    isOpen: true,
+                    type: "error",
+                    title: "Payment Required for Approval",
+                    message: `Reservation #${resStatusModalRes.confirmationNumber} cannot be approved because Payment Status is "${resStatusModalRes.paymentStatus || "Pending"}". Payment must be Paid first.`,
+                });
+                return;
+            }
+        }
+
         setIsUpdatingResStatus(true);
 
         const confNum = resStatusModalRes.confirmationNumber;
@@ -505,22 +647,49 @@ export default function Index() {
     };
 
     // Save Edit Form
-    const handleSaveEditForm = (e: React.FormEvent) => {
+    const handleSaveEditForm = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!editingRes) return;
+        setIsSavingEdit(true);
 
         const confNum = editingRes.confirmationNumber;
+        const updatedRes: ReservationRecord = {
+            ...editingRes,
+            ...editForm,
+        };
+
         setReservations((prev) =>
             prev.map((r) =>
-                r.confirmationNumber === confNum
-                    ? {
-                          ...r,
-                          ...editForm,
-                      }
-                    : r,
+                r.confirmationNumber === confNum ? updatedRes : r,
             ),
         );
 
+        if (selectedRes && selectedRes.confirmationNumber === confNum) {
+            setSelectedRes(updatedRes);
+        }
+
+        const webhook =
+            scriptWebhookUrl.trim() ||
+            localStorage.getItem("WFM_APPS_SCRIPT_URL") ||
+            "";
+
+        if (webhook) {
+            try {
+                await fetch(webhook, {
+                    method: "POST",
+                    headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify({
+                        action: "update_reservation_status",
+                        confirmationNumber: confNum,
+                        ...editForm,
+                    }),
+                });
+            } catch (err) {
+                console.error("Save edit webhook error:", err);
+            }
+        }
+
+        setIsSavingEdit(false);
         setEditingRes(null);
         setAlertModal({
             isOpen: true,
@@ -530,11 +699,443 @@ export default function Index() {
         });
     };
 
+    // Helper: calculate new return date when extended by X days
+    const calculateExtendedReturnDate = (
+        currentReturnDate: string,
+        daysToAdd: number,
+    ): string => {
+        if (!currentReturnDate) return "";
+        try {
+            const parts = currentReturnDate.split("-");
+            if (parts.length === 3) {
+                const year = parseInt(parts[0], 10);
+                const month = parseInt(parts[1], 10) - 1;
+                const day = parseInt(parts[2], 10);
+                const d = new Date(year, month, day);
+                d.setDate(d.getDate() + daysToAdd);
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, "0");
+                const dd = String(d.getDate()).padStart(2, "0");
+                return `${yyyy}-${mm}-${dd}`;
+            }
+            const d = new Date(currentReturnDate);
+            d.setDate(d.getDate() + daysToAdd);
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, "0");
+            const dd = String(d.getDate()).padStart(2, "0");
+            return `${yyyy}-${mm}-${dd}`;
+        } catch {
+            return currentReturnDate;
+        }
+    };
+
+    // Format Date string: "2026-11-17" -> "Nov 17, 2026"
+    const formatDisplayDate = (dStr?: string): string => {
+        if (!dStr) return "N/A";
+        try {
+            const parts = dStr.split("-");
+            if (parts.length === 3) {
+                const year = parseInt(parts[0], 10);
+                const month = parseInt(parts[1], 10) - 1;
+                const day = parseInt(parts[2], 10);
+                const d = new Date(year, month, day);
+                const months = [
+                    "Jan",
+                    "Feb",
+                    "Mar",
+                    "Apr",
+                    "May",
+                    "Jun",
+                    "Jul",
+                    "Aug",
+                    "Sep",
+                    "Oct",
+                    "Nov",
+                    "Dec",
+                ];
+                return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+            }
+            const d = new Date(dStr);
+            if (!isNaN(d.getTime())) {
+                const months = [
+                    "Jan",
+                    "Feb",
+                    "Mar",
+                    "Apr",
+                    "May",
+                    "Jun",
+                    "Jul",
+                    "Aug",
+                    "Sep",
+                    "Oct",
+                    "Nov",
+                    "Dec",
+                ];
+                return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+            }
+        } catch {}
+        return dStr;
+    };
+
+    // Handle Quick Status Change from Actions or Details Panel (e.g. Approve / Decline / Process Return)
+    const handleQuickStatusChange = async (
+        res: ReservationRecord,
+        newStatus:
+            | "Approved"
+            | "Declined"
+            | "Pending"
+            | "Active"
+            | "Completed"
+            | "Cancelled",
+        openDetails: boolean = false,
+    ) => {
+        // Validation: Reservation Status can be approved only when Payment Status is Paid
+        if (newStatus === "Approved") {
+            const pStatus = (res.paymentStatus || "").toLowerCase();
+            const isPaid =
+                pStatus.includes("paid") && !pStatus.includes("unpaid");
+            if (!isPaid) {
+                setAlertModal({
+                    isOpen: true,
+                    type: "error",
+                    title: "Payment Required for Approval",
+                    message: `Reservation #${res.confirmationNumber} cannot be approved because Payment Status is "${res.paymentStatus || "Pending"}". Payment must be Paid first.`,
+                });
+                return;
+            }
+        }
+
+        const confNum = res.confirmationNumber;
+        const updated = { ...res, reservationStatus: newStatus };
+
+        setReservations((prev) =>
+            prev.map((r) => (r.confirmationNumber === confNum ? updated : r)),
+        );
+        if (openDetails) {
+            setSelectedRes(updated);
+        } else {
+            setSelectedRes((prev) =>
+                prev && prev.confirmationNumber === confNum ? updated : prev,
+            );
+        }
+
+        const webhook =
+            scriptWebhookUrl.trim() ||
+            localStorage.getItem("WFM_APPS_SCRIPT_URL") ||
+            "";
+
+        if (webhook) {
+            try {
+                await fetch(webhook, {
+                    method: "POST",
+                    headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify({
+                        action: "update_reservation_status",
+                        confirmationNumber: confNum,
+                        reservationStatus: newStatus,
+                    }),
+                });
+            } catch (err) {
+                console.error("Quick status webhook error:", err);
+            }
+        }
+
+        setAlertModal({
+            isOpen: true,
+            type: "success",
+            title: "Reservation Status Updated!",
+            message: `Reservation #${confNum} is now marked as "${newStatus}".`,
+        });
+    };
+
+    // Handle Open Cancel Modal
+    const handleOpenCancelModal = (res: ReservationRecord) => {
+        setCancelModalRes(res);
+        setCancellationReason("");
+    };
+
+    // Handle Confirm Cancel
+    const handleConfirmCancel = async () => {
+        if (!cancelModalRes) return;
+        setIsSubmittingCancel(true);
+
+        const confNum = cancelModalRes.confirmationNumber;
+        const reasonText = cancellationReason.trim()
+            ? `[Cancelled: ${cancellationReason.trim()}]`
+            : `[Cancelled by Admin]`;
+        const updatedNotes = cancelModalRes.notes
+            ? `${cancelModalRes.notes}\n${reasonText}`
+            : reasonText;
+
+        const updated: ReservationRecord = {
+            ...cancelModalRes,
+            reservationStatus: "Cancelled",
+            notes: updatedNotes,
+        };
+
+        setReservations((prev) =>
+            prev.map((r) => (r.confirmationNumber === confNum ? updated : r)),
+        );
+        if (selectedRes && selectedRes.confirmationNumber === confNum) {
+            setSelectedRes(updated);
+        }
+
+        const webhook =
+            scriptWebhookUrl.trim() ||
+            localStorage.getItem("WFM_APPS_SCRIPT_URL") ||
+            "";
+
+        if (webhook) {
+            try {
+                await fetch(webhook, {
+                    method: "POST",
+                    headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify({
+                        action: "update_reservation_status",
+                        confirmationNumber: confNum,
+                        reservationStatus: "Cancelled",
+                        notes: updatedNotes,
+                    }),
+                });
+            } catch (err) {
+                console.error("Cancel webhook error:", err);
+            }
+        }
+
+        setIsSubmittingCancel(false);
+        setCancelModalRes(null);
+        setAlertModal({
+            isOpen: true,
+            type: "success",
+            title: "Reservation Cancelled",
+            message: `Reservation #${confNum} has been marked as Cancelled.`,
+        });
+    };
+
+    // Open Offer Alternative Modal from Index
+    const handleOpenOfferModal = (res: ReservationRecord) => {
+        setOfferModalRes(res);
+        const currentCarId = (res.carId || "").trim().toLowerCase();
+        const firstOtherCar = allVehiclesList.find((v) => {
+            const isCurrent =
+                (v.id || "").trim().toLowerCase() === currentCarId;
+            const ros = (v.rentOrSell || "").trim().toLowerCase();
+            const isRentalEligible = ros === "rent" || ros === "both";
+            return !isCurrent && isRentalEligible;
+        });
+
+        setSelectedOfferVehicleId(firstOtherCar ? firstOtherCar.id : "");
+        setOfferPricingType("same");
+        if (firstOtherCar) {
+            const defaultNewRate =
+                firstOtherCar.rentPrice !== undefined &&
+                firstOtherCar.rentPrice > 0
+                    ? firstOtherCar.rentPrice
+                    : firstOtherCar.originalPrice || firstOtherCar.price || 0;
+            setOfferCustomRate(defaultNewRate);
+        } else {
+            setOfferCustomRate(res.rentalRate || 0);
+        }
+        setOfferUpgradeAmount(25);
+        setOfferUpgradeNote("");
+    };
+
+    // Apply Alternative Offer from Index
+    const handleApplyAlternativeOffer = async () => {
+        if (!offerModalRes || !selectedOfferVehicleId) return;
+
+        const targetVehicle = allVehiclesList.find(
+            (v) =>
+                (v.id || "").trim().toLowerCase() ===
+                selectedOfferVehicleId.trim().toLowerCase(),
+        );
+        if (!targetVehicle) return;
+
+        setIsSubmittingOffer(true);
+        const days = Math.max(
+            1,
+            getRentalDays(offerModalRes.pickupDate, offerModalRes.returnDate),
+        );
+        const originalDailyRate = offerModalRes.rentalRate || 0;
+        let newDailyRate = originalDailyRate;
+        let pricingSummaryLabel = "";
+
+        if (offerPricingType === "same") {
+            newDailyRate = originalDailyRate;
+            pricingSummaryLabel = `Same price offer ($${originalDailyRate}/day)`;
+        } else if (offerPricingType === "different") {
+            newDailyRate = offerCustomRate;
+            pricingSummaryLabel = `Custom rate offer ($${offerCustomRate}/day)`;
+        } else if (offerPricingType === "upgrade") {
+            newDailyRate = originalDailyRate + offerUpgradeAmount;
+            pricingSummaryLabel = `Upgrade offer ($${originalDailyRate}/day + $${offerUpgradeAmount}/day upgrade add-on${
+                offerUpgradeNote ? ` - ${offerUpgradeNote}` : ""
+            })`;
+        }
+
+        const newGrossTotal = newDailyRate * days;
+        const discountAmount = offerModalRes.couponDiscount || 0;
+        const newEstimatedTotal = Math.max(0, newGrossTotal - discountAmount);
+
+        const newCarTitle =
+            `${targetVehicle.year || ""} ${targetVehicle.make || ""} ${
+                targetVehicle.model || ""
+            }`.trim() ||
+            targetVehicle.title ||
+            "Alternative Vehicle";
+
+        const switchNote = `[Alternative Vehicle Offered & Applied: Switched to ${newCarTitle} (ID: ${targetVehicle.id}) - ${pricingSummaryLabel}. New Daily Rate: $${newDailyRate}, New Estimated Total: $${newEstimatedTotal}]`;
+        const updatedNotes = offerModalRes.notes
+            ? `${offerModalRes.notes}\n${switchNote}`
+            : switchNote;
+
+        const updated: ReservationRecord = {
+            ...offerModalRes,
+            carId: targetVehicle.id,
+            carTitle: newCarTitle,
+            rentalRate: newDailyRate,
+            estimatedTotal: newEstimatedTotal,
+            notes: updatedNotes,
+            vehicle: targetVehicle,
+        };
+
+        const confNum = offerModalRes.confirmationNumber;
+        setReservations((prev) =>
+            prev.map((r) => (r.confirmationNumber === confNum ? updated : r)),
+        );
+        if (selectedRes && selectedRes.confirmationNumber === confNum) {
+            setSelectedRes(updated);
+        }
+
+        const webhook =
+            scriptWebhookUrl.trim() ||
+            localStorage.getItem("WFM_APPS_SCRIPT_URL") ||
+            "";
+
+        if (webhook) {
+            try {
+                await fetch(webhook, {
+                    method: "POST",
+                    headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify({
+                        action: "update_reservation_status",
+                        confirmationNumber: confNum,
+                        carId: targetVehicle.id,
+                        carTitle: newCarTitle,
+                        rentalRate: newDailyRate,
+                        estimatedTotal: newEstimatedTotal,
+                        notes: updatedNotes,
+                    }),
+                });
+            } catch (err) {
+                console.error("Alternative offer webhook error:", err);
+            }
+        }
+
+        setIsSubmittingOffer(false);
+        setOfferModalRes(null);
+        setAlertModal({
+            isOpen: true,
+            type: "success",
+            title: "Alternative Vehicle Offered & Applied!",
+            message: `Reservation #${confNum} has been updated to "${newCarTitle}". Offer terms: ${pricingSummaryLabel}.`,
+        });
+    };
+
+    // Open Extend Rental Modal from Actions Column
+    const handleOpenExtendModalFromAction = (res: ReservationRecord) => {
+        setSelectedRes(res);
+        setExtendDays(2);
+        setExtendChargeType("free");
+    };
+
+    // Handle Extend Rental Save
+    const handleApplyExtension = async () => {
+        if (!selectedRes) return;
+        setIsExtending(true);
+
+        const currentReturnDate = selectedRes.returnDate;
+        const newReturnDate = calculateExtendedReturnDate(
+            currentReturnDate,
+            extendDays,
+        );
+
+        const car = selectedRes.vehicle;
+        const dailyRentRate =
+            car && car.rentPrice !== undefined && car.rentPrice > 0
+                ? car.rentPrice
+                : car
+                  ? car.originalPrice || car.price
+                  : selectedRes.rentalRate || 0;
+
+        let extraCharge = 0;
+        if (extendChargeType === "daily") {
+            extraCharge = dailyRentRate * extendDays;
+        } else if (extendChargeType === "custom") {
+            extraCharge = customExtendAmount || 0;
+        }
+
+        const prevTotal = selectedRes.estimatedTotal || 0;
+        const newEstimatedTotal = prevTotal + extraCharge;
+
+        const updated: ReservationRecord = {
+            ...selectedRes,
+            returnDate: newReturnDate,
+            estimatedTotal: newEstimatedTotal,
+            notes: selectedRes.notes
+                ? `${selectedRes.notes}\n[Extended +${extendDays} day(s) until ${newReturnDate}. Additional: $${extraCharge}]`
+                : `[Extended +${extendDays} day(s) until ${newReturnDate}. Additional: $${extraCharge}]`,
+        };
+
+        const confNum = selectedRes.confirmationNumber;
+        setReservations((prev) =>
+            prev.map((r) => (r.confirmationNumber === confNum ? updated : r)),
+        );
+        setSelectedRes(updated);
+
+        const webhook =
+            scriptWebhookUrl.trim() ||
+            localStorage.getItem("WFM_APPS_SCRIPT_URL") ||
+            "";
+
+        if (webhook) {
+            try {
+                await fetch(webhook, {
+                    method: "POST",
+                    headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify({
+                        action: "update_reservation_status",
+                        confirmationNumber: confNum,
+                        returnDate: newReturnDate,
+                        estimatedTotal: newEstimatedTotal,
+                        notes: updated.notes,
+                    }),
+                });
+            } catch (err) {
+                console.error("Extend rental webhook error:", err);
+            }
+        }
+
+        setIsExtending(false);
+        setAlertModal({
+            isOpen: true,
+            type: "success",
+            title: "Rental Extended!",
+            message: `Reservation #${confNum} extended by ${extendDays} days until ${formatDisplayDate(newReturnDate)} (+$${extraCharge}).`,
+        });
+    };
+
     // Calculate Status Card Counts
     const totalReservationsCount = reservations.length;
     const pendingReservationsCount = reservations.filter((r) => {
         const s = (r.reservationStatus || "Pending").toLowerCase();
-        return !s.includes("approv") && !s.includes("decline");
+        return (
+            !s.includes("approv") &&
+            !s.includes("decline") &&
+            !s.includes("cancel") &&
+            !s.includes("complet") &&
+            s !== "active"
+        );
     }).length;
     const approvedReservationsCount = reservations.filter((r) => {
         const s = (r.reservationStatus || "").toLowerCase();
@@ -543,6 +1144,10 @@ export default function Index() {
     const declinedReservationsCount = reservations.filter((r) => {
         const s = (r.reservationStatus || "").toLowerCase();
         return s.includes("decline");
+    }).length;
+    const cancelledReservationsCount = reservations.filter((r) => {
+        const s = (r.reservationStatus || "").toLowerCase();
+        return s.includes("cancel");
     }).length;
 
     return (
@@ -610,21 +1215,21 @@ export default function Index() {
         >
             <Head title="Rental Reservations - Wright Finder Motors" />
 
-            <div className="space-y-5">
+            <div className="space-y-5 print:hidden">
                 {/* Status KPI Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
                     {/* 1. Total Reservations */}
                     <div
                         onClick={() => setStatusFilter("all")}
-                        className={`bg-white rounded-2xl p-4 sm:p-5 shadow-sm border transition-all cursor-pointer flex items-center gap-4 ${
+                        className={`bg-white rounded-2xl p-4 shadow-sm border transition-all cursor-pointer flex items-center gap-3.5 ${
                             statusFilter === "all"
                                 ? "border-purple shadow-md ring-2 ring-purple/20"
                                 : "border-slate-200/80 hover:border-slate-300 hover:shadow"
                         }`}
                     >
-                        <div className="w-12 h-12 rounded-2xl bg-purple text-white flex items-center justify-center shrink-0 shadow-md shadow-purple/20">
+                        <div className="w-11 h-11 rounded-2xl bg-purple text-white flex items-center justify-center shrink-0 shadow-md shadow-purple/20">
                             <svg
-                                className="w-6 h-6"
+                                className="w-5 h-5"
                                 fill="none"
                                 viewBox="0 0 24 24"
                                 stroke="currentColor"
@@ -638,11 +1243,11 @@ export default function Index() {
                             </svg>
                         </div>
                         <div className="min-w-0">
-                            <div className="text-2xl sm:text-3xl font-black text-slate-900 leading-none">
+                            <div className="text-xl sm:text-2xl font-black text-slate-900 leading-none">
                                 {totalReservationsCount}
                             </div>
                             <div className="text-xs font-semibold text-slate-600 mt-1 truncate">
-                                Total Reservations
+                                Total
                             </div>
                         </div>
                     </div>
@@ -650,15 +1255,15 @@ export default function Index() {
                     {/* 2. Pending */}
                     <div
                         onClick={() => setStatusFilter("pending")}
-                        className={`bg-white rounded-2xl p-4 sm:p-5 shadow-sm border transition-all cursor-pointer flex items-center gap-4 ${
+                        className={`bg-white rounded-2xl p-4 shadow-sm border transition-all cursor-pointer flex items-center gap-3.5 ${
                             statusFilter === "pending"
                                 ? "border-amber-400 shadow-md ring-2 ring-amber-400/20"
                                 : "border-slate-200/80 hover:border-slate-300 hover:shadow"
                         }`}
                     >
-                        <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200/80 text-amber-600 flex items-center justify-center shrink-0 shadow-sm">
+                        <div className="w-11 h-11 rounded-2xl bg-amber-50 border border-amber-200/80 text-amber-600 flex items-center justify-center shrink-0 shadow-sm">
                             <svg
-                                className="w-6 h-6"
+                                className="w-5 h-5"
                                 fill="none"
                                 viewBox="0 0 24 24"
                                 stroke="currentColor"
@@ -672,7 +1277,7 @@ export default function Index() {
                             </svg>
                         </div>
                         <div className="min-w-0">
-                            <div className="text-2xl sm:text-3xl font-black text-slate-900 leading-none">
+                            <div className="text-xl sm:text-2xl font-black text-slate-900 leading-none">
                                 {pendingReservationsCount}
                             </div>
                             <div className="text-xs font-semibold text-slate-600 mt-1 truncate">
@@ -684,15 +1289,15 @@ export default function Index() {
                     {/* 3. Approved */}
                     <div
                         onClick={() => setStatusFilter("approved")}
-                        className={`bg-white rounded-2xl p-4 sm:p-5 shadow-sm border transition-all cursor-pointer flex items-center gap-4 ${
+                        className={`bg-white rounded-2xl p-4 shadow-sm border transition-all cursor-pointer flex items-center gap-3.5 ${
                             statusFilter === "approved"
                                 ? "border-emerald-500 shadow-md ring-2 ring-emerald-500/20"
                                 : "border-slate-200/80 hover:border-slate-300 hover:shadow"
                         }`}
                     >
-                        <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-200/80 text-emerald-600 flex items-center justify-center shrink-0 shadow-sm">
+                        <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-200/80 text-emerald-600 flex items-center justify-center shrink-0 shadow-sm">
                             <svg
-                                className="w-6 h-6"
+                                className="w-5 h-5"
                                 fill="none"
                                 viewBox="0 0 24 24"
                                 stroke="currentColor"
@@ -706,7 +1311,7 @@ export default function Index() {
                             </svg>
                         </div>
                         <div className="min-w-0">
-                            <div className="text-2xl sm:text-3xl font-black text-slate-900 leading-none">
+                            <div className="text-xl sm:text-2xl font-black text-slate-900 leading-none">
                                 {approvedReservationsCount}
                             </div>
                             <div className="text-xs font-semibold text-slate-600 mt-1 truncate">
@@ -718,15 +1323,15 @@ export default function Index() {
                     {/* 4. Declined */}
                     <div
                         onClick={() => setStatusFilter("declined")}
-                        className={`bg-white rounded-2xl p-4 sm:p-5 shadow-sm border transition-all cursor-pointer flex items-center gap-4 ${
+                        className={`bg-white rounded-2xl p-4 shadow-sm border transition-all cursor-pointer flex items-center gap-3.5 ${
                             statusFilter === "declined"
                                 ? "border-rose-500 shadow-md ring-2 ring-rose-500/20"
                                 : "border-slate-200/80 hover:border-slate-300 hover:shadow"
                         }`}
                     >
-                        <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-200/80 text-rose-600 flex items-center justify-center shrink-0 shadow-sm">
+                        <div className="w-11 h-11 rounded-2xl bg-rose-50 border border-rose-200/80 text-rose-600 flex items-center justify-center shrink-0 shadow-sm">
                             <svg
-                                className="w-6 h-6"
+                                className="w-5 h-5"
                                 fill="none"
                                 viewBox="0 0 24 24"
                                 stroke="currentColor"
@@ -740,11 +1345,45 @@ export default function Index() {
                             </svg>
                         </div>
                         <div className="min-w-0">
-                            <div className="text-2xl sm:text-3xl font-black text-slate-900 leading-none">
+                            <div className="text-xl sm:text-2xl font-black text-slate-900 leading-none">
                                 {declinedReservationsCount}
                             </div>
                             <div className="text-xs font-semibold text-slate-600 mt-1 truncate">
                                 Declined
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 5. Cancelled */}
+                    <div
+                        onClick={() => setStatusFilter("cancelled")}
+                        className={`bg-white rounded-2xl p-4 shadow-sm border transition-all cursor-pointer flex items-center gap-3.5 ${
+                            statusFilter === "cancelled"
+                                ? "border-slate-600 shadow-md ring-2 ring-slate-600/20"
+                                : "border-slate-200/80 hover:border-slate-300 hover:shadow"
+                        }`}
+                    >
+                        <div className="w-11 h-11 rounded-2xl bg-slate-100 border border-slate-300/80 text-slate-700 flex items-center justify-center shrink-0 shadow-sm">
+                            <svg
+                                className="w-5 h-5"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2.5}
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M6 18L18 6M6 6l12 12"
+                                />
+                            </svg>
+                        </div>
+                        <div className="min-w-0">
+                            <div className="text-xl sm:text-2xl font-black text-slate-900 leading-none">
+                                {cancelledReservationsCount}
+                            </div>
+                            <div className="text-xs font-semibold text-slate-600 mt-1 truncate">
+                                Cancelled
                             </div>
                         </div>
                     </div>
@@ -816,6 +1455,7 @@ export default function Index() {
                                     <option value="pending">Pending</option>
                                     <option value="approved">Approved</option>
                                     <option value="declined">Declined</option>
+                                    <option value="cancelled">Cancelled</option>
                                 </select>
                                 <svg
                                     className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500"
@@ -1085,8 +1725,17 @@ export default function Index() {
                                             rLower.includes("approv");
                                         const isDeclined =
                                             rLower.includes("decline");
+                                        const isActive = rLower === "active";
+                                        const isCompleted =
+                                            rLower.includes("complet");
+                                        const isCancelled =
+                                            rLower.includes("cancel");
                                         const isResPending =
-                                            !isApproved && !isDeclined;
+                                            !isApproved &&
+                                            !isDeclined &&
+                                            !isActive &&
+                                            !isCompleted &&
+                                            !isCancelled;
 
                                         // Clean Payment option
                                         const displayPaymentOption =
@@ -1399,9 +2048,20 @@ export default function Index() {
                                                         <span className="inline-block px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
                                                             Approved
                                                         </span>
-                                                    ) : isDeclined ? (
+                                                    ) : isActive ? (
+                                                        <span className="inline-block px-3 py-1 rounded-full text-[11px] font-bold bg-blue-100 text-blue-800 border border-blue-200">
+                                                            Active
+                                                        </span>
+                                                    ) : isCompleted ? (
+                                                        <span className="inline-block px-3 py-1 rounded-full text-[11px] font-bold bg-purple/10 text-purple border border-purple/20">
+                                                            Completed
+                                                        </span>
+                                                    ) : isCancelled ||
+                                                      isDeclined ? (
                                                         <span className="inline-block px-3 py-1 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
-                                                            Declined
+                                                            {isCancelled
+                                                                ? "Cancelled"
+                                                                : "Declined"}
                                                         </span>
                                                     ) : (
                                                         <span className="inline-block px-3 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
@@ -1413,17 +2073,18 @@ export default function Index() {
                                                 {/* 8. ACTIONS */}
                                                 <td className="py-4 px-4 text-center">
                                                     <div className="flex items-center justify-center gap-1.5">
-                                                        {/* 1. View button */}
-                                                        <button
-                                                            type="button"
-                                                            onClick={() =>
-                                                                setSelectedRes(
-                                                                    res,
-                                                                )
-                                                            }
-                                                            title="View Details"
+                                                        {/* 1. View button (Available for all statuses) */}
+                                                        <Link
+                                                            href={route(
+                                                                "admin.reservations.show",
+                                                                {
+                                                                    confirmationNumber:
+                                                                        res.confirmationNumber,
+                                                                },
+                                                            )}
+                                                            title="View Reservation Details"
                                                             aria-label="View Details"
-                                                            className="p-1.5 rounded-lg text-slate-600 hover:text-white hover:bg-dark-purple bg-slate-50 border border-slate-200 transition shadow-sm"
+                                                            className="p-1.5 rounded-lg text-slate-600 hover:text-white hover:bg-dark-purple bg-slate-50 border border-slate-200 transition shadow-sm inline-flex items-center justify-center"
                                                         >
                                                             <svg
                                                                 className="w-4 h-4"
@@ -1443,86 +2104,360 @@ export default function Index() {
                                                                     d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
                                                                 />
                                                             </svg>
-                                                        </button>
+                                                        </Link>
 
-                                                        {/* 2. Edit button */}
-                                                        <button
-                                                            type="button"
-                                                            onClick={() =>
-                                                                handleOpenEditModal(
-                                                                    res,
-                                                                )
-                                                            }
-                                                            title="Edit Reservation"
-                                                            aria-label="Edit Reservation"
-                                                            className="p-1.5 rounded-lg text-slate-600 hover:text-white hover:bg-purple bg-slate-50 border border-slate-200 transition shadow-sm"
-                                                        >
-                                                            <svg
-                                                                className="w-4 h-4"
-                                                                fill="none"
-                                                                viewBox="0 0 24 24"
-                                                                stroke="currentColor"
-                                                                strokeWidth={2}
+                                                        {/* STATUS-SPECIFIC ACTIONS */}
+                                                        {/* --- PENDING: View, Edit, Change Status, Offer alternative, Cancel --- */}
+                                                        {isResPending && (
+                                                            <>
+                                                                {/* Edit */}
+                                                                <Link
+                                                                    href={route(
+                                                                        "admin.reservations.edit",
+                                                                        {
+                                                                            confirmationNumber:
+                                                                                res.confirmationNumber,
+                                                                        },
+                                                                    )}
+                                                                    title="Edit Reservation Details"
+                                                                    aria-label="Edit Reservation"
+                                                                    className="p-1.5 rounded-lg text-slate-600 hover:text-white hover:bg-purple bg-slate-50 border border-slate-200 transition shadow-sm inline-flex items-center justify-center"
+                                                                >
+                                                                    <svg
+                                                                        className="w-4 h-4"
+                                                                        fill="none"
+                                                                        viewBox="0 0 24 24"
+                                                                        stroke="currentColor"
+                                                                        strokeWidth={
+                                                                            2
+                                                                        }
+                                                                    >
+                                                                        <path
+                                                                            strokeLinecap="round"
+                                                                            strokeLinejoin="round"
+                                                                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                                                        />
+                                                                    </svg>
+                                                                </Link>
+
+                                                                {/* Change Reservation Status */}
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        handleOpenResStatusModal(
+                                                                            res,
+                                                                        )
+                                                                    }
+                                                                    title="Change Reservation Status"
+                                                                    aria-label="Change Reservation Status"
+                                                                    className="p-1.5 rounded-lg border transition shadow-sm text-amber-800 hover:bg-amber-100 bg-amber-50 border-amber-200"
+                                                                >
+                                                                    <svg
+                                                                        className="w-4 h-4"
+                                                                        fill="none"
+                                                                        viewBox="0 0 24 24"
+                                                                        stroke="currentColor"
+                                                                        strokeWidth={
+                                                                            2
+                                                                        }
+                                                                    >
+                                                                        <path
+                                                                            strokeLinecap="round"
+                                                                            strokeLinejoin="round"
+                                                                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                                                        />
+                                                                    </svg>
+                                                                </button>
+
+                                                                {/* Offer alternative */}
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        handleOpenOfferModal(
+                                                                            res,
+                                                                        )
+                                                                    }
+                                                                    title="Offer alternative vehicle"
+                                                                    aria-label="Offer Alternative"
+                                                                    className="p-1.5 rounded-lg text-purple hover:text-white hover:bg-purple bg-purple/10 border border-purple/30 transition shadow-sm inline-flex items-center justify-center"
+                                                                >
+                                                                    <svg
+                                                                        className="w-4 h-4"
+                                                                        fill="none"
+                                                                        viewBox="0 0 24 24"
+                                                                        stroke="currentColor"
+                                                                        strokeWidth={
+                                                                            2
+                                                                        }
+                                                                    >
+                                                                        <path
+                                                                            strokeLinecap="round"
+                                                                            strokeLinejoin="round"
+                                                                            d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+                                                                        />
+                                                                    </svg>
+                                                                </button>
+
+                                                                {/* Cancel */}
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        handleOpenCancelModal(
+                                                                            res,
+                                                                        )
+                                                                    }
+                                                                    title="Cancel Reservation"
+                                                                    aria-label="Cancel Reservation"
+                                                                    className="p-1.5 rounded-lg text-rose-600 hover:text-white hover:bg-rose-600 bg-rose-50 border border-rose-200 transition shadow-sm inline-flex items-center justify-center"
+                                                                >
+                                                                    <svg
+                                                                        className="w-4 h-4"
+                                                                        fill="none"
+                                                                        viewBox="0 0 24 24"
+                                                                        stroke="currentColor"
+                                                                        strokeWidth={
+                                                                            2.5
+                                                                        }
+                                                                    >
+                                                                        <path
+                                                                            strokeLinecap="round"
+                                                                            strokeLinejoin="round"
+                                                                            d="M6 18L18 6M6 6l12 12"
+                                                                        />
+                                                                    </svg>
+                                                                </button>
+                                                            </>
+                                                        )}
+
+                                                        {/* --- APPROVED: View, Edit, Extend Rental, Cancel --- */}
+                                                        {isApproved && (
+                                                            <>
+                                                                {/* Edit */}
+                                                                <Link
+                                                                    href={route(
+                                                                        "admin.reservations.edit",
+                                                                        {
+                                                                            confirmationNumber:
+                                                                                res.confirmationNumber,
+                                                                        },
+                                                                    )}
+                                                                    title="Edit Reservation Details"
+                                                                    aria-label="Edit Reservation"
+                                                                    className="p-1.5 rounded-lg text-slate-600 hover:text-white hover:bg-purple bg-slate-50 border border-slate-200 transition shadow-sm inline-flex items-center justify-center"
+                                                                >
+                                                                    <svg
+                                                                        className="w-4 h-4"
+                                                                        fill="none"
+                                                                        viewBox="0 0 24 24"
+                                                                        stroke="currentColor"
+                                                                        strokeWidth={
+                                                                            2
+                                                                        }
+                                                                    >
+                                                                        <path
+                                                                            strokeLinecap="round"
+                                                                            strokeLinejoin="round"
+                                                                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                                                        />
+                                                                    </svg>
+                                                                </Link>
+
+                                                                {/* Extend Rental */}
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        handleOpenExtendModalFromAction(
+                                                                            res,
+                                                                        )
+                                                                    }
+                                                                    title="Extend Rental"
+                                                                    aria-label="Extend Rental"
+                                                                    className="p-1.5 rounded-lg text-purple hover:text-white hover:bg-purple bg-purple/10 border border-purple/30 transition shadow-sm inline-flex items-center justify-center"
+                                                                >
+                                                                    <svg
+                                                                        className="w-4 h-4"
+                                                                        fill="none"
+                                                                        viewBox="0 0 24 24"
+                                                                        stroke="currentColor"
+                                                                        strokeWidth={
+                                                                            2
+                                                                        }
+                                                                    >
+                                                                        <path
+                                                                            strokeLinecap="round"
+                                                                            strokeLinejoin="round"
+                                                                            d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                                                                        />
+                                                                    </svg>
+                                                                </button>
+
+                                                                {/* Cancel */}
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        handleOpenCancelModal(
+                                                                            res,
+                                                                        )
+                                                                    }
+                                                                    title="Cancel Reservation"
+                                                                    aria-label="Cancel Reservation"
+                                                                    className="p-1.5 rounded-lg text-rose-600 hover:text-white hover:bg-rose-600 bg-rose-50 border border-rose-200 transition shadow-sm inline-flex items-center justify-center"
+                                                                >
+                                                                    <svg
+                                                                        className="w-4 h-4"
+                                                                        fill="none"
+                                                                        viewBox="0 0 24 24"
+                                                                        stroke="currentColor"
+                                                                        strokeWidth={
+                                                                            2.5
+                                                                        }
+                                                                    >
+                                                                        <path
+                                                                            strokeLinecap="round"
+                                                                            strokeLinejoin="round"
+                                                                            d="M6 18L18 6M6 6l12 12"
+                                                                        />
+                                                                    </svg>
+                                                                </button>
+                                                            </>
+                                                        )}
+
+                                                        {/* --- ACTIVE: View, Edit, Extend Rental, Process Return, Cancel --- */}
+                                                        {isActive && (
+                                                            <>
+                                                                {/* Edit */}
+                                                                <Link
+                                                                    href={route(
+                                                                        "admin.reservations.edit",
+                                                                        {
+                                                                            confirmationNumber:
+                                                                                res.confirmationNumber,
+                                                                        },
+                                                                    )}
+                                                                    title="Edit Reservation Details"
+                                                                    aria-label="Edit Reservation"
+                                                                    className="p-1.5 rounded-lg text-slate-600 hover:text-white hover:bg-purple bg-slate-50 border border-slate-200 transition shadow-sm inline-flex items-center justify-center"
+                                                                >
+                                                                    <svg
+                                                                        className="w-4 h-4"
+                                                                        fill="none"
+                                                                        viewBox="0 0 24 24"
+                                                                        stroke="currentColor"
+                                                                        strokeWidth={
+                                                                            2
+                                                                        }
+                                                                    >
+                                                                        <path
+                                                                            strokeLinecap="round"
+                                                                            strokeLinejoin="round"
+                                                                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                                                        />
+                                                                    </svg>
+                                                                </Link>
+
+                                                                {/* Extend Rental */}
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        handleOpenExtendModalFromAction(
+                                                                            res,
+                                                                        )
+                                                                    }
+                                                                    title="Extend Rental"
+                                                                    aria-label="Extend Rental"
+                                                                    className="p-1.5 rounded-lg text-purple hover:text-white hover:bg-purple bg-purple/10 border border-purple/30 transition shadow-sm inline-flex items-center justify-center"
+                                                                >
+                                                                    <svg
+                                                                        className="w-4 h-4"
+                                                                        fill="none"
+                                                                        viewBox="0 0 24 24"
+                                                                        stroke="currentColor"
+                                                                        strokeWidth={
+                                                                            2
+                                                                        }
+                                                                    >
+                                                                        <path
+                                                                            strokeLinecap="round"
+                                                                            strokeLinejoin="round"
+                                                                            d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                                                                        />
+                                                                    </svg>
+                                                                </button>
+
+                                                                {/* Process Return */}
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        handleQuickStatusChange(
+                                                                            res,
+                                                                            "Completed",
+                                                                        )
+                                                                    }
+                                                                    title="Process Return (Mark Completed)"
+                                                                    aria-label="Process Return"
+                                                                    className="p-1.5 rounded-lg text-emerald-700 hover:text-white hover:bg-emerald-600 bg-emerald-50 border border-emerald-200 transition shadow-sm inline-flex items-center justify-center"
+                                                                >
+                                                                    <svg
+                                                                        className="w-4 h-4"
+                                                                        fill="none"
+                                                                        viewBox="0 0 24 24"
+                                                                        stroke="currentColor"
+                                                                        strokeWidth={
+                                                                            2.5
+                                                                        }
+                                                                    >
+                                                                        <path
+                                                                            strokeLinecap="round"
+                                                                            strokeLinejoin="round"
+                                                                            d="M5 13l4 4L19 7"
+                                                                        />
+                                                                    </svg>
+                                                                </button>
+
+                                                                {/* Cancel */}
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        handleOpenCancelModal(
+                                                                            res,
+                                                                        )
+                                                                    }
+                                                                    title="Cancel Reservation"
+                                                                    aria-label="Cancel Reservation"
+                                                                    className="p-1.5 rounded-lg text-rose-600 hover:text-white hover:bg-rose-600 bg-rose-50 border border-rose-200 transition shadow-sm inline-flex items-center justify-center"
+                                                                >
+                                                                    <svg
+                                                                        className="w-4 h-4"
+                                                                        fill="none"
+                                                                        viewBox="0 0 24 24"
+                                                                        stroke="currentColor"
+                                                                        strokeWidth={
+                                                                            2.5
+                                                                        }
+                                                                    >
+                                                                        <path
+                                                                            strokeLinecap="round"
+                                                                            strokeLinejoin="round"
+                                                                            d="M6 18L18 6M6 6l12 12"
+                                                                        />
+                                                                    </svg>
+                                                                </button>
+                                                            </>
+                                                        )}
+
+                                                        {/* --- COMPLETED: View, Print Receipt --- */}
+                                                        {isCompleted && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    handlePrintReservation(
+                                                                        res,
+                                                                    )
+                                                                }
+                                                                title="Print Receipt"
+                                                                aria-label="Print Receipt"
+                                                                className="p-1.5 rounded-lg text-slate-700 hover:text-white hover:bg-slate-900 bg-slate-100 border border-slate-200 transition shadow-sm inline-flex items-center justify-center"
                                                             >
-                                                                <path
-                                                                    strokeLinecap="round"
-                                                                    strokeLinejoin="round"
-                                                                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                                                />
-                                                            </svg>
-                                                        </button>
-
-                                                        {/* 3. Reservation button (Status indicator & switcher) */}
-                                                        <button
-                                                            type="button"
-                                                            onClick={() =>
-                                                                handleOpenResStatusModal(
-                                                                    res,
-                                                                )
-                                                            }
-                                                            title={`Reservation Status: ${res.reservationStatus || "Pending"} (Click to change: Pending, Approved, Declined)`}
-                                                            aria-label="Change Reservation Status"
-                                                            className={`p-1.5 rounded-lg border transition shadow-sm ${
-                                                                isApproved
-                                                                    ? "text-emerald-700 hover:bg-emerald-100 bg-emerald-50 border-emerald-200"
-                                                                    : isDeclined
-                                                                      ? "text-rose-700 hover:bg-rose-100 bg-rose-50 border-rose-200"
-                                                                      : "text-amber-800 hover:bg-amber-100 bg-amber-50 border-amber-200"
-                                                            }`}
-                                                        >
-                                                            {isApproved ? (
-                                                                <svg
-                                                                    className="w-4 h-4"
-                                                                    fill="none"
-                                                                    viewBox="0 0 24 24"
-                                                                    stroke="currentColor"
-                                                                    strokeWidth={
-                                                                        2.5
-                                                                    }
-                                                                >
-                                                                    <path
-                                                                        strokeLinecap="round"
-                                                                        strokeLinejoin="round"
-                                                                        d="M5 13l4 4L19 7"
-                                                                    />
-                                                                </svg>
-                                                            ) : isDeclined ? (
-                                                                <svg
-                                                                    className="w-4 h-4"
-                                                                    fill="none"
-                                                                    viewBox="0 0 24 24"
-                                                                    stroke="currentColor"
-                                                                    strokeWidth={
-                                                                        2.5
-                                                                    }
-                                                                >
-                                                                    <path
-                                                                        strokeLinecap="round"
-                                                                        strokeLinejoin="round"
-                                                                        d="M6 18L18 6M6 6l12 12"
-                                                                    />
-                                                                </svg>
-                                                            ) : (
                                                                 <svg
                                                                     className="w-4 h-4"
                                                                     fill="none"
@@ -1535,11 +2470,44 @@ export default function Index() {
                                                                     <path
                                                                         strokeLinecap="round"
                                                                         strokeLinejoin="round"
-                                                                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                                                        d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
                                                                     />
                                                                 </svg>
-                                                            )}
-                                                        </button>
+                                                            </button>
+                                                        )}
+
+                                                        {/* --- CANCELLED / DECLINED: View only (plus Edit fallback) --- */}
+                                                        {(isCancelled ||
+                                                            isDeclined) && (
+                                                            <Link
+                                                                href={route(
+                                                                    "admin.reservations.edit",
+                                                                    {
+                                                                        confirmationNumber:
+                                                                            res.confirmationNumber,
+                                                                    },
+                                                                )}
+                                                                title="Edit Reservation Details"
+                                                                aria-label="Edit Reservation"
+                                                                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 bg-slate-50 border border-slate-200 transition shadow-sm inline-flex items-center justify-center"
+                                                            >
+                                                                <svg
+                                                                    className="w-4 h-4"
+                                                                    fill="none"
+                                                                    viewBox="0 0 24 24"
+                                                                    stroke="currentColor"
+                                                                    strokeWidth={
+                                                                        2
+                                                                    }
+                                                                >
+                                                                    <path
+                                                                        strokeLinecap="round"
+                                                                        strokeLinejoin="round"
+                                                                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                                                    />
+                                                                </svg>
+                                                            </Link>
+                                                        )}
                                                     </div>
                                                 </td>
                                             </tr>
@@ -1604,269 +2572,1013 @@ export default function Index() {
                 </div>
             </div>
 
-            {/* DETAIL MODAL FOR RESERVATION */}
-            {selectedRes && (
-                <div
-                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
-                    onClick={() => setSelectedRes(null)}
-                >
-                    <div
-                        className="w-full max-w-2xl bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-gray-100 transform transition-all relative overflow-hidden max-h-[90vh] overflow-y-auto"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        {/* Top Accent */}
-                        <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-dark-purple via-purple to-vivid-red" />
+            {/* DETAIL MODAL / PANEL FOR RESERVATION */}
+            {selectedRes &&
+                (() => {
+                    const days = getRentalDays(
+                        selectedRes.pickupDate,
+                        selectedRes.returnDate,
+                    );
+                    const car = selectedRes.vehicle;
 
-                        {/* Modal Header */}
-                        <div className="flex items-start justify-between gap-3 pb-4 border-b border-slate-100 mb-5">
-                            <div>
-                                <div className="flex items-center gap-2">
-                                    <span className="text-[10px] font-mono font-bold uppercase bg-dark-purple text-white px-2.5 py-0.5 rounded-full">
-                                        #{selectedRes.confirmationNumber}
-                                    </span>
-                                    <span
-                                        className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                                            (selectedRes.paymentStatus || "")
-                                                .toLowerCase()
-                                                .includes("paid") &&
-                                            !(selectedRes.paymentStatus || "")
-                                                .toLowerCase()
-                                                .includes("unpaid")
-                                                ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                                                : (
-                                                        selectedRes.paymentStatus ||
-                                                        ""
-                                                    )
-                                                        .toLowerCase()
-                                                        .includes("unpaid")
-                                                  ? "bg-rose-100 text-rose-800 border border-rose-200"
-                                                  : "bg-amber-100 text-amber-900 border border-amber-200"
-                                        }`}
-                                    >
-                                        Payment:{" "}
-                                        {selectedRes.paymentStatus || "Pending"}
-                                    </span>
-                                    <span
-                                        className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                                            selectedRes.reservationStatus ===
-                                            "Approved"
-                                                ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                                                : "bg-amber-100 text-amber-900 border border-amber-200"
-                                        }`}
-                                    >
-                                        Reservation:{" "}
-                                        {selectedRes.reservationStatus ||
-                                            "Pending"}
-                                    </span>
-                                </div>
-                                <h3 className="text-lg font-black text-slate-900 mt-1">
-                                    {selectedRes.carTitle ||
-                                        (selectedRes.vehicle
-                                            ? `${selectedRes.vehicle.make} ${selectedRes.vehicle.model}`
-                                            : "Vehicle Rental")}
-                                </h3>
-                                <p className="text-xs text-slate-500">
-                                    Recorded on:{" "}
-                                    {selectedRes.timestamp || "Recent"}
-                                </p>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => setSelectedRes(null)}
-                                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
+                    // Vehicle original price and daily discount
+                    const vehicleOriginalDaily =
+                        car && car.rentPrice !== undefined && car.rentPrice > 0
+                            ? car.rentPrice
+                            : car
+                              ? car.originalPrice ||
+                                car.price ||
+                                selectedRes.rentalRate ||
+                                0
+                              : selectedRes.rentalRate || 0;
+
+                    const vehicleDailyDiscount =
+                        car && car.rentDiscount !== undefined
+                            ? car.rentDiscount
+                            : car
+                              ? car.discount || 0
+                              : 0;
+
+                    const vehicleTotalDiscount = vehicleDailyDiscount * days;
+
+                    const dailyRentRate =
+                        selectedRes.rentalRate ||
+                        (vehicleDailyDiscount > 0 &&
+                        vehicleOriginalDaily >= vehicleDailyDiscount
+                            ? vehicleOriginalDaily - vehicleDailyDiscount
+                            : vehicleOriginalDaily);
+
+                    const rentalSubtotal = dailyRentRate * days;
+                    const grossTotal =
+                        vehicleDailyDiscount > 0
+                            ? vehicleOriginalDaily * days
+                            : rentalSubtotal;
+
+                    const hasCoupon = Boolean(
+                        selectedRes.couponCode && selectedRes.couponCode.trim(),
+                    );
+
+                    const couponDiscountAmount =
+                        selectedRes.couponDiscount !== undefined &&
+                        selectedRes.couponDiscount > 0
+                            ? selectedRes.couponDiscount
+                            : hasCoupon
+                              ? Math.max(
+                                    0,
+                                    rentalSubtotal -
+                                        (selectedRes.estimatedTotal ||
+                                            rentalSubtotal),
+                                )
+                              : 0;
+
+                    const couponPercent =
+                        hasCoupon &&
+                        rentalSubtotal > 0 &&
+                        couponDiscountAmount > 0
+                            ? Math.round(
+                                  (couponDiscountAmount / rentalSubtotal) * 100,
+                              )
+                            : 0;
+
+                    const otherDiscountAmount =
+                        vehicleTotalDiscount > 0
+                            ? vehicleTotalDiscount
+                            : selectedRes.discount !== undefined &&
+                                selectedRes.discount > couponDiscountAmount
+                              ? selectedRes.discount - couponDiscountAmount
+                              : 0;
+
+                    const totalCost =
+                        selectedRes.estimatedTotal &&
+                        selectedRes.estimatedTotal > 0
+                            ? selectedRes.estimatedTotal
+                            : Math.max(
+                                  0,
+                                  rentalSubtotal - couponDiscountAmount,
+                              );
+
+                    const totalSavings =
+                        couponDiscountAmount + otherDiscountAmount;
+                    const totalSavingsPercent =
+                        grossTotal > 0 && totalSavings > 0
+                            ? Math.round((totalSavings / grossTotal) * 100)
+                            : couponPercent;
+
+                    const resStatus =
+                        selectedRes.reservationStatus || "Pending";
+                    const rLower = resStatus.toLowerCase();
+                    const isApproved = rLower.includes("approv");
+                    const isDeclined = rLower.includes("decline");
+                    const isPending = !isApproved && !isDeclined;
+
+                    // Extend rental calculations
+                    const extendedReturnDateStr = calculateExtendedReturnDate(
+                        selectedRes.returnDate,
+                        extendDays,
+                    );
+                    let extensionAdditionalCharge = 0;
+                    if (extendChargeType === "daily") {
+                        extensionAdditionalCharge = dailyRentRate * extendDays;
+                    } else if (extendChargeType === "custom") {
+                        extensionAdditionalCharge = customExtendAmount || 0;
+                    }
+                    const newTotalWithExtension =
+                        totalCost + extensionAdditionalCharge;
+
+                    // Car details
+                    const carImageUrl =
+                        car?.mainImageUrl ||
+                        formatDriveImageUrl(car?.images?.[0] || "");
+                    const carTitleStr =
+                        [car?.year, car?.make, car?.model]
+                            .filter(Boolean)
+                            .join(" ") ||
+                        selectedRes.carTitle ||
+                        "Vehicle Details";
+                    const bodyStyleFuelStr = `${car?.bodyStyle || "Sedan"} • ${car?.fuelType || "Gasoline"}`;
+                    const stockIdStr = selectedRes.carId || car?.id || "N/A";
+
+                    return (
+                        <div
+                            className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in overflow-y-auto"
+                            onClick={() => setSelectedRes(null)}
+                        >
+                            <div
+                                className="w-full max-w-xl bg-white rounded-3xl shadow-2xl border border-slate-100 transform transition-all relative overflow-hidden my-auto max-h-[92vh] flex flex-col"
+                                onClick={(e) => e.stopPropagation()}
                             >
-                                <svg
-                                    className="w-5 h-5"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M6 18L18 6M6 6l12 12"
-                                    />
-                                </svg>
-                            </button>
-                        </div>
-
-                        {/* Customer & Booking Details */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                            {/* Primary Driver */}
-                            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
-                                <h4 className="font-bold uppercase tracking-wider text-slate-500 text-[10px]">
-                                    Primary Driver
-                                </h4>
-                                <div className="space-y-1">
-                                    <p className="font-bold text-slate-900 text-sm">
-                                        {selectedRes.firstName}{" "}
-                                        {selectedRes.lastName}
-                                    </p>
-                                    <p className="text-slate-600">
-                                        Email:{" "}
-                                        <a
-                                            href={`mailto:${selectedRes.email}`}
-                                            className="text-purple hover:underline"
-                                        >
-                                            {selectedRes.email}
-                                        </a>
-                                    </p>
-                                    <p className="text-slate-600">
-                                        Mobile: {selectedRes.phone || "N/A"}
-                                    </p>
-                                    <p className="text-slate-600">
-                                        Age: {selectedRes.age || "N/A"} •
-                                        Residency:{" "}
-                                        {selectedRes.residency || "N/A"}
-                                    </p>
+                                {/* Top Purple Header Bar */}
+                                <div className="bg-gradient-to-r from-[#591ba5] via-[#6d28d9] to-[#7c3aed] text-white px-5 py-3.5 flex items-center justify-between shrink-0 shadow-md">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="w-8 h-8 rounded-xl bg-white/15 flex items-center justify-center text-white">
+                                            <svg
+                                                className="w-4 h-4"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                                strokeWidth={2.2}
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                                />
+                                            </svg>
+                                        </div>
+                                        <h3 className="text-sm font-black tracking-wide text-white">
+                                            Reservation Details
+                                        </h3>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedRes(null)}
+                                        className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition"
+                                    >
+                                        ✕
+                                    </button>
                                 </div>
-                            </div>
 
-                            {/* Schedule & Pickup */}
-                            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
-                                <h4 className="font-bold uppercase tracking-wider text-slate-500 text-[10px]">
-                                    Trip Schedule
-                                </h4>
-                                <div className="space-y-1.5">
-                                    <div>
-                                        <span className="font-bold text-slate-800">
-                                            Pickup:
-                                        </span>{" "}
-                                        {selectedRes.pickupDate} at{" "}
-                                        {selectedRes.pickupTime}
-                                        <p className="text-[11px] text-slate-500">
-                                            {selectedRes.pickupLocation}
-                                        </p>
+                                {/* Scrollable Content Body */}
+                                <div className="p-4 sm:p-5 overflow-y-auto space-y-4 text-xs font-sans">
+                                    {/* Reservation Status & Confirmation Header */}
+                                    <div className="space-y-1">
+                                        <div>
+                                            <span
+                                                className={`inline-block px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider ${
+                                                    isApproved
+                                                        ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                                        : isDeclined
+                                                          ? "bg-rose-100 text-rose-800 border border-rose-200"
+                                                          : "bg-amber-100 text-amber-900 border border-amber-200"
+                                                }`}
+                                            >
+                                                {resStatus}
+                                            </span>
+                                        </div>
+                                        <div className="text-lg sm:text-xl font-black text-slate-900 flex items-center gap-1.5 flex-wrap">
+                                            <span>Reservation:</span>
+                                            <span className="text-purple font-mono">
+                                                {selectedRes.confirmationNumber}
+                                            </span>
+                                        </div>
+                                        <div className="text-xs text-slate-500 font-medium">
+                                            Requested on:{" "}
+                                            {formatReservationTimestamp(
+                                                selectedRes.timestamp,
+                                            )}
+                                        </div>
                                     </div>
-                                    <div>
-                                        <span className="font-bold text-slate-800">
-                                            Return:
-                                        </span>{" "}
-                                        {selectedRes.returnDate} at{" "}
-                                        {selectedRes.returnTime}
-                                        <p className="text-[11px] text-slate-500">
-                                            {selectedRes.returnLocation ||
-                                                selectedRes.pickupLocation}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
 
-                        {/* Financial / Coupon Summary */}
-                        <div className="mt-4 p-4 rounded-2xl bg-purple/5 border border-purple/10 flex flex-wrap items-center justify-between gap-4 text-xs">
-                            <div>
-                                <span className="text-[10px] uppercase font-bold text-slate-500 block">
-                                    Payment Method &amp; Option
-                                </span>
-                                <span className="font-bold text-slate-900 text-sm">
-                                    {cleanPaymentOption(
-                                        selectedRes.paymentOption,
-                                    )}
-                                </span>
-                                {selectedRes.couponCode && (
-                                    <div className="mt-1">
-                                        <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-[11px]">
-                                            Applied Coupon:{" "}
-                                            {selectedRes.couponCode}
-                                        </span>
-                                    </div>
-                                )}
-                            </div>
-                            <div className="text-right">
-                                <span className="text-[10px] uppercase font-bold text-slate-500 block">
-                                    Total Amount
-                                </span>
-                                <span className="text-xl font-black text-slate-900">
-                                    {formatCurrency(
-                                        selectedRes.estimatedTotal ||
-                                            selectedRes.rentalRate ||
-                                            0,
-                                    )}
-                                </span>
-                            </div>
-                        </div>
+                                    {/* Vehicle Information Section */}
+                                    <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/80 flex items-center gap-4">
+                                        {/* Left side: Vehicle car image */}
+                                        <div className="w-28 sm:w-36 h-20 sm:h-24 rounded-xl overflow-hidden bg-white border border-slate-200/80 shrink-0 flex items-center justify-center shadow-sm">
+                                            {carImageUrl ? (
+                                                <img
+                                                    src={carImageUrl}
+                                                    alt={carTitleStr}
+                                                    className="w-full h-full object-cover"
+                                                    loading="lazy"
+                                                    onError={(e) => {
+                                                        (
+                                                            e.currentTarget as HTMLElement
+                                                        ).style.display =
+                                                            "none";
+                                                    }}
+                                                />
+                                            ) : (
+                                                <span className="text-2xl text-slate-300">
+                                                    🚗
+                                                </span>
+                                            )}
+                                        </div>
 
-                        {/* Special Notes if available */}
-                        {selectedRes.notes && (
-                            <div className="mt-4 p-4 rounded-2xl bg-amber-50/60 border border-amber-200 text-xs">
-                                <h4 className="font-bold text-amber-900 text-[11px] mb-1">
-                                    Special Notes / Customer Requests
-                                </h4>
-                                <p className="text-slate-700 whitespace-pre-wrap">
-                                    {selectedRes.notes}
-                                </p>
-                            </div>
-                        )}
-
-                        {/* Connected Vehicle Spec Sheet Preview */}
-                        {selectedRes.vehicle && (
-                            <div className="mt-4 p-4 rounded-2xl bg-slate-900 text-white flex items-center justify-between gap-4">
-                                <div className="flex items-center gap-3 min-w-0">
-                                    <div className="w-14 h-12 rounded-xl bg-slate-800 overflow-hidden shrink-0 border border-white/10">
-                                        {selectedRes.vehicle.mainImageUrl ? (
-                                            <img
-                                                src={
-                                                    selectedRes.vehicle
-                                                        .mainImageUrl
-                                                }
-                                                alt={selectedRes.vehicle.make}
-                                                className="w-full h-full object-cover"
-                                            />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-slate-500">
-                                                🚗
+                                        {/* Right side: Vehicle specs */}
+                                        <div className="min-w-0 flex-1 space-y-1">
+                                            <div className="text-sm font-black text-slate-900 leading-snug truncate">
+                                                {carTitleStr}
                                             </div>
-                                        )}
+                                            <div className="text-xs font-semibold text-slate-600">
+                                                {bodyStyleFuelStr}
+                                            </div>
+                                            <div className="text-xs font-semibold text-slate-500">
+                                                Stock ID:{" "}
+                                                <span className="font-mono font-bold text-slate-800">
+                                                    {stockIdStr}
+                                                </span>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="min-w-0">
-                                        <h5 className="font-bold text-sm truncate">
-                                            {selectedRes.vehicle.make}{" "}
-                                            {selectedRes.vehicle.model} (
-                                            {selectedRes.vehicle.year})
-                                        </h5>
-                                        <p className="text-[11px] text-slate-400 truncate">
-                                            Stock #{selectedRes.vehicle.id} •{" "}
-                                            {selectedRes.vehicle.transmission ||
-                                                "Automatic"}{" "}
-                                            •{" "}
-                                            {selectedRes.vehicle.driveline ||
-                                                "FWD"}
-                                        </p>
+
+                                    {/* Customer Information Section */}
+                                    <div className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-sm space-y-2">
+                                        <div className="flex items-center gap-2 text-xs font-black text-slate-900 pb-1.5 border-b border-slate-100">
+                                            <svg
+                                                className="w-4 h-4 text-purple shrink-0"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                                strokeWidth={2}
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                                                />
+                                            </svg>
+                                            <span>Customer Information</span>
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+                                            <div>
+                                                <span className="text-slate-400 block font-semibold text-[11px]">
+                                                    Name:
+                                                </span>
+                                                <span className="font-bold text-slate-800">
+                                                    {selectedRes.firstName}{" "}
+                                                    {selectedRes.lastName}
+                                                </span>
+                                            </div>
+                                            <div className="truncate">
+                                                <span className="text-slate-400 block font-semibold text-[11px]">
+                                                    Email:
+                                                </span>
+                                                <a
+                                                    href={`mailto:${selectedRes.email}`}
+                                                    className="font-bold text-purple hover:underline truncate block"
+                                                    title={selectedRes.email}
+                                                >
+                                                    {selectedRes.email || "N/A"}
+                                                </a>
+                                            </div>
+                                            <div>
+                                                <span className="text-slate-400 block font-semibold text-[11px]">
+                                                    Phone:
+                                                </span>
+                                                <span className="font-bold text-slate-800">
+                                                    {selectedRes.phone || "N/A"}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Rental Schedule Section */}
+                                    <div className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-sm space-y-2.5">
+                                        <div className="flex items-center gap-2 text-xs font-black text-slate-900 pb-1.5 border-b border-slate-100">
+                                            <svg
+                                                className="w-4 h-4 text-purple shrink-0"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                                strokeWidth={2}
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                                />
+                                            </svg>
+                                            <span>Rental Schedule</span>
+                                        </div>
+                                        <div className="space-y-2 text-xs">
+                                            <div>
+                                                <div className="font-bold text-slate-800 flex items-center gap-1.5">
+                                                    <span className="text-emerald-600">
+                                                        📅
+                                                    </span>
+                                                    <span>Pickup:</span>
+                                                    <span className="text-slate-900">
+                                                        {formatDisplayDate(
+                                                            selectedRes.pickupDate,
+                                                        )}{" "}
+                                                        at{" "}
+                                                        {selectedRes.pickupTime ||
+                                                            "10:00 AM"}{" "}
+                                                        (EST)
+                                                    </span>
+                                                </div>
+                                                <div className="text-[11px] text-slate-500 pl-6 flex items-center gap-1 mt-0.5">
+                                                    <span>📍</span>
+                                                    <span>
+                                                        {selectedRes.pickupLocation ||
+                                                            "Dayton, Ohio: Wright finder motors (primary hub)"}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <div className="font-bold text-slate-800 flex items-center gap-1.5">
+                                                    <span className="text-rose-600">
+                                                        📅
+                                                    </span>
+                                                    <span>Return:</span>
+                                                    <span className="text-slate-900">
+                                                        {formatDisplayDate(
+                                                            selectedRes.returnDate,
+                                                        )}{" "}
+                                                        at{" "}
+                                                        {selectedRes.returnTime ||
+                                                            "10:00 AM"}{" "}
+                                                        (EST)
+                                                    </span>
+                                                </div>
+                                                <div className="text-[11px] text-slate-500 pl-6 flex items-center gap-1 mt-0.5">
+                                                    <span>📍</span>
+                                                    <span>
+                                                        {selectedRes.returnLocation ||
+                                                            selectedRes.pickupLocation ||
+                                                            "Dayton, Ohio: Wright finder motors (primary hub)"}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <div className="pt-1 border-t border-slate-100 flex items-center justify-between text-xs">
+                                                <span className="text-slate-500 font-semibold">
+                                                    Duration:
+                                                </span>
+                                                <span className="font-black text-slate-900">
+                                                    {days}{" "}
+                                                    {days === 1
+                                                        ? "Day"
+                                                        : "Days"}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Pricing & Savings Section */}
+                                    <div className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-sm space-y-2">
+                                        <div className="flex items-center gap-2 text-xs font-black text-slate-900 pb-1.5 border-b border-slate-100">
+                                            <svg
+                                                className="w-4 h-4 text-emerald-600 shrink-0"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                                strokeWidth={2}
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                                />
+                                            </svg>
+                                            <span>Pricing &amp; Savings</span>
+                                        </div>
+                                        <div className="space-y-1.5 text-xs">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-slate-600 font-medium">
+                                                    Rental Rate ({days}{" "}
+                                                    {days === 1
+                                                        ? "day"
+                                                        : "days"}{" "}
+                                                    x{" "}
+                                                    {formatCurrency(
+                                                        vehicleOriginalDaily,
+                                                    )}
+                                                    /day):
+                                                </span>
+                                                <span className="font-bold text-slate-900">
+                                                    {formatCurrency(grossTotal)}
+                                                </span>
+                                            </div>
+
+                                            {/* Coupon discount with percentage */}
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-slate-600 font-medium flex items-center gap-1.5 flex-wrap">
+                                                    <span>
+                                                        Coupon Discount:
+                                                    </span>
+                                                    {hasCoupon ? (
+                                                        <span className="font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                                                            {
+                                                                selectedRes.couponCode
+                                                            }
+                                                            {couponPercent > 0
+                                                                ? ` (${couponPercent}%)`
+                                                                : ""}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-slate-400">
+                                                            -
+                                                        </span>
+                                                    )}
+                                                </span>
+                                                <span className="font-bold text-emerald-600">
+                                                    {hasCoupon &&
+                                                    couponDiscountAmount > 0
+                                                        ? `-${formatCurrency(couponDiscountAmount)}`
+                                                        : couponPercent > 0
+                                                          ? `${couponPercent}%`
+                                                          : "$0"}
+                                                </span>
+                                            </div>
+
+                                            {/* Other discount (Vehicle Promotion) shown nextly if present */}
+                                            {otherDiscountAmount > 0 && (
+                                                <div className="flex items-center justify-between text-emerald-700">
+                                                    <span className="font-medium">
+                                                        Other Discount (Vehicle
+                                                        Promotion):
+                                                    </span>
+                                                    <span className="font-bold">
+                                                        -
+                                                        {formatCurrency(
+                                                            otherDiscountAmount,
+                                                        )}
+                                                    </span>
+                                                </div>
+                                            )}
+
+                                            <div className="flex items-center justify-between p-2 rounded-xl bg-purple/5 border border-purple/10">
+                                                <span className="font-black text-slate-900">
+                                                    Estimated Total:
+                                                </span>
+                                                <span className="text-base font-black text-slate-900">
+                                                    {formatCurrency(totalCost)}
+                                                </span>
+                                            </div>
+
+                                            <div className="flex items-center justify-between p-2 rounded-xl bg-emerald-50 border border-emerald-200">
+                                                <span className="font-bold text-emerald-800">
+                                                    Total Savings:
+                                                </span>
+                                                <span className="font-black text-emerald-700">
+                                                    {formatCurrency(
+                                                        totalSavings,
+                                                    )}{" "}
+                                                    {totalSavingsPercent > 0
+                                                        ? `(${totalSavingsPercent}%)`
+                                                        : ""}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Payment Information Section */}
+                                    <div className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-sm space-y-2">
+                                        <div className="flex items-center gap-2 text-xs font-black text-slate-900 pb-1.5 border-b border-slate-100">
+                                            <svg
+                                                className="w-4 h-4 text-purple shrink-0"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                                strokeWidth={2}
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+                                                />
+                                            </svg>
+                                            <span>Payment Information</span>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3 text-xs">
+                                            <div>
+                                                <span className="text-slate-400 block font-semibold text-[11px] mb-1">
+                                                    Payment Status:
+                                                </span>
+                                                <span
+                                                    className={`inline-block px-3 py-1 rounded-full text-[11px] font-bold ${
+                                                        (
+                                                            selectedRes.paymentStatus ||
+                                                            ""
+                                                        )
+                                                            .toLowerCase()
+                                                            .includes("paid") &&
+                                                        !(
+                                                            selectedRes.paymentStatus ||
+                                                            ""
+                                                        )
+                                                            .toLowerCase()
+                                                            .includes("unpaid")
+                                                            ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                                            : (
+                                                                    selectedRes.paymentStatus ||
+                                                                    ""
+                                                                )
+                                                                    .toLowerCase()
+                                                                    .includes(
+                                                                        "unpaid",
+                                                                    )
+                                                              ? "bg-rose-100 text-rose-800 border border-rose-200"
+                                                              : "bg-amber-100 text-amber-900 border border-amber-200"
+                                                    }`}
+                                                >
+                                                    {selectedRes.paymentStatus ||
+                                                        "Pending"}
+                                                </span>
+                                            </div>
+                                            <div>
+                                                <span className="text-slate-400 block font-semibold text-[11px] mb-1">
+                                                    Payment Method:
+                                                </span>
+                                                <span className="font-bold text-slate-800 text-sm">
+                                                    {cleanPaymentOption(
+                                                        selectedRes.paymentOption,
+                                                    )}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Extend Rental Section */}
+                                    <div className="p-4 rounded-2xl bg-[#faf7ff] border border-purple/20 space-y-3">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-7 h-7 rounded-lg bg-purple/10 text-purple flex items-center justify-center shrink-0">
+                                                <svg
+                                                    className="w-4 h-4"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                    stroke="currentColor"
+                                                    strokeWidth={2}
+                                                >
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                                                    />
+                                                </svg>
+                                            </div>
+                                            <div>
+                                                <h4 className="text-xs font-black text-purple">
+                                                    Extend Rental
+                                                </h4>
+                                                <p className="text-[11px] text-slate-500">
+                                                    Add more rental days or
+                                                    adjust the extension charge.
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                                            {/* Left side: Add Days */}
+                                            <div className="space-y-1.5">
+                                                <label className="block text-[11px] font-bold text-slate-700">
+                                                    Add Days:
+                                                </label>
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            setExtendDays((d) =>
+                                                                Math.max(
+                                                                    1,
+                                                                    d - 1,
+                                                                ),
+                                                            )
+                                                        }
+                                                        className="w-9 h-9 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 font-bold text-base flex items-center justify-center text-slate-700 transition shadow-sm"
+                                                    >
+                                                        -
+                                                    </button>
+                                                    <div className="w-14 h-9 rounded-xl bg-white border border-slate-300 font-black text-sm flex items-center justify-center text-slate-900 shadow-inner">
+                                                        {extendDays}
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            setExtendDays(
+                                                                (d) => d + 1,
+                                                            )
+                                                        }
+                                                        className="w-9 h-9 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 font-bold text-base flex items-center justify-center text-slate-700 transition shadow-sm"
+                                                    >
+                                                        +
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {/* Right side: Extension Charge Option */}
+                                            <div className="space-y-2">
+                                                <label className="block text-[11px] font-bold text-slate-700">
+                                                    Extension Charge Option:
+                                                </label>
+                                                <div className="space-y-1.5 text-xs">
+                                                    <label className="flex items-center gap-2 cursor-pointer">
+                                                        <input
+                                                            type="radio"
+                                                            name="extendCharge"
+                                                            checked={
+                                                                extendChargeType ===
+                                                                "free"
+                                                            }
+                                                            onChange={() =>
+                                                                setExtendChargeType(
+                                                                    "free",
+                                                                )
+                                                            }
+                                                            className="text-purple focus:ring-purple/40"
+                                                        />
+                                                        <span className="text-slate-700 font-medium">
+                                                            No Charge
+                                                            (Complimentary)
+                                                        </span>
+                                                    </label>
+                                                    <label className="flex items-center gap-2 cursor-pointer">
+                                                        <input
+                                                            type="radio"
+                                                            name="extendCharge"
+                                                            checked={
+                                                                extendChargeType ===
+                                                                "daily"
+                                                            }
+                                                            onChange={() =>
+                                                                setExtendChargeType(
+                                                                    "daily",
+                                                                )
+                                                            }
+                                                            className="text-purple focus:ring-purple/40"
+                                                        />
+                                                        <span className="text-slate-700 font-medium">
+                                                            Use Daily Rate (
+                                                            {formatCurrency(
+                                                                dailyRentRate,
+                                                            )}
+                                                            /day) -{" "}
+                                                            <span className="font-bold text-slate-900">
+                                                                {formatCurrency(
+                                                                    dailyRentRate *
+                                                                        extendDays,
+                                                                )}
+                                                            </span>
+                                                        </span>
+                                                    </label>
+                                                    <label className="flex items-center gap-2 cursor-pointer">
+                                                        <input
+                                                            type="radio"
+                                                            name="extendCharge"
+                                                            checked={
+                                                                extendChargeType ===
+                                                                "custom"
+                                                            }
+                                                            onChange={() =>
+                                                                setExtendChargeType(
+                                                                    "custom",
+                                                                )
+                                                            }
+                                                            className="text-purple focus:ring-purple/40"
+                                                        />
+                                                        <span className="text-slate-700 font-medium">
+                                                            Custom Amount
+                                                        </span>
+                                                        <div className="flex items-center gap-1 ml-auto">
+                                                            <span className="font-bold text-slate-500">
+                                                                $
+                                                            </span>
+                                                            <input
+                                                                type="number"
+                                                                min={0}
+                                                                value={
+                                                                    customExtendAmount
+                                                                }
+                                                                onChange={(
+                                                                    e,
+                                                                ) => {
+                                                                    setExtendChargeType(
+                                                                        "custom",
+                                                                    );
+                                                                    setCustomExtendAmount(
+                                                                        parseFloat(
+                                                                            e
+                                                                                .target
+                                                                                .value,
+                                                                        ) || 0,
+                                                                    );
+                                                                }}
+                                                                className="w-20 px-2.5 py-1 text-xs font-bold border border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-purple/40 text-black"
+                                                            />
+                                                        </div>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Extension Summary Card */}
+                                        <div className="p-3 rounded-xl bg-purple/10 border border-purple/20 text-xs text-purple space-y-1">
+                                            <div className="flex items-center gap-1.5 font-bold">
+                                                <span>ℹ️</span>
+                                                <span>
+                                                    New Return Date &amp; Time:{" "}
+                                                    {formatDisplayDate(
+                                                        extendedReturnDateStr,
+                                                    )}{" "}
+                                                    at{" "}
+                                                    {selectedRes.returnTime ||
+                                                        "10:00 AM"}{" "}
+                                                    (EST)
+                                                </span>
+                                            </div>
+                                            <div className="text-[11px] font-semibold text-slate-700 pl-5">
+                                                Additional Charge:{" "}
+                                                <strong className="text-purple font-black">
+                                                    {formatCurrency(
+                                                        extensionAdditionalCharge,
+                                                    )}
+                                                </strong>{" "}
+                                                | New Total:{" "}
+                                                <strong className="text-slate-900 font-black">
+                                                    {formatCurrency(
+                                                        newTotalWithExtension,
+                                                    )}
+                                                </strong>
+                                            </div>
+                                        </div>
+
+                                        {/* Extend button & cancel button */}
+                                        <div className="flex items-center justify-end gap-2 pt-1">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setExtendDays(2);
+                                                    setExtendChargeType("free");
+                                                }}
+                                                className="px-3.5 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 transition"
+                                            >
+                                                Reset Extension
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={handleApplyExtension}
+                                                disabled={isExtending}
+                                                className="px-4 py-1.5 rounded-xl bg-purple hover:bg-dark-purple text-white text-xs font-bold transition shadow-sm disabled:opacity-50 flex items-center gap-1.5"
+                                            >
+                                                <span>
+                                                    {isExtending
+                                                        ? "Extending..."
+                                                        : "Confirm Extension"}
+                                                </span>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Special Notes if available */}
+                                    {selectedRes.notes && (
+                                        <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 text-xs">
+                                            <h4 className="font-bold text-amber-900 text-[11px] mb-1">
+                                                Special Notes / Customer
+                                                Requests
+                                            </h4>
+                                            <p className="text-slate-700 whitespace-pre-wrap">
+                                                {selectedRes.notes}
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Panel Footer Action Buttons */}
+                                <div className="p-3.5 bg-slate-50 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-2 shrink-0">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        {/* Status based Drawer Actions */}
+                                        {(() => {
+                                            const sLower = (
+                                                selectedRes.reservationStatus ||
+                                                "Pending"
+                                            ).toLowerCase();
+                                            const isApp =
+                                                sLower.includes("approv");
+                                            const isDec =
+                                                sLower.includes("decline");
+                                            const isAct = sLower === "active";
+                                            const isComp =
+                                                sLower.includes("complet");
+                                            const isCanc =
+                                                sLower.includes("cancel");
+                                            const isPend =
+                                                !isApp &&
+                                                !isDec &&
+                                                !isAct &&
+                                                !isComp &&
+                                                !isCanc;
+
+                                            if (isPend) {
+                                                return (
+                                                    <>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                handleQuickStatusChange(
+                                                                    selectedRes,
+                                                                    "Approved",
+                                                                )
+                                                            }
+                                                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition shadow-sm"
+                                                        >
+                                                            <span>✓</span>
+                                                            <span>Approve</span>
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                handleQuickStatusChange(
+                                                                    selectedRes,
+                                                                    "Declined",
+                                                                )
+                                                            }
+                                                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition shadow-sm"
+                                                        >
+                                                            <span>✕</span>
+                                                            <span>Decline</span>
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                handleOpenEditModal(
+                                                                    selectedRes,
+                                                                )
+                                                            }
+                                                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-purple/30 bg-purple/10 text-purple hover:bg-purple hover:text-white font-bold text-xs transition shadow-sm"
+                                                        >
+                                                            <span>Edit</span>
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                handleOpenOfferModal(
+                                                                    selectedRes,
+                                                                )
+                                                            }
+                                                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-purple/40 bg-purple text-white hover:bg-dark-purple font-bold text-xs transition shadow-sm"
+                                                        >
+                                                            <span>
+                                                                Offer
+                                                                alternative
+                                                            </span>
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                handleOpenCancelModal(
+                                                                    selectedRes,
+                                                                )
+                                                            }
+                                                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-rose-100 text-slate-700 hover:text-rose-700 border border-slate-200 hover:border-rose-300 font-bold text-xs transition shadow-sm"
+                                                        >
+                                                            <span>Cancel</span>
+                                                        </button>
+                                                    </>
+                                                );
+                                            }
+
+                                            if (isApp) {
+                                                return (
+                                                    <>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                handleOpenEditModal(
+                                                                    selectedRes,
+                                                                )
+                                                            }
+                                                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-purple/30 bg-purple/10 text-purple hover:bg-purple hover:text-white font-bold text-xs transition shadow-sm"
+                                                        >
+                                                            <span>Edit</span>
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                handleOpenCancelModal(
+                                                                    selectedRes,
+                                                                )
+                                                            }
+                                                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-rose-100 text-slate-700 hover:text-rose-700 border border-slate-200 hover:border-rose-300 font-bold text-xs transition shadow-sm"
+                                                        >
+                                                            <span>Cancel</span>
+                                                        </button>
+                                                    </>
+                                                );
+                                            }
+
+                                            if (isAct) {
+                                                return (
+                                                    <>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                handleOpenEditModal(
+                                                                    selectedRes,
+                                                                )
+                                                            }
+                                                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-purple/30 bg-purple/10 text-purple hover:bg-purple hover:text-white font-bold text-xs transition shadow-sm"
+                                                        >
+                                                            <span>Edit</span>
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                handleQuickStatusChange(
+                                                                    selectedRes,
+                                                                    "Completed",
+                                                                )
+                                                            }
+                                                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition shadow-sm"
+                                                        >
+                                                            <span>✓</span>
+                                                            <span>
+                                                                Process Return
+                                                            </span>
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                handleOpenCancelModal(
+                                                                    selectedRes,
+                                                                )
+                                                            }
+                                                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-rose-100 text-slate-700 hover:text-rose-700 border border-slate-200 hover:border-rose-300 font-bold text-xs transition shadow-sm"
+                                                        >
+                                                            <span>Cancel</span>
+                                                        </button>
+                                                    </>
+                                                );
+                                            }
+
+                                            if (isComp) {
+                                                return (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            handlePrintReservation(
+                                                                selectedRes,
+                                                            )
+                                                        }
+                                                        className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-xs transition shadow-sm inline-flex items-center gap-1.5"
+                                                    >
+                                                        <span>
+                                                            Print Receipt
+                                                        </span>
+                                                    </button>
+                                                );
+                                            }
+
+                                            return (
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        handleOpenEditModal(
+                                                            selectedRes,
+                                                        )
+                                                    }
+                                                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs transition shadow-sm"
+                                                >
+                                                    <span>Edit</span>
+                                                </button>
+                                            );
+                                        })()}
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setSelectedRes(null)}
+                                            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-black text-white text-xs font-bold transition shadow-sm"
+                                        >
+                                            Close
+                                        </button>
                                     </div>
                                 </div>
-                                <Link
-                                    href={`${route("admin.cars.show", { id: selectedRes.vehicle.id })}?from=rent`}
-                                    className="px-3.5 py-1.5 rounded-xl bg-vivid-red text-white text-xs font-bold hover:bg-red-600 transition shadow shrink-0"
-                                >
-                                    Car Details
-                                </Link>
                             </div>
-                        )}
-
-                        {/* Modal Footer Buttons */}
-                        <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-end gap-2.5">
-                            <button
-                                type="button"
-                                onClick={() =>
-                                    handlePrintReservation(selectedRes)
-                                }
-                                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold hover:bg-slate-50 text-slate-700 transition"
-                            >
-                                Print Voucher
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setSelectedRes(null)}
-                                className="px-5 py-2 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition shadow-sm"
-                            >
-                                Close
-                            </button>
                         </div>
-                    </div>
-                </div>
-            )}
+                    );
+                })()}
 
             {/* PAYMENT APPROVAL MODAL */}
             {paymentModalRes && (
@@ -2151,151 +3863,304 @@ export default function Index() {
                 </div>
             )}
 
-            {/* EDIT RESERVATION MODAL */}
+            {/* EDIT RESERVATION MODAL / PANEL */}
             {editingRes && (
                 <div
-                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
+                    className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in overflow-y-auto"
                     onClick={() => setEditingRes(null)}
                 >
                     <div
-                        className="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-gray-100 relative max-h-[90vh] overflow-y-auto"
+                        className="w-full max-w-xl bg-white rounded-3xl shadow-2xl border border-slate-100 transform transition-all relative overflow-hidden my-auto max-h-[92vh] flex flex-col"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
-                            <div>
-                                <h3 className="text-base font-black text-slate-900">
-                                    Edit Reservation Details
-                                </h3>
-                                <p className="text-xs text-slate-500">
-                                    #{editingRes.confirmationNumber}
-                                </p>
+                        {/* Top Purple Header Bar */}
+                        <div className="bg-gradient-to-r from-[#591ba5] via-[#6d28d9] to-[#7c3aed] text-white px-5 py-3.5 flex items-center justify-between shrink-0 shadow-md">
+                            <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-xl bg-white/15 flex items-center justify-center text-white">
+                                    <svg
+                                        className="w-4 h-4"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        strokeWidth={2.2}
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                        />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-black tracking-wide text-white">
+                                        Edit Reservation Details
+                                    </h3>
+                                    <p className="text-[11px] text-purple-200">
+                                        Update client information &amp; rental
+                                        schedule (Vehicle details unchanged)
+                                    </p>
+                                </div>
                             </div>
                             <button
                                 type="button"
                                 onClick={() => setEditingRes(null)}
-                                className="text-slate-400 hover:text-slate-600 font-bold text-lg"
+                                className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition"
                             >
-                                &times;
+                                ✕
                             </button>
                         </div>
 
+                        {/* Form Content */}
                         <form
                             onSubmit={handleSaveEditForm}
-                            className="space-y-4 text-xs"
+                            className="p-4 sm:p-6 overflow-y-auto space-y-4 text-xs font-sans text-purple"
                         >
-                            <div className="grid grid-cols-2 gap-3">
+                            {/* Confirmation Number Banner */}
+                            <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
                                 <div>
-                                    <label className="block font-bold text-slate-700 uppercase mb-1">
-                                        First Name
+                                    <span className="text-[10px] font-bold uppercase text-slate-400 block">
+                                        Confirmation
+                                    </span>
+                                    <span className="text-sm font-black text-purple font-mono">
+                                        #{editingRes.confirmationNumber}
+                                    </span>
+                                </div>
+                                <div className="text-right">
+                                    <span className="text-[10px] font-bold uppercase text-slate-400 block">
+                                        Status
+                                    </span>
+                                    <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
+                                        {editingRes.reservationStatus ||
+                                            "Pending"}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Client Information Section */}
+                            <div className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-sm space-y-3">
+                                <div className="flex items-center gap-2 text-xs font-black text-slate-900 pb-2 border-b border-slate-100">
+                                    <svg
+                                        className="w-4 h-4 text-purple shrink-0"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        strokeWidth={2}
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                                        />
+                                    </svg>
+                                    <span>Client Information</span>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block font-bold text-slate-700 text-[11px] uppercase mb-1">
+                                            First Name
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={editForm.firstName}
+                                            onChange={(e) =>
+                                                setEditForm({
+                                                    ...editForm,
+                                                    firstName: e.target.value,
+                                                })
+                                            }
+                                            className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-semibold"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block font-bold text-slate-700 text-[11px] uppercase mb-1">
+                                            Last Name
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={editForm.lastName}
+                                            onChange={(e) =>
+                                                setEditForm({
+                                                    ...editForm,
+                                                    lastName: e.target.value,
+                                                })
+                                            }
+                                            className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-semibold"
+                                            required
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block font-bold text-slate-700 text-[11px] uppercase mb-1">
+                                            Email Address
+                                        </label>
+                                        <input
+                                            type="email"
+                                            value={editForm.email}
+                                            onChange={(e) =>
+                                                setEditForm({
+                                                    ...editForm,
+                                                    email: e.target.value,
+                                                })
+                                            }
+                                            className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-semibold"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block font-bold text-slate-700 text-[11px] uppercase mb-1">
+                                            Mobile Phone
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={editForm.phone}
+                                            onChange={(e) =>
+                                                setEditForm({
+                                                    ...editForm,
+                                                    phone: e.target.value,
+                                                })
+                                            }
+                                            className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-semibold"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Rental Schedule Section */}
+                            <div className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-sm space-y-3">
+                                <div className="flex items-center gap-2 text-xs font-black text-slate-900 pb-2 border-b border-slate-100">
+                                    <svg
+                                        className="w-4 h-4 text-purple shrink-0"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        strokeWidth={2}
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                        />
+                                    </svg>
+                                    <span>Rental Schedule</span>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block font-bold text-slate-700 text-[11px] uppercase mb-1">
+                                            Pickup Date
+                                        </label>
+                                        <input
+                                            type="date"
+                                            value={editForm.pickupDate}
+                                            onChange={(e) =>
+                                                setEditForm({
+                                                    ...editForm,
+                                                    pickupDate: e.target.value,
+                                                })
+                                            }
+                                            className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-semibold"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block font-bold text-slate-700 text-[11px] uppercase mb-1">
+                                            Pickup Time (EST)
+                                        </label>
+                                        <input
+                                            type="text"
+                                            placeholder="10:00 AM"
+                                            value={editForm.pickupTime}
+                                            onChange={(e) =>
+                                                setEditForm({
+                                                    ...editForm,
+                                                    pickupTime: e.target.value,
+                                                })
+                                            }
+                                            className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-semibold"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block font-bold text-slate-700 text-[11px] uppercase mb-1">
+                                        Pickup Location
                                     </label>
                                     <input
                                         type="text"
-                                        value={editForm.firstName}
+                                        value={editForm.pickupLocation}
                                         onChange={(e) =>
                                             setEditForm({
                                                 ...editForm,
-                                                firstName: e.target.value,
+                                                pickupLocation: e.target.value,
                                             })
                                         }
-                                        className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40"
-                                        required
+                                        className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-semibold"
                                     />
                                 </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-slate-100">
+                                    <div>
+                                        <label className="block font-bold text-slate-700 text-[11px] uppercase mb-1">
+                                            Return Date
+                                        </label>
+                                        <input
+                                            type="date"
+                                            value={editForm.returnDate}
+                                            onChange={(e) =>
+                                                setEditForm({
+                                                    ...editForm,
+                                                    returnDate: e.target.value,
+                                                })
+                                            }
+                                            className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-semibold"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block font-bold text-slate-700 text-[11px] uppercase mb-1">
+                                            Return Time (EST)
+                                        </label>
+                                        <input
+                                            type="text"
+                                            placeholder="10:00 AM"
+                                            value={editForm.returnTime}
+                                            onChange={(e) =>
+                                                setEditForm({
+                                                    ...editForm,
+                                                    returnTime: e.target.value,
+                                                })
+                                            }
+                                            className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-semibold"
+                                        />
+                                    </div>
+                                </div>
+
                                 <div>
-                                    <label className="block font-bold text-slate-700 uppercase mb-1">
-                                        Last Name
+                                    <label className="block font-bold text-slate-700 text-[11px] uppercase mb-1">
+                                        Return Location
                                     </label>
                                     <input
                                         type="text"
-                                        value={editForm.lastName}
+                                        value={editForm.returnLocation}
                                         onChange={(e) =>
                                             setEditForm({
                                                 ...editForm,
-                                                lastName: e.target.value,
+                                                returnLocation: e.target.value,
                                             })
                                         }
-                                        className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40"
-                                        required
+                                        className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-semibold"
                                     />
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="block font-bold text-slate-700 uppercase mb-1">
-                                        Email
-                                    </label>
-                                    <input
-                                        type="email"
-                                        value={editForm.email}
-                                        onChange={(e) =>
-                                            setEditForm({
-                                                ...editForm,
-                                                email: e.target.value,
-                                            })
-                                        }
-                                        className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40"
-                                        required
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block font-bold text-slate-700 uppercase mb-1">
-                                        Phone
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={editForm.phone}
-                                        onChange={(e) =>
-                                            setEditForm({
-                                                ...editForm,
-                                                phone: e.target.value,
-                                            })
-                                        }
-                                        className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="block font-bold text-slate-700 uppercase mb-1">
-                                        Pickup Date
-                                    </label>
-                                    <input
-                                        type="date"
-                                        value={editForm.pickupDate}
-                                        onChange={(e) =>
-                                            setEditForm({
-                                                ...editForm,
-                                                pickupDate: e.target.value,
-                                            })
-                                        }
-                                        className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40"
-                                        required
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block font-bold text-slate-700 uppercase mb-1">
-                                        Return Date
-                                    </label>
-                                    <input
-                                        type="date"
-                                        value={editForm.returnDate}
-                                        onChange={(e) =>
-                                            setEditForm({
-                                                ...editForm,
-                                                returnDate: e.target.value,
-                                            })
-                                        }
-                                        className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40"
-                                        required
-                                    />
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="block font-bold text-slate-700 uppercase mb-1">
-                                    Notes
+                            {/* Special Notes Section */}
+                            <div className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-sm space-y-2">
+                                <label className="block font-bold text-slate-700 text-[11px] uppercase">
+                                    Special Notes / Customer Requests
                                 </label>
                                 <textarea
                                     rows={2}
@@ -2306,23 +4171,30 @@ export default function Index() {
                                             notes: e.target.value,
                                         })
                                     }
-                                    className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40"
+                                    className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs"
+                                    placeholder="Enter additional instructions or customer requests..."
                                 />
                             </div>
 
-                            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                            {/* Action Buttons */}
+                            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
                                 <button
                                     type="button"
                                     onClick={() => setEditingRes(null)}
-                                    className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold"
+                                    className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs transition"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="submit"
-                                    className="px-5 py-2 rounded-xl bg-dark-purple text-white font-bold hover:bg-purple transition shadow-sm"
+                                    disabled={isSavingEdit}
+                                    className="px-5 py-2 rounded-xl bg-purple hover:bg-dark-purple text-white font-bold text-xs transition shadow-sm disabled:opacity-50 flex items-center gap-1.5"
                                 >
-                                    Save Changes
+                                    <span>
+                                        {isSavingEdit
+                                            ? "Saving Changes..."
+                                            : "Save Changes"}
+                                    </span>
                                 </button>
                             </div>
                         </form>
@@ -2376,6 +4248,631 @@ export default function Index() {
                         </div>
                     </div>
                 </div>
+            )}
+            {/* CANCEL RESERVATION MODAL */}
+            {cancelModalRes && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
+                    onClick={() => setCancelModalRes(null)}
+                >
+                    <div
+                        className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-gray-100 relative overflow-hidden"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+                            <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
+                                    ✕
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-black text-slate-900">
+                                        Cancel Reservation
+                                    </h3>
+                                    <p className="text-[11px] text-slate-500">
+                                        #{cancelModalRes.confirmationNumber}
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setCancelModalRes(null)}
+                                className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <div className="space-y-4 text-xs">
+                            <p className="text-slate-600 leading-relaxed">
+                                Are you sure you want to cancel this
+                                reservation? The reservation status will be
+                                updated to{" "}
+                                <strong className="text-rose-600 font-bold">
+                                    "Cancelled"
+                                </strong>
+                                .
+                            </p>
+
+                            <div>
+                                <label className="block font-bold uppercase text-slate-700 text-[11px] mb-1.5">
+                                    Cancellation Reason (saved to Special Notes)
+                                </label>
+                                <textarea
+                                    rows={3}
+                                    value={cancellationReason}
+                                    onChange={(e) =>
+                                        setCancellationReason(e.target.value)
+                                    }
+                                    placeholder="Enter reason for cancellation (e.g., Customer requested cancellation, Vehicle maintenance issue)..."
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-semibold text-purple"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2.5 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setCancelModalRes(null)}
+                                    className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs transition"
+                                >
+                                    Keep Reservation
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleConfirmCancel}
+                                    disabled={isSubmittingCancel}
+                                    className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition shadow-sm disabled:opacity-50 flex items-center justify-center gap-1.5"
+                                >
+                                    <span>
+                                        {isSubmittingCancel
+                                            ? "Cancelling..."
+                                            : "Confirm Cancellation"}
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* OFFER ALTERNATIVE VEHICLE MODAL FROM ACTION COLUMN */}
+            {offerModalRes && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in overflow-y-auto"
+                    onClick={() => setOfferModalRes(null)}
+                >
+                    <div
+                        className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-slate-100 transform transition-all relative overflow-hidden my-auto max-h-[92vh] flex flex-col"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="bg-gradient-to-r from-[#591ba5] via-[#6d28d9] to-[#7c3aed] text-white px-6 py-4 flex items-center justify-between shrink-0 shadow-md">
+                            <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center text-white">
+                                    <svg
+                                        className="w-5 h-5"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        strokeWidth={2.2}
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+                                        />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3 className="text-base font-black tracking-wide text-white">
+                                        Offer Alternative Vehicle
+                                    </h3>
+                                    <p className="text-[11px] text-purple-200">
+                                        #{offerModalRes.confirmationNumber} —
+                                        Choose a replacement vehicle
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setOfferModalRes(null)}
+                                className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <div className="p-5 sm:p-6 overflow-y-auto space-y-5 text-xs text-slate-700">
+                            {/* Current Vehicle vs New Vehicle Comparison */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-200/80">
+                                <div className="space-y-1">
+                                    <span className="text-[10px] font-bold uppercase text-slate-400 block tracking-wider">
+                                        Current Booked Vehicle
+                                    </span>
+                                    <h4 className="font-bold text-slate-900 text-sm">
+                                        {offerModalRes.carTitle ||
+                                            `Car #${offerModalRes.carId}`}
+                                    </h4>
+                                    <p className="text-[11px] text-slate-600 font-medium">
+                                        Current Daily Rate:{" "}
+                                        <strong className="text-purple font-bold">
+                                            {formatCurrency(
+                                                offerModalRes.rentalRate || 0,
+                                            )}
+                                            /day
+                                        </strong>
+                                    </p>
+                                    <p className="text-[11px] text-slate-500">
+                                        Rental Duration:{" "}
+                                        <span className="font-semibold text-slate-700">
+                                            {getRentalDays(
+                                                offerModalRes.pickupDate,
+                                                offerModalRes.returnDate,
+                                            )}{" "}
+                                            day(s)
+                                        </span>
+                                    </p>
+                                </div>
+
+                                <div className="space-y-1 sm:border-l sm:border-slate-200 sm:pl-4">
+                                    <span className="text-[10px] font-bold uppercase text-purple block tracking-wider">
+                                        Proposed Replacement
+                                    </span>
+                                    {(() => {
+                                        const foundVehicle =
+                                            allVehiclesList.find(
+                                                (v) =>
+                                                    (
+                                                        v.id || ""
+                                                    ).toLowerCase() ===
+                                                    (
+                                                        selectedOfferVehicleId ||
+                                                        ""
+                                                    ).toLowerCase(),
+                                            );
+                                        if (!foundVehicle) {
+                                            return (
+                                                <p className="text-slate-400 italic">
+                                                    Select a vehicle below...
+                                                </p>
+                                            );
+                                        }
+                                        const stdRate =
+                                            foundVehicle.rentPrice !==
+                                                undefined &&
+                                            foundVehicle.rentPrice > 0
+                                                ? foundVehicle.rentPrice
+                                                : foundVehicle.originalPrice ||
+                                                  foundVehicle.price ||
+                                                  0;
+                                        return (
+                                            <>
+                                                <h4 className="font-bold text-slate-900 text-sm">
+                                                    {foundVehicle.year}{" "}
+                                                    {foundVehicle.make}{" "}
+                                                    {foundVehicle.model}
+                                                </h4>
+                                                <p className="text-[11px] text-slate-600 font-medium">
+                                                    Standard Catalog Rate:{" "}
+                                                    <span className="font-bold text-slate-900">
+                                                        {formatCurrency(
+                                                            stdRate,
+                                                        )}
+                                                        /day
+                                                    </span>
+                                                </p>
+                                                <p className="text-[11px] text-slate-500">
+                                                    Body Style:{" "}
+                                                    <span className="font-semibold text-slate-700">
+                                                        {foundVehicle.bodyStyle ||
+                                                            "—"}
+                                                    </span>{" "}
+                                                    | Seats:{" "}
+                                                    <span className="font-semibold text-slate-700">
+                                                        {foundVehicle.seatMaterial ||
+                                                            "—"}
+                                                    </span>
+                                                </p>
+                                            </>
+                                        );
+                                    })()}
+                                </div>
+                            </div>
+
+                            {/* Vehicle Selection Dropdown: Rent and Both only */}
+                            <div className="space-y-1.5">
+                                <label className="block font-bold text-slate-800 text-[11px] uppercase tracking-wider">
+                                    Select Available Vehicle{" "}
+                                    <span className="text-vivid-red">*</span>
+                                </label>
+                                <select
+                                    value={selectedOfferVehicleId}
+                                    onChange={(e) => {
+                                        const newId = e.target.value;
+                                        setSelectedOfferVehicleId(newId);
+                                        const found = allVehiclesList.find(
+                                            (v) =>
+                                                (v.id || "").toLowerCase() ===
+                                                newId.toLowerCase(),
+                                        );
+                                        if (found) {
+                                            const defaultRate =
+                                                found.rentPrice !== undefined &&
+                                                found.rentPrice > 0
+                                                    ? found.rentPrice
+                                                    : found.originalPrice ||
+                                                      found.price ||
+                                                      0;
+                                            setOfferCustomRate(defaultRate);
+                                        }
+                                    }}
+                                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-purple/40 text-xs font-semibold text-slate-900 shadow-sm"
+                                >
+                                    <option value="" disabled>
+                                        -- Select a Vehicle --
+                                    </option>
+                                    {allVehiclesList
+                                        .filter((v) => {
+                                            const isCurrent =
+                                                (v.id || "").toLowerCase() ===
+                                                (
+                                                    offerModalRes.carId || ""
+                                                ).toLowerCase();
+                                            const ros = (v.rentOrSell || "")
+                                                .trim()
+                                                .toLowerCase();
+                                            const isRentalEligible =
+                                                ros === "rent" ||
+                                                ros === "both";
+                                            return (
+                                                !isCurrent && isRentalEligible
+                                            );
+                                        })
+                                        .map((v) => {
+                                            const vRate =
+                                                v.rentPrice !== undefined &&
+                                                v.rentPrice > 0
+                                                    ? v.rentPrice
+                                                    : v.originalPrice ||
+                                                      v.price ||
+                                                      0;
+                                            return (
+                                                <option key={v.id} value={v.id}>
+                                                    {v.year} {v.make} {v.model}{" "}
+                                                    (
+                                                    {v.trim ||
+                                                        v.bodyStyle ||
+                                                        "Sedan"}
+                                                    ) — {formatCurrency(vRate)}
+                                                    /day [ID: {v.id}]
+                                                </option>
+                                            );
+                                        })}
+                                </select>
+                            </div>
+
+                            {/* Pricing Strategy */}
+                            <div className="space-y-2.5 pt-2 border-t border-slate-100">
+                                <label className="block font-bold text-slate-800 text-[11px] uppercase tracking-wider">
+                                    Offer Pricing Strategy{" "}
+                                    <span className="text-vivid-red">*</span>
+                                </label>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                                    <label
+                                        onClick={() =>
+                                            setOfferPricingType("same")
+                                        }
+                                        className={`p-3.5 rounded-2xl border cursor-pointer transition flex flex-col justify-between ${
+                                            offerPricingType === "same"
+                                                ? "border-purple bg-purple/5 ring-2 ring-purple/30 text-purple shadow-sm"
+                                                : "border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-2 mb-1.5">
+                                            <input
+                                                type="radio"
+                                                name="idxOfferPricing"
+                                                checked={
+                                                    offerPricingType === "same"
+                                                }
+                                                onChange={() =>
+                                                    setOfferPricingType("same")
+                                                }
+                                                className="text-purple focus:ring-purple/40"
+                                            />
+                                            <span className="font-bold text-xs text-slate-900">
+                                                Same Price
+                                            </span>
+                                        </div>
+                                        <p className="text-[11px] text-slate-500 leading-snug">
+                                            Keep current booked rate of{" "}
+                                            <strong>
+                                                {formatCurrency(
+                                                    offerModalRes.rentalRate ||
+                                                        0,
+                                                )}
+                                                /day
+                                            </strong>{" "}
+                                            with no price change.
+                                        </p>
+                                    </label>
+
+                                    <label
+                                        onClick={() =>
+                                            setOfferPricingType("different")
+                                        }
+                                        className={`p-3.5 rounded-2xl border cursor-pointer transition flex flex-col justify-between ${
+                                            offerPricingType === "different"
+                                                ? "border-purple bg-purple/5 ring-2 ring-purple/30 text-purple shadow-sm"
+                                                : "border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-2 mb-1.5">
+                                            <input
+                                                type="radio"
+                                                name="idxOfferPricing"
+                                                checked={
+                                                    offerPricingType ===
+                                                    "different"
+                                                }
+                                                onChange={() =>
+                                                    setOfferPricingType(
+                                                        "different",
+                                                    )
+                                                }
+                                                className="text-purple focus:ring-purple/40"
+                                            />
+                                            <span className="font-bold text-xs text-slate-900">
+                                                Different Price
+                                            </span>
+                                        </div>
+                                        <p className="text-[11px] text-slate-500 leading-snug">
+                                            Apply the vehicle’s catalog rate or
+                                            enter an agreed custom daily rate.
+                                        </p>
+                                    </label>
+
+                                    <label
+                                        onClick={() =>
+                                            setOfferPricingType("upgrade")
+                                        }
+                                        className={`p-3.5 rounded-2xl border cursor-pointer transition flex flex-col justify-between ${
+                                            offerPricingType === "upgrade"
+                                                ? "border-purple bg-purple/5 ring-2 ring-purple/30 text-purple shadow-sm"
+                                                : "border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-2 mb-1.5">
+                                            <input
+                                                type="radio"
+                                                name="idxOfferPricing"
+                                                checked={
+                                                    offerPricingType ===
+                                                    "upgrade"
+                                                }
+                                                onChange={() =>
+                                                    setOfferPricingType(
+                                                        "upgrade",
+                                                    )
+                                                }
+                                                className="text-purple focus:ring-purple/40"
+                                            />
+                                            <span className="font-bold text-xs text-slate-900">
+                                                Upgrade / Add-on
+                                            </span>
+                                        </div>
+                                        <p className="text-[11px] text-slate-500 leading-snug">
+                                            Add a daily upgrade fee or special
+                                            package add-on to the reservation.
+                                        </p>
+                                    </label>
+                                </div>
+
+                                {offerPricingType === "different" && (
+                                    <div className="mt-3 p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                                        <label className="block text-[11px] font-bold text-slate-800">
+                                            Custom Daily Rental Rate ($/day):
+                                        </label>
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-bold text-slate-500 text-sm">
+                                                $
+                                            </span>
+                                            <input
+                                                type="number"
+                                                min={0}
+                                                step={1}
+                                                value={offerCustomRate}
+                                                onChange={(e) =>
+                                                    setOfferCustomRate(
+                                                        parseFloat(
+                                                            e.target.value,
+                                                        ) || 0,
+                                                    )
+                                                }
+                                                className="w-32 px-3 py-1.5 text-xs font-bold border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-purple/40 text-slate-900 shadow-sm"
+                                            />
+                                            <span className="text-[11px] text-slate-500">
+                                                per day
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {offerPricingType === "upgrade" && (
+                                    <div className="mt-3 p-3.5 rounded-2xl bg-purple/5 border border-purple/20 space-y-3">
+                                        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                                            <div>
+                                                <label className="block text-[11px] font-bold text-slate-800 mb-1">
+                                                    Upgrade / Add-on Fee:
+                                                </label>
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="font-bold text-slate-500 text-sm">
+                                                        +$
+                                                    </span>
+                                                    <input
+                                                        type="number"
+                                                        min={0}
+                                                        step={5}
+                                                        value={
+                                                            offerUpgradeAmount
+                                                        }
+                                                        onChange={(e) =>
+                                                            setOfferUpgradeAmount(
+                                                                parseFloat(
+                                                                    e.target
+                                                                        .value,
+                                                                ) || 0,
+                                                            )
+                                                        }
+                                                        className="w-28 px-3 py-1.5 text-xs font-bold border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-purple/40 text-slate-900 shadow-sm"
+                                                    />
+                                                    <span className="text-[11px] text-slate-500 font-medium">
+                                                        /day
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div className="flex-1">
+                                                <label className="block text-[11px] font-bold text-slate-800 mb-1">
+                                                    Upgrade / Package
+                                                    Description:
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={offerUpgradeNote}
+                                                    onChange={(e) =>
+                                                        setOfferUpgradeNote(
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                    placeholder="e.g., Luxury trim upgrade, GPS included, premium sound"
+                                                    className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-purple/40 text-slate-900 shadow-sm"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Summary Preview */}
+                            {(() => {
+                                const days = Math.max(
+                                    1,
+                                    getRentalDays(
+                                        offerModalRes.pickupDate,
+                                        offerModalRes.returnDate,
+                                    ),
+                                );
+                                const origRate = offerModalRes.rentalRate || 0;
+                                let proposedRate = origRate;
+                                if (offerPricingType === "same") {
+                                    proposedRate = origRate;
+                                } else if (offerPricingType === "different") {
+                                    proposedRate = offerCustomRate;
+                                } else if (offerPricingType === "upgrade") {
+                                    proposedRate =
+                                        origRate + offerUpgradeAmount;
+                                }
+                                const proposedGross = proposedRate * days;
+                                const discountVal =
+                                    offerModalRes.couponDiscount || 0;
+                                const proposedNet = Math.max(
+                                    0,
+                                    proposedGross - discountVal,
+                                );
+                                const diffRate = proposedRate - origRate;
+                                const diffTotal =
+                                    proposedNet -
+                                    (offerModalRes.estimatedTotal || 0);
+
+                                return (
+                                    <div className="p-4 rounded-2xl bg-purple/10 border border-purple/20 space-y-2">
+                                        <div className="flex items-center justify-between text-xs">
+                                            <span className="font-bold text-slate-700">
+                                                Effective Daily Rate:
+                                            </span>
+                                            <span className="font-black text-slate-900 text-sm">
+                                                {formatCurrency(proposedRate)}
+                                                /day{" "}
+                                                {diffRate !== 0 && (
+                                                    <span
+                                                        className={`text-[11px] font-bold ${
+                                                            diffRate > 0
+                                                                ? "text-purple"
+                                                                : "text-emerald-700"
+                                                        }`}
+                                                    >
+                                                        (
+                                                        {diffRate > 0
+                                                            ? `+$${diffRate}`
+                                                            : `-$${Math.abs(diffRate)}`}
+                                                        /day)
+                                                    </span>
+                                                )}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-xs">
+                                            <span className="font-bold text-slate-700">
+                                                Duration:
+                                            </span>
+                                            <span className="font-semibold text-slate-900">
+                                                {days} day(s) (
+                                                {offerModalRes.pickupDate ||
+                                                    "—"}{" "}
+                                                to{" "}
+                                                {offerModalRes.returnDate ||
+                                                    "—"}
+                                                )
+                                            </span>
+                                        </div>
+                                        <div className="pt-2 border-t border-purple/20 flex items-center justify-between">
+                                            <span className="font-black text-slate-900 text-xs uppercase tracking-wider">
+                                                New Estimated Total:
+                                            </span>
+                                            <span className="font-black text-base text-purple">
+                                                {formatCurrency(proposedNet)}{" "}
+                                                {diffTotal !== 0 && (
+                                                    <span className="text-[11px] font-medium text-slate-500">
+                                                        (
+                                                        {diffTotal > 0
+                                                            ? `+$${diffTotal}`
+                                                            : `-$${Math.abs(diffTotal)}`}
+                                                        )
+                                                    </span>
+                                                )}
+                                            </span>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+                        </div>
+
+                        <div className="p-4 sm:p-5 bg-slate-50 border-t border-slate-200/80 flex items-center justify-end gap-2.5 shrink-0">
+                            <button
+                                type="button"
+                                onClick={() => setOfferModalRes(null)}
+                                className="px-4 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-600 hover:bg-slate-100 transition"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleApplyAlternativeOffer}
+                                disabled={
+                                    isSubmittingOffer || !selectedOfferVehicleId
+                                }
+                                className="px-5 py-2 rounded-xl bg-purple hover:bg-dark-purple text-white text-xs font-bold transition shadow-sm disabled:opacity-50 inline-flex items-center gap-2"
+                            >
+                                <span>
+                                    {isSubmittingOffer
+                                        ? "Applying Offer..."
+                                        : "Apply Alternative Vehicle"}
+                                </span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* PRINT RECEIPT COMPONENT (Rendered only on print media) */}
+            {(receiptRes || selectedRes) && (
+                <RentalReceipt reservation={(receiptRes || selectedRes)!} />
             )}
         </AuthenticatedLayout>
     );
