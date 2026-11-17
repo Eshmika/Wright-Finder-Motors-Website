@@ -72,6 +72,18 @@ Route::middleware('auth')->group(function () {
         return Inertia::render('Admin/Reservations/Index');
     })->name('admin.reservations.index');
 
+    Route::get('/admin/rent-reservations/{confirmationNumber}/edit', function ($confirmationNumber) {
+        return Inertia::render('Admin/Reservations/Edit', [
+            'confirmationNumber' => $confirmationNumber,
+        ]);
+    })->name('admin.reservations.edit');
+
+    Route::get('/admin/rent-reservations/{confirmationNumber}', function ($confirmationNumber) {
+        return Inertia::render('Admin/Reservations/Show', [
+            'confirmationNumber' => $confirmationNumber,
+        ]);
+    })->name('admin.reservations.show');
+
     Route::get('/admin/coupons', function () {
         return Inertia::render('Admin/Coupons/Index');
     })->name('admin.coupons.index');
