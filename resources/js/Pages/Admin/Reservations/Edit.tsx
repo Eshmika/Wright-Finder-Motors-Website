@@ -292,6 +292,17 @@ export default function Edit({ confirmationNumber }: EditProps) {
             errors.returnDate = "Return date must be on or after pickup date.";
         }
 
+        // Reservation Status can be approved only when Payment Status is Paid
+        if (form.reservationStatus === "Approved") {
+            const pStatus = (form.paymentStatus || "").toLowerCase();
+            const isPaid =
+                pStatus.includes("paid") && !pStatus.includes("unpaid");
+            if (!isPaid) {
+                errors.reservationStatus =
+                    "Reservation can be Approved only when Payment Status is Paid.";
+            }
+        }
+
         setValidationErrors(errors);
         return Object.keys(errors).length === 0;
     };
@@ -543,14 +554,26 @@ export default function Edit({ confirmationNumber }: EditProps) {
                                     </label>
                                     <select
                                         value={form.reservationStatus}
-                                        onChange={(e) =>
+                                        onChange={(e) => {
                                             setForm({
                                                 ...form,
                                                 reservationStatus:
                                                     e.target.value,
-                                            })
-                                        }
-                                        className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-bold text-slate-800"
+                                            });
+                                            if (
+                                                validationErrors.reservationStatus
+                                            ) {
+                                                setValidationErrors((prev) => ({
+                                                    ...prev,
+                                                    reservationStatus: "",
+                                                }));
+                                            }
+                                        }}
+                                        className={`w-full px-3 py-2 border rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-bold text-slate-800 ${
+                                            validationErrors.reservationStatus
+                                                ? "border-red-500"
+                                                : "border-slate-200"
+                                        }`}
                                     >
                                         <option value="Pending">Pending</option>
                                         <option value="Approved">
@@ -560,6 +583,11 @@ export default function Edit({ confirmationNumber }: EditProps) {
                                             Declined
                                         </option>
                                     </select>
+                                    {validationErrors.reservationStatus && (
+                                        <p className="text-red-500 text-[10px] mt-1 font-semibold">
+                                            {validationErrors.reservationStatus}
+                                        </p>
+                                    )}
                                 </div>
                                 <div>
                                     <label className="block font-bold text-slate-700 text-[11px] uppercase mb-1">

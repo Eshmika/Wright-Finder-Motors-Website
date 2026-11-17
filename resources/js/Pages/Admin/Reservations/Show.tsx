@@ -31,6 +31,21 @@ export default function Show({ confirmationNumber }: ShowProps) {
     // Status update state
     const [isUpdatingStatus, setIsUpdatingStatus] = useState<boolean>(false);
 
+    // Vehicles list for alternative vehicle offers
+    const [allVehicles, setAllVehicles] = useState<DetailedVehicle[]>([]);
+
+    // Offer Alternative Vehicle Modal state
+    const [isOfferModalOpen, setIsOfferModalOpen] = useState<boolean>(false);
+    const [selectedOfferVehicleId, setSelectedOfferVehicleId] =
+        useState<string>("");
+    const [offerPricingType, setOfferPricingType] = useState<
+        "same" | "different" | "upgrade"
+    >("same");
+    const [offerCustomRate, setOfferCustomRate] = useState<number>(0);
+    const [offerUpgradeAmount, setOfferUpgradeAmount] = useState<number>(25);
+    const [offerUpgradeNote, setOfferUpgradeNote] = useState<string>("");
+    const [isSubmittingOffer, setIsSubmittingOffer] = useState<boolean>(false);
+
     // Alert modal
     const [alertModal, setAlertModal] = useState<{
         isOpen: boolean;
@@ -52,6 +67,8 @@ export default function Show({ confirmationNumber }: ShowProps) {
                 fetchAllReservations(),
                 fetchAllVehicles(),
             ]);
+
+            setAllVehicles(vehList);
 
             const map = new Map<string, DetailedVehicle>();
             vehList.forEach((v) => {
@@ -244,6 +261,23 @@ export default function Show({ confirmationNumber }: ShowProps) {
         newStatus: "Approved" | "Declined" | "Pending",
     ) => {
         if (!reservation) return;
+
+        // Validation: Reservation Status can be approved only when Payment Status is Paid
+        if (newStatus === "Approved") {
+            const pStatus = (reservation.paymentStatus || "").toLowerCase();
+            const isPaid =
+                pStatus.includes("paid") && !pStatus.includes("unpaid");
+            if (!isPaid) {
+                setAlertModal({
+                    isOpen: true,
+                    type: "error",
+                    title: "Payment Required for Approval",
+                    message: `Reservation #${reservation.confirmationNumber} cannot be approved because Payment Status is "${reservation.paymentStatus || "Pending"}". Payment must be Paid first.`,
+                });
+                return;
+            }
+        }
+
         setIsUpdatingStatus(true);
         const confNum = reservation.confirmationNumber;
         const updated = { ...reservation, reservationStatus: newStatus };
@@ -349,6 +383,142 @@ export default function Show({ confirmationNumber }: ShowProps) {
             type: "success",
             title: "Rental Extended!",
             message: `Reservation #${confNum} extended by ${extendDays} days until ${formatDisplayDate(newReturnDate)} (+$${extraCharge}).`,
+        });
+    };
+
+    // Open Offer Alternative Vehicle Modal
+    const handleOpenOfferModal = () => {
+        if (!reservation) return;
+        const currentCarId = (reservation.carId || "").trim().toLowerCase();
+        // Default to first available car that is not the current car and is eligible for rent ("Rent" or "Both")
+        const firstOtherCar = allVehicles.find((v) => {
+            const isCurrent =
+                (v.id || "").trim().toLowerCase() === currentCarId;
+            const ros = (v.rentOrSell || "").trim().toLowerCase();
+            const isRentalEligible = ros === "rent" || ros === "both";
+            return !isCurrent && isRentalEligible;
+        });
+
+        setSelectedOfferVehicleId(firstOtherCar ? firstOtherCar.id : "");
+        setOfferPricingType("same");
+        if (firstOtherCar) {
+            const defaultNewRate =
+                firstOtherCar.rentPrice !== undefined &&
+                firstOtherCar.rentPrice > 0
+                    ? firstOtherCar.rentPrice
+                    : firstOtherCar.originalPrice || firstOtherCar.price || 0;
+            setOfferCustomRate(defaultNewRate);
+        } else {
+            setOfferCustomRate(reservation.rentalRate || 0);
+        }
+        setOfferUpgradeAmount(25);
+        setOfferUpgradeNote("");
+        setIsOfferModalOpen(true);
+    };
+
+    // Apply Alternative Vehicle Offer
+    const handleApplyAlternativeOffer = async () => {
+        if (!reservation || !selectedOfferVehicleId) return;
+
+        const targetVehicle = allVehicles.find(
+            (v) =>
+                (v.id || "").trim().toLowerCase() ===
+                selectedOfferVehicleId.trim().toLowerCase(),
+        );
+        if (!targetVehicle) {
+            setAlertModal({
+                isOpen: true,
+                type: "error",
+                title: "Invalid Vehicle",
+                message: "Please select a valid alternative vehicle to offer.",
+            });
+            return;
+        }
+
+        setIsSubmittingOffer(true);
+
+        const days = Math.max(
+            1,
+            getRentalDays(reservation.pickupDate, reservation.returnDate),
+        );
+        const originalDailyRate = reservation.rentalRate || 0;
+        let newDailyRate = originalDailyRate;
+        let pricingSummaryLabel = "";
+
+        if (offerPricingType === "same") {
+            newDailyRate = originalDailyRate;
+            pricingSummaryLabel = `Same price offer ($${originalDailyRate}/day)`;
+        } else if (offerPricingType === "different") {
+            newDailyRate = offerCustomRate;
+            pricingSummaryLabel = `Custom rate offer ($${offerCustomRate}/day)`;
+        } else if (offerPricingType === "upgrade") {
+            newDailyRate = originalDailyRate + offerUpgradeAmount;
+            pricingSummaryLabel = `Upgrade offer ($${originalDailyRate}/day + $${offerUpgradeAmount}/day upgrade add-on${
+                offerUpgradeNote ? ` - ${offerUpgradeNote}` : ""
+            })`;
+        }
+
+        const newGrossTotal = newDailyRate * days;
+        const discountAmount = reservation.couponDiscount || 0;
+        const newEstimatedTotal = Math.max(0, newGrossTotal - discountAmount);
+
+        const newCarTitle =
+            `${targetVehicle.year || ""} ${targetVehicle.make || ""} ${
+                targetVehicle.model || ""
+            }`.trim() ||
+            targetVehicle.title ||
+            "Alternative Vehicle";
+
+        const switchNote = `[Alternative Vehicle Offered & Applied: Switched to ${newCarTitle} (ID: ${targetVehicle.id}) - ${pricingSummaryLabel}. New Daily Rate: $${newDailyRate}, New Estimated Total: $${newEstimatedTotal}]`;
+        const updatedNotes = reservation.notes
+            ? `${reservation.notes}\n${switchNote}`
+            : switchNote;
+
+        const updated: ReservationRecord = {
+            ...reservation,
+            carId: targetVehicle.id,
+            carTitle: newCarTitle,
+            rentalRate: newDailyRate,
+            estimatedTotal: newEstimatedTotal,
+            notes: updatedNotes,
+            vehicle: targetVehicle,
+        };
+
+        const confNum = reservation.confirmationNumber;
+        setReservation(updated);
+
+        const webhook =
+            typeof window !== "undefined"
+                ? localStorage.getItem("WFM_APPS_SCRIPT_URL") || ""
+                : "";
+
+        if (webhook) {
+            try {
+                await fetch(webhook, {
+                    method: "POST",
+                    headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify({
+                        action: "update_reservation_status",
+                        confirmationNumber: confNum,
+                        carId: targetVehicle.id,
+                        carTitle: newCarTitle,
+                        rentalRate: newDailyRate,
+                        estimatedTotal: newEstimatedTotal,
+                        notes: updatedNotes,
+                    }),
+                });
+            } catch (err) {
+                console.error("Alternative offer webhook error:", err);
+            }
+        }
+
+        setIsSubmittingOffer(false);
+        setIsOfferModalOpen(false);
+        setAlertModal({
+            isOpen: true,
+            type: "success",
+            title: "Alternative Vehicle Offered & Applied!",
+            message: `Reservation #${confNum} has been updated to "${newCarTitle}". Offer terms: ${pricingSummaryLabel}.`,
         });
     };
 
@@ -574,6 +744,26 @@ export default function Show({ confirmationNumber }: ShowProps) {
                             </svg>
                             <span>Edit Reservation</span>
                         </Link>
+                        <button
+                            type="button"
+                            onClick={handleOpenOfferModal}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-purple/10 border border-purple/30 text-purple hover:bg-purple hover:text-white transition shadow-sm"
+                        >
+                            <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+                                />
+                            </svg>
+                            <span>Offer alternative</span>
+                        </button>
                         <button
                             type="button"
                             onClick={() => window.print()}
@@ -1216,6 +1406,26 @@ export default function Show({ confirmationNumber }: ShowProps) {
                                 >
                                     Edit Reservation
                                 </Link>
+                                <button
+                                    type="button"
+                                    onClick={handleOpenOfferModal}
+                                    className="px-4 py-2 rounded-xl border border-purple/40 bg-purple text-white hover:bg-dark-purple font-bold text-xs transition shadow-sm inline-flex items-center gap-1.5"
+                                >
+                                    <svg
+                                        className="w-3.5 h-3.5"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        strokeWidth={2}
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+                                        />
+                                    </svg>
+                                    <span>Offer alternative</span>
+                                </button>
                             </div>
 
                             <Link
@@ -1233,20 +1443,42 @@ export default function Show({ confirmationNumber }: ShowProps) {
             {alertModal.isOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
                     <div className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl border border-gray-100 text-center relative overflow-hidden">
-                        <div className="w-14 h-14 mx-auto rounded-2xl bg-emerald-50 text-emerald-500 border border-emerald-100 flex items-center justify-center mb-3 shadow-inner">
-                            <svg
-                                className="w-7 h-7"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                                strokeWidth={2.5}
-                            >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    d="M5 13l4 4L19 7"
-                                />
-                            </svg>
+                        <div
+                            className={`w-14 h-14 mx-auto rounded-2xl flex items-center justify-center mb-3 shadow-inner border ${
+                                alertModal.type === "error"
+                                    ? "bg-rose-50 text-rose-500 border-rose-100"
+                                    : "bg-emerald-50 text-emerald-500 border-emerald-100"
+                            }`}
+                        >
+                            {alertModal.type === "error" ? (
+                                <svg
+                                    className="w-7 h-7"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    strokeWidth={2.5}
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                                    />
+                                </svg>
+                            ) : (
+                                <svg
+                                    className="w-7 h-7"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    strokeWidth={2.5}
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        d="M5 13l4 4L19 7"
+                                    />
+                                </svg>
+                            )}
                         </div>
                         <h3 className="text-base font-extrabold text-slate-900">
                             {alertModal.title}
@@ -1265,9 +1497,577 @@ export default function Show({ confirmationNumber }: ShowProps) {
                                         type: "success",
                                     })
                                 }
-                                className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition shadow-sm"
+                                className={`w-full py-2.5 rounded-xl text-white text-xs font-bold transition shadow-sm ${
+                                    alertModal.type === "error"
+                                        ? "bg-rose-600 hover:bg-rose-700"
+                                        : "bg-slate-900 hover:bg-black"
+                                }`}
                             >
                                 Done
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* OFFER ALTERNATIVE VEHICLE MODAL */}
+            {isOfferModalOpen && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in overflow-y-auto"
+                    onClick={() => setIsOfferModalOpen(false)}
+                >
+                    <div
+                        className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-slate-100 transform transition-all relative overflow-hidden my-auto max-h-[92vh] flex flex-col"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Header */}
+                        <div className="bg-gradient-to-r from-[#591ba5] via-[#6d28d9] to-[#7c3aed] text-white px-6 py-4 flex items-center justify-between shrink-0 shadow-md">
+                            <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center text-white">
+                                    <svg
+                                        className="w-5 h-5"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        strokeWidth={2.2}
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+                                        />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3 className="text-base font-black tracking-wide text-white">
+                                        Offer Alternative Vehicle
+                                    </h3>
+                                    <p className="text-[11px] text-purple-200">
+                                        Offer customer another available vehicle
+                                        at the same rate, custom price, or with
+                                        an upgrade
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setIsOfferModalOpen(false)}
+                                className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        {/* Modal Body */}
+                        <div className="p-5 sm:p-6 overflow-y-auto space-y-5 text-xs text-slate-700">
+                            {/* Current Vehicle vs New Vehicle Comparison */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-200/80">
+                                <div className="space-y-1">
+                                    <span className="text-[10px] font-bold uppercase text-slate-400 block tracking-wider">
+                                        Current Booked Vehicle
+                                    </span>
+                                    <h4 className="font-bold text-slate-900 text-sm">
+                                        {reservation.carTitle ||
+                                            `Car #${reservation.carId}`}
+                                    </h4>
+                                    <p className="text-[11px] text-slate-600 font-medium">
+                                        Current Daily Rate:{" "}
+                                        <strong className="text-purple font-bold">
+                                            {formatCurrency(
+                                                reservation.rentalRate || 0,
+                                            )}
+                                            /day
+                                        </strong>
+                                    </p>
+                                    <p className="text-[11px] text-slate-500">
+                                        Rental Duration:{" "}
+                                        <span className="font-semibold text-slate-700">
+                                            {getRentalDays(
+                                                reservation.pickupDate,
+                                                reservation.returnDate,
+                                            )}{" "}
+                                            day(s)
+                                        </span>
+                                    </p>
+                                </div>
+
+                                <div className="space-y-1 sm:border-l sm:border-slate-200 sm:pl-4">
+                                    <span className="text-[10px] font-bold uppercase text-purple block tracking-wider">
+                                        Proposed Replacement
+                                    </span>
+                                    {(() => {
+                                        const foundVehicle = allVehicles.find(
+                                            (v) =>
+                                                (v.id || "").toLowerCase() ===
+                                                (
+                                                    selectedOfferVehicleId || ""
+                                                ).toLowerCase(),
+                                        );
+                                        if (!foundVehicle) {
+                                            return (
+                                                <p className="text-slate-400 italic">
+                                                    Select a vehicle below...
+                                                </p>
+                                            );
+                                        }
+                                        const stdRate =
+                                            foundVehicle.rentPrice !==
+                                                undefined &&
+                                            foundVehicle.rentPrice > 0
+                                                ? foundVehicle.rentPrice
+                                                : foundVehicle.originalPrice ||
+                                                  foundVehicle.price ||
+                                                  0;
+                                        return (
+                                            <>
+                                                <h4 className="font-bold text-slate-900 text-sm">
+                                                    {foundVehicle.year}{" "}
+                                                    {foundVehicle.make}{" "}
+                                                    {foundVehicle.model}
+                                                </h4>
+                                                <p className="text-[11px] text-slate-600 font-medium">
+                                                    Standard Catalog Rate:{" "}
+                                                    <span className="font-bold text-slate-900">
+                                                        {formatCurrency(
+                                                            stdRate,
+                                                        )}
+                                                        /day
+                                                    </span>
+                                                </p>
+                                                <p className="text-[11px] text-slate-500">
+                                                    Body Style:{" "}
+                                                    <span className="font-semibold text-slate-700">
+                                                        {foundVehicle.bodyStyle ||
+                                                            "—"}
+                                                    </span>{" "}
+                                                    | Seats:{" "}
+                                                    <span className="font-semibold text-slate-700">
+                                                        {foundVehicle.seatMaterial ||
+                                                            "—"}
+                                                    </span>
+                                                </p>
+                                            </>
+                                        );
+                                    })()}
+                                </div>
+                            </div>
+
+                            {/* Vehicle Selection Dropdown */}
+                            <div className="space-y-1.5">
+                                <label className="block font-bold text-slate-800 text-[11px] uppercase tracking-wider">
+                                    Select Available Vehicle{" "}
+                                    <span className="text-vivid-red">*</span>
+                                </label>
+                                <select
+                                    value={selectedOfferVehicleId}
+                                    onChange={(e) => {
+                                        const newId = e.target.value;
+                                        setSelectedOfferVehicleId(newId);
+                                        const found = allVehicles.find(
+                                            (v) =>
+                                                (v.id || "").toLowerCase() ===
+                                                newId.toLowerCase(),
+                                        );
+                                        if (found) {
+                                            const defaultRate =
+                                                found.rentPrice !== undefined &&
+                                                found.rentPrice > 0
+                                                    ? found.rentPrice
+                                                    : found.originalPrice ||
+                                                      found.price ||
+                                                      0;
+                                            setOfferCustomRate(defaultRate);
+                                        }
+                                    }}
+                                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-purple/40 text-xs font-semibold text-slate-900 shadow-sm"
+                                >
+                                    <option value="" disabled>
+                                        -- Select a Vehicle --
+                                    </option>
+                                    {allVehicles
+                                        .filter((v) => {
+                                            const isCurrent =
+                                                (v.id || "").toLowerCase() ===
+                                                (
+                                                    reservation.carId || ""
+                                                ).toLowerCase();
+                                            const ros = (v.rentOrSell || "")
+                                                .trim()
+                                                .toLowerCase();
+                                            const isRentalEligible =
+                                                ros === "rent" ||
+                                                ros === "both";
+                                            return (
+                                                !isCurrent && isRentalEligible
+                                            );
+                                        })
+                                        .map((v) => {
+                                            const vRate =
+                                                v.rentPrice !== undefined &&
+                                                v.rentPrice > 0
+                                                    ? v.rentPrice
+                                                    : v.originalPrice ||
+                                                      v.price ||
+                                                      0;
+                                            return (
+                                                <option key={v.id} value={v.id}>
+                                                    {v.year} {v.make} {v.model}{" "}
+                                                    (
+                                                    {v.trim ||
+                                                        v.bodyStyle ||
+                                                        "Sedan"}
+                                                    ) — {formatCurrency(vRate)}
+                                                    /day [ID: {v.id}]
+                                                </option>
+                                            );
+                                        })}
+                                </select>
+                            </div>
+
+                            {/* Pricing Option Choice */}
+                            <div className="space-y-2.5 pt-2 border-t border-slate-100">
+                                <label className="block font-bold text-slate-800 text-[11px] uppercase tracking-wider">
+                                    Offer Pricing Strategy{" "}
+                                    <span className="text-vivid-red">*</span>
+                                </label>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                                    {/* Same Price Option */}
+                                    <label
+                                        onClick={() =>
+                                            setOfferPricingType("same")
+                                        }
+                                        className={`p-3.5 rounded-2xl border cursor-pointer transition flex flex-col justify-between ${
+                                            offerPricingType === "same"
+                                                ? "border-purple bg-purple/5 ring-2 ring-purple/30 text-purple shadow-sm"
+                                                : "border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-2 mb-1.5">
+                                            <input
+                                                type="radio"
+                                                name="offerPricing"
+                                                checked={
+                                                    offerPricingType === "same"
+                                                }
+                                                onChange={() =>
+                                                    setOfferPricingType("same")
+                                                }
+                                                className="text-purple focus:ring-purple/40"
+                                            />
+                                            <span className="font-bold text-xs text-slate-900">
+                                                Same Price
+                                            </span>
+                                        </div>
+                                        <p className="text-[11px] text-slate-500 leading-snug">
+                                            Keep current booked rate of{" "}
+                                            <strong>
+                                                {formatCurrency(
+                                                    reservation.rentalRate || 0,
+                                                )}
+                                                /day
+                                            </strong>{" "}
+                                            with no price change.
+                                        </p>
+                                    </label>
+
+                                    {/* Different Price Option */}
+                                    <label
+                                        onClick={() =>
+                                            setOfferPricingType("different")
+                                        }
+                                        className={`p-3.5 rounded-2xl border cursor-pointer transition flex flex-col justify-between ${
+                                            offerPricingType === "different"
+                                                ? "border-purple bg-purple/5 ring-2 ring-purple/30 text-purple shadow-sm"
+                                                : "border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-2 mb-1.5">
+                                            <input
+                                                type="radio"
+                                                name="offerPricing"
+                                                checked={
+                                                    offerPricingType ===
+                                                    "different"
+                                                }
+                                                onChange={() =>
+                                                    setOfferPricingType(
+                                                        "different",
+                                                    )
+                                                }
+                                                className="text-purple focus:ring-purple/40"
+                                            />
+                                            <span className="font-bold text-xs text-slate-900">
+                                                Different Price
+                                            </span>
+                                        </div>
+                                        <p className="text-[11px] text-slate-500 leading-snug">
+                                            Apply the vehicle’s catalog rate or
+                                            enter an agreed custom daily rate.
+                                        </p>
+                                    </label>
+
+                                    {/* Upgrade / Add-on Option */}
+                                    <label
+                                        onClick={() =>
+                                            setOfferPricingType("upgrade")
+                                        }
+                                        className={`p-3.5 rounded-2xl border cursor-pointer transition flex flex-col justify-between ${
+                                            offerPricingType === "upgrade"
+                                                ? "border-purple bg-purple/5 ring-2 ring-purple/30 text-purple shadow-sm"
+                                                : "border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-2 mb-1.5">
+                                            <input
+                                                type="radio"
+                                                name="offerPricing"
+                                                checked={
+                                                    offerPricingType ===
+                                                    "upgrade"
+                                                }
+                                                onChange={() =>
+                                                    setOfferPricingType(
+                                                        "upgrade",
+                                                    )
+                                                }
+                                                className="text-purple focus:ring-purple/40"
+                                            />
+                                            <span className="font-bold text-xs text-slate-900">
+                                                Upgrade / Add-on
+                                            </span>
+                                        </div>
+                                        <p className="text-[11px] text-slate-500 leading-snug">
+                                            Add a daily upgrade fee or special
+                                            package add-on to the reservation.
+                                        </p>
+                                    </label>
+                                </div>
+
+                                {/* Custom Price Inputs if "different" */}
+                                {offerPricingType === "different" && (
+                                    <div className="mt-3 p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                                        <label className="block text-[11px] font-bold text-slate-800">
+                                            Custom Daily Rental Rate ($/day):
+                                        </label>
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-bold text-slate-500 text-sm">
+                                                $
+                                            </span>
+                                            <input
+                                                type="number"
+                                                min={0}
+                                                step={1}
+                                                value={offerCustomRate}
+                                                onChange={(e) =>
+                                                    setOfferCustomRate(
+                                                        parseFloat(
+                                                            e.target.value,
+                                                        ) || 0,
+                                                    )
+                                                }
+                                                className="w-32 px-3 py-1.5 text-xs font-bold border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-purple/40 text-slate-900 shadow-sm"
+                                            />
+                                            <span className="text-[11px] text-slate-500">
+                                                per day
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Upgrade Inputs if "upgrade" */}
+                                {offerPricingType === "upgrade" && (
+                                    <div className="mt-3 p-3.5 rounded-2xl bg-purple/5 border border-purple/20 space-y-3">
+                                        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                                            <div>
+                                                <label className="block text-[11px] font-bold text-slate-800 mb-1">
+                                                    Upgrade / Add-on Fee:
+                                                </label>
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="font-bold text-slate-500 text-sm">
+                                                        +$
+                                                    </span>
+                                                    <input
+                                                        type="number"
+                                                        min={0}
+                                                        step={5}
+                                                        value={
+                                                            offerUpgradeAmount
+                                                        }
+                                                        onChange={(e) =>
+                                                            setOfferUpgradeAmount(
+                                                                parseFloat(
+                                                                    e.target
+                                                                        .value,
+                                                                ) || 0,
+                                                            )
+                                                        }
+                                                        className="w-28 px-3 py-1.5 text-xs font-bold border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-purple/40 text-slate-900 shadow-sm"
+                                                    />
+                                                    <span className="text-[11px] text-slate-500 font-medium">
+                                                        /day
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div className="flex-1">
+                                                <label className="block text-[11px] font-bold text-slate-800 mb-1">
+                                                    Upgrade / Package
+                                                    Description:
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={offerUpgradeNote}
+                                                    onChange={(e) =>
+                                                        setOfferUpgradeNote(
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                    placeholder="e.g., Luxury trim upgrade, GPS included, premium sound"
+                                                    className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-purple/40 text-slate-900 shadow-sm"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Calculation & Summary Preview */}
+                            {(() => {
+                                const days = Math.max(
+                                    1,
+                                    getRentalDays(
+                                        reservation.pickupDate,
+                                        reservation.returnDate,
+                                    ),
+                                );
+                                const origRate = reservation.rentalRate || 0;
+                                let proposedRate = origRate;
+                                if (offerPricingType === "same") {
+                                    proposedRate = origRate;
+                                } else if (offerPricingType === "different") {
+                                    proposedRate = offerCustomRate;
+                                } else if (offerPricingType === "upgrade") {
+                                    proposedRate =
+                                        origRate + offerUpgradeAmount;
+                                }
+                                const proposedGross = proposedRate * days;
+                                const discountVal =
+                                    reservation.couponDiscount || 0;
+                                const proposedNet = Math.max(
+                                    0,
+                                    proposedGross - discountVal,
+                                );
+                                const diffRate = proposedRate - origRate;
+                                const diffTotal =
+                                    proposedNet -
+                                    (reservation.estimatedTotal || 0);
+
+                                return (
+                                    <div className="p-4 rounded-2xl bg-purple/10 border border-purple/20 space-y-2">
+                                        <div className="flex items-center justify-between text-xs">
+                                            <span className="font-bold text-slate-700">
+                                                Effective Daily Rate:
+                                            </span>
+                                            <span className="font-black text-slate-900 text-sm">
+                                                {formatCurrency(proposedRate)}
+                                                /day{" "}
+                                                {diffRate !== 0 && (
+                                                    <span
+                                                        className={`text-[11px] font-bold ${
+                                                            diffRate > 0
+                                                                ? "text-purple"
+                                                                : "text-emerald-700"
+                                                        }`}
+                                                    >
+                                                        (
+                                                        {diffRate > 0
+                                                            ? `+$${diffRate}`
+                                                            : `-$${Math.abs(diffRate)}`}
+                                                        /day)
+                                                    </span>
+                                                )}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-xs">
+                                            <span className="font-bold text-slate-700">
+                                                Duration:
+                                            </span>
+                                            <span className="font-semibold text-slate-900">
+                                                {days} day(s) (
+                                                {reservation.pickupDate || "—"}{" "}
+                                                to{" "}
+                                                {reservation.returnDate || "—"})
+                                            </span>
+                                        </div>
+                                        {discountVal > 0 && (
+                                            <div className="flex items-center justify-between text-xs text-emerald-800">
+                                                <span>
+                                                    Coupon Discount Applied:
+                                                </span>
+                                                <span className="font-bold">
+                                                    -
+                                                    {formatCurrency(
+                                                        discountVal,
+                                                    )}
+                                                </span>
+                                            </div>
+                                        )}
+                                        <div className="pt-2 border-t border-purple/20 flex items-center justify-between">
+                                            <span className="font-black text-slate-900 text-xs uppercase tracking-wider">
+                                                New Estimated Total:
+                                            </span>
+                                            <span className="font-black text-base text-purple">
+                                                {formatCurrency(proposedNet)}{" "}
+                                                {diffTotal !== 0 && (
+                                                    <span className="text-[11px] font-medium text-slate-500">
+                                                        (
+                                                        {diffTotal > 0
+                                                            ? `+$${diffTotal}`
+                                                            : `-$${Math.abs(diffTotal)}`}
+                                                        )
+                                                    </span>
+                                                )}
+                                            </span>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="p-4 sm:p-5 bg-slate-50 border-t border-slate-200/80 flex items-center justify-end gap-2.5 shrink-0">
+                            <button
+                                type="button"
+                                onClick={() => setIsOfferModalOpen(false)}
+                                className="px-4 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-600 hover:bg-slate-100 transition"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleApplyAlternativeOffer}
+                                disabled={
+                                    isSubmittingOffer || !selectedOfferVehicleId
+                                }
+                                className="px-5 py-2 rounded-xl bg-purple hover:bg-dark-purple text-white text-xs font-bold transition shadow-sm disabled:opacity-50 inline-flex items-center gap-2"
+                            >
+                                <svg
+                                    className="w-4 h-4"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    strokeWidth={2}
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        d="M5 13l4 4L19 7"
+                                    />
+                                </svg>
+                                <span>
+                                    {isSubmittingOffer
+                                        ? "Applying Offer..."
+                                        : "Apply Alternative Vehicle"}
+                                </span>
                             </button>
                         </div>
                     </div>

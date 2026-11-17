@@ -622,6 +622,38 @@ function doPost(e) {
                     resSheet
                         .getRange(targetRow, colNum)
                         .setValue(data.estimatedTotal);
+                } else if (
+                    data.carId !== undefined &&
+                    (hdr === "car id" || hdr === "carid")
+                ) {
+                    resSheet.getRange(targetRow, colNum).setValue(data.carId);
+                } else if (
+                    data.carTitle !== undefined &&
+                    (hdr === "car title" ||
+                        hdr === "cartitle" ||
+                        hdr === "car name")
+                ) {
+                    resSheet
+                        .getRange(targetRow, colNum)
+                        .setValue(data.carTitle);
+                } else if (
+                    data.rentalRate !== undefined &&
+                    (hdr === "rental rate" ||
+                        hdr === "rentalrate" ||
+                        hdr === "rate")
+                ) {
+                    resSheet
+                        .getRange(targetRow, colNum)
+                        .setValue(data.rentalRate);
+                } else if (data.age !== undefined && hdr === "age") {
+                    resSheet.getRange(targetRow, colNum).setValue(data.age);
+                } else if (
+                    data.residency !== undefined &&
+                    hdr === "residency"
+                ) {
+                    resSheet
+                        .getRange(targetRow, colNum)
+                        .setValue(data.residency);
                 }
             }
 

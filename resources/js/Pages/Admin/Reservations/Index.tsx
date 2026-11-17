@@ -485,6 +485,25 @@ export default function Index() {
     // Save Reservation Status
     const handleSaveResStatus = async () => {
         if (!resStatusModalRes) return;
+
+        // Validation: Reservation Status can be approved only when Payment Status is Paid
+        if (targetResStatus === "Approved") {
+            const pStatus = (
+                resStatusModalRes.paymentStatus || ""
+            ).toLowerCase();
+            const isPaid =
+                pStatus.includes("paid") && !pStatus.includes("unpaid");
+            if (!isPaid) {
+                setAlertModal({
+                    isOpen: true,
+                    type: "error",
+                    title: "Payment Required for Approval",
+                    message: `Reservation #${resStatusModalRes.confirmationNumber} cannot be approved because Payment Status is "${resStatusModalRes.paymentStatus || "Pending"}". Payment must be Paid first.`,
+                });
+                return;
+            }
+        }
+
         setIsUpdatingResStatus(true);
 
         const confNum = resStatusModalRes.confirmationNumber;
@@ -693,6 +712,22 @@ export default function Index() {
         res: ReservationRecord,
         newStatus: "Approved" | "Declined" | "Pending",
     ) => {
+        // Validation: Reservation Status can be approved only when Payment Status is Paid
+        if (newStatus === "Approved") {
+            const pStatus = (res.paymentStatus || "").toLowerCase();
+            const isPaid =
+                pStatus.includes("paid") && !pStatus.includes("unpaid");
+            if (!isPaid) {
+                setAlertModal({
+                    isOpen: true,
+                    type: "error",
+                    title: "Payment Required for Approval",
+                    message: `Reservation #${res.confirmationNumber} cannot be approved because Payment Status is "${res.paymentStatus || "Pending"}". Payment must be Paid first.`,
+                });
+                return;
+            }
+        }
+
         const confNum = res.confirmationNumber;
         const updated = { ...res, reservationStatus: newStatus };
 
