@@ -27,6 +27,8 @@ export default function Edit({ confirmationNumber }: EditProps) {
         lastName: string;
         email: string;
         phone: string;
+        age: string;
+        residency: string;
         pickupDate: string;
         pickupTime: string;
         pickupLocation: string;
@@ -41,6 +43,8 @@ export default function Edit({ confirmationNumber }: EditProps) {
         lastName: "",
         email: "",
         phone: "",
+        age: "25+",
+        residency: "United States",
         pickupDate: "",
         pickupTime: "",
         pickupLocation: "",
@@ -110,6 +114,8 @@ export default function Edit({ confirmationNumber }: EditProps) {
                     lastName: found.lastName || "",
                     email: found.email || "",
                     phone: found.phone || "",
+                    age: found.age || "25+",
+                    residency: found.residency || "United States",
                     pickupDate: found.pickupDate || "",
                     pickupTime: found.pickupTime || "10:00 AM",
                     pickupLocation: found.pickupLocation || "",
@@ -508,6 +514,62 @@ export default function Edit({ confirmationNumber }: EditProps) {
                                         }
                                         className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-semibold"
                                     />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block font-bold text-slate-700 text-[11px] uppercase mb-1">
+                                        Driver Age
+                                    </label>
+                                    <select
+                                        value={form.age}
+                                        onChange={(e) =>
+                                            setForm({
+                                                ...form,
+                                                age: e.target.value,
+                                            })
+                                        }
+                                        className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-semibold"
+                                    >
+                                        <option value="25+">
+                                            25 years or older (Standard Rental)
+                                        </option>
+                                        <option value="21-24">
+                                            21 - 24 years (Young driver policy
+                                            applies)
+                                        </option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block font-bold text-slate-700 text-[11px] uppercase mb-1">
+                                        Residency
+                                    </label>
+                                    <select
+                                        value={form.residency}
+                                        onChange={(e) =>
+                                            setForm({
+                                                ...form,
+                                                residency: e.target.value,
+                                            })
+                                        }
+                                        className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-semibold"
+                                    >
+                                        <option value="United States">
+                                            United States Resident (US Driver's
+                                            License)
+                                        </option>
+                                        <option value="Canada">
+                                            Canada Resident
+                                        </option>
+                                        <option value="International">
+                                            International Resident (Passport
+                                            &amp; Int. Permit)
+                                        </option>
+                                        <option value="Other">
+                                            Other Country
+                                        </option>
+                                    </select>
                                 </div>
                             </div>
                         </div>

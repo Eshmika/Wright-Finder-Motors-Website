@@ -702,7 +702,7 @@ export default function Show({ confirmationNumber }: ShowProps) {
                                 </svg>
                                 <span>Client Information</span>
                             </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-5 gap-4 text-xs">
                                 <div>
                                     <span className="text-slate-400 block font-semibold text-[11px] mb-0.5">
                                         Name
@@ -730,6 +730,22 @@ export default function Show({ confirmationNumber }: ShowProps) {
                                     </span>
                                     <span className="font-bold text-slate-900 text-sm">
                                         {reservation.phone || "N/A"}
+                                    </span>
+                                </div>
+                                <div>
+                                    <span className="text-slate-400 block font-semibold text-[11px] mb-0.5">
+                                        Age
+                                    </span>
+                                    <span className="font-bold text-slate-900 text-sm">
+                                        {reservation.age || "N/A"}
+                                    </span>
+                                </div>
+                                <div>
+                                    <span className="text-slate-400 block font-semibold text-[11px] mb-0.5">
+                                        Residency
+                                    </span>
+                                    <span className="font-bold text-slate-900 text-sm">
+                                        {reservation.residency || "N/A"}
                                     </span>
                                 </div>
                             </div>
