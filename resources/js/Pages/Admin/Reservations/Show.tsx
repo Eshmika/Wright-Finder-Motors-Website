@@ -31,6 +31,12 @@ export default function Show({ confirmationNumber }: ShowProps) {
     // Status update state
     const [isUpdatingStatus, setIsUpdatingStatus] = useState<boolean>(false);
 
+    // Cancel modal state
+    const [isCancelModalOpen, setIsCancelModalOpen] = useState<boolean>(false);
+    const [cancellationReason, setCancellationReason] = useState<string>("");
+    const [isSubmittingCancel, setIsSubmittingCancel] =
+        useState<boolean>(false);
+
     // Vehicles list for alternative vehicle offers
     const [allVehicles, setAllVehicles] = useState<DetailedVehicle[]>([]);
 
@@ -97,8 +103,48 @@ export default function Show({ confirmationNumber }: ShowProps) {
                 const matchedCar = found.carId
                     ? map.get(found.carId.trim().toLowerCase())
                     : undefined;
+
+                // Auto-transition to "Active" if Approved and rental start date has arrived
+                let currentStatus = found.reservationStatus || "Pending";
+                if (currentStatus === "Approved" && found.pickupDate) {
+                    try {
+                        const todayStr = new Date().toISOString().split("T")[0];
+                        if (found.pickupDate <= todayStr) {
+                            currentStatus = "Active";
+                            // Silently sync to Google Sheet webhook
+                            const webhook =
+                                typeof window !== "undefined"
+                                    ? localStorage.getItem(
+                                          "WFM_APPS_SCRIPT_URL",
+                                      ) || ""
+                                    : "";
+                            if (webhook) {
+                                fetch(webhook, {
+                                    method: "POST",
+                                    headers: {
+                                        "Content-Type":
+                                            "text/plain;charset=utf-8",
+                                    },
+                                    body: JSON.stringify({
+                                        action: "update_reservation_status",
+                                        confirmationNumber:
+                                            found.confirmationNumber,
+                                        reservationStatus: "Active",
+                                    }),
+                                }).catch((e) =>
+                                    console.error(
+                                        "Auto-active webhook error:",
+                                        e,
+                                    ),
+                                );
+                            }
+                        }
+                    } catch {}
+                }
+
                 setReservation({
                     ...found,
+                    reservationStatus: currentStatus,
                     vehicle: matchedCar,
                 });
             }
@@ -256,9 +302,15 @@ export default function Show({ confirmationNumber }: ShowProps) {
         }
     };
 
-    // Quick Status Update: Approved / Declined
+    // Quick Status Update: Approved / Declined / Active / Completed / Cancelled
     const handleQuickStatusChange = async (
-        newStatus: "Approved" | "Declined" | "Pending",
+        newStatus:
+            | "Approved"
+            | "Declined"
+            | "Pending"
+            | "Active"
+            | "Completed"
+            | "Cancelled",
     ) => {
         if (!reservation) return;
 
@@ -310,6 +362,65 @@ export default function Show({ confirmationNumber }: ShowProps) {
             type: "success",
             title: "Reservation Status Updated!",
             message: `Reservation #${confNum} is now marked as "${newStatus}".`,
+        });
+    };
+
+    // Open Cancel Modal
+    const handleOpenCancelModal = () => {
+        setCancellationReason("");
+        setIsCancelModalOpen(true);
+    };
+
+    // Confirm Cancellation with Reason saved in Special Notes
+    const handleConfirmCancel = async () => {
+        if (!reservation) return;
+        setIsSubmittingCancel(true);
+
+        const confNum = reservation.confirmationNumber;
+        const reasonText = cancellationReason.trim()
+            ? `[Cancelled: ${cancellationReason.trim()}]`
+            : `[Cancelled by Admin]`;
+        const updatedNotes = reservation.notes
+            ? `${reservation.notes}\n${reasonText}`
+            : reasonText;
+
+        const updated: ReservationRecord = {
+            ...reservation,
+            reservationStatus: "Cancelled",
+            notes: updatedNotes,
+        };
+
+        setReservation(updated);
+
+        const webhook =
+            typeof window !== "undefined"
+                ? localStorage.getItem("WFM_APPS_SCRIPT_URL") || ""
+                : "";
+
+        if (webhook) {
+            try {
+                await fetch(webhook, {
+                    method: "POST",
+                    headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify({
+                        action: "update_reservation_status",
+                        confirmationNumber: confNum,
+                        reservationStatus: "Cancelled",
+                        notes: updatedNotes,
+                    }),
+                });
+            } catch (err) {
+                console.error("Cancel webhook error:", err);
+            }
+        }
+
+        setIsSubmittingCancel(false);
+        setIsCancelModalOpen(false);
+        setAlertModal({
+            isOpen: true,
+            type: "success",
+            title: "Reservation Cancelled",
+            message: `Reservation #${confNum} has been cancelled and reason was saved to Special Notes.`,
         });
     };
 
@@ -647,6 +758,11 @@ export default function Show({ confirmationNumber }: ShowProps) {
     const rLower = resStatus.toLowerCase();
     const isApproved = rLower.includes("approv");
     const isDeclined = rLower.includes("decline");
+    const isActive = rLower === "active";
+    const isCompleted = rLower.includes("complet");
+    const isCancelled = rLower.includes("cancel");
+    const isPending =
+        !isApproved && !isDeclined && !isActive && !isCompleted && !isCancelled;
 
     // Extend calculations
     const extendedReturnDateStr = calculateExtendedReturnDate(
@@ -704,9 +820,13 @@ export default function Show({ confirmationNumber }: ShowProps) {
                                     className={`px-3 py-0.5 rounded-full text-xs font-black uppercase ${
                                         isApproved
                                             ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                                            : isDeclined
-                                              ? "bg-rose-100 text-rose-800 border border-rose-200"
-                                              : "bg-amber-100 text-amber-900 border border-amber-200"
+                                            : isActive
+                                              ? "bg-blue-100 text-blue-800 border border-blue-200"
+                                              : isCompleted
+                                                ? "bg-purple/10 text-purple border border-purple/20"
+                                                : isCancelled || isDeclined
+                                                  ? "bg-rose-100 text-rose-800 border border-rose-200"
+                                                  : "bg-amber-100 text-amber-900 border border-amber-200"
                                     }`}
                                 >
                                     {resStatus}
@@ -721,56 +841,131 @@ export default function Show({ confirmationNumber }: ShowProps) {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                        <Link
-                            href={route("admin.reservations.edit", {
-                                confirmationNumber:
-                                    reservation.confirmationNumber,
-                            })}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition shadow-sm"
-                        >
-                            <svg
-                                className="w-4 h-4 text-purple"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                                strokeWidth={2}
+                    <div className="flex flex-wrap items-center gap-2">
+                        {/* PENDING STATUS: Edit Reservation, Offer alternative, Print Voucher */}
+                        {isPending && (
+                            <>
+                                <Link
+                                    href={route("admin.reservations.edit", {
+                                        confirmationNumber:
+                                            reservation.confirmationNumber,
+                                    })}
+                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition shadow-sm"
+                                >
+                                    <svg
+                                        className="w-4 h-4 text-purple"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        strokeWidth={2}
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                        />
+                                    </svg>
+                                    <span>Edit Reservation</span>
+                                </Link>
+                                <button
+                                    type="button"
+                                    onClick={handleOpenOfferModal}
+                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-purple/10 border border-purple/30 text-purple hover:bg-purple hover:text-white transition shadow-sm"
+                                >
+                                    <svg
+                                        className="w-4 h-4"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        strokeWidth={2}
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+                                        />
+                                    </svg>
+                                    <span>Offer alternative</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => window.print()}
+                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-slate-900 text-white hover:bg-black transition shadow-sm"
+                                >
+                                    <span>Print Voucher</span>
+                                </button>
+                            </>
+                        )}
+
+                        {/* APPROVED & ACTIVE STATUS: Edit Reservation, Print Voucher */}
+                        {(isApproved || isActive) && (
+                            <>
+                                <Link
+                                    href={route("admin.reservations.edit", {
+                                        confirmationNumber:
+                                            reservation.confirmationNumber,
+                                    })}
+                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition shadow-sm"
+                                >
+                                    <svg
+                                        className="w-4 h-4 text-purple"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        strokeWidth={2}
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                        />
+                                    </svg>
+                                    <span>Edit Reservation</span>
+                                </Link>
+                                <button
+                                    type="button"
+                                    onClick={() => window.print()}
+                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-slate-900 text-white hover:bg-black transition shadow-sm"
+                                >
+                                    <span>Print Voucher</span>
+                                </button>
+                            </>
+                        )}
+
+                        {/* COMPLETED STATUS: Print Receipt */}
+                        {isCompleted && (
+                            <button
+                                type="button"
+                                onClick={() => window.print()}
+                                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-slate-900 text-white hover:bg-black transition shadow-sm"
                             >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                />
-                            </svg>
-                            <span>Edit Reservation</span>
-                        </Link>
-                        <button
-                            type="button"
-                            onClick={handleOpenOfferModal}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-purple/10 border border-purple/30 text-purple hover:bg-purple hover:text-white transition shadow-sm"
-                        >
-                            <svg
-                                className="w-4 h-4"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                                strokeWidth={2}
+                                <svg
+                                    className="w-4 h-4"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    strokeWidth={2}
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+                                    />
+                                </svg>
+                                <span>Print Receipt</span>
+                            </button>
+                        )}
+
+                        {/* CANCELLED / DECLINED STATUS: Print Voucher */}
+                        {(isCancelled || isDeclined) && (
+                            <button
+                                type="button"
+                                onClick={() => window.print()}
+                                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-slate-900 text-white hover:bg-black transition shadow-sm"
                             >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
-                                />
-                            </svg>
-                            <span>Offer alternative</span>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => window.print()}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-slate-900 text-white hover:bg-black transition shadow-sm"
-                        >
-                            <span>Print Voucher</span>
-                        </button>
+                                <span>Print Voucher</span>
+                            </button>
+                        )}
                     </div>
                 </div>
             }
@@ -2069,6 +2264,90 @@ export default function Show({ confirmationNumber }: ShowProps) {
                                         : "Apply Alternative Vehicle"}
                                 </span>
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* CANCEL RESERVATION MODAL */}
+            {isCancelModalOpen && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
+                    onClick={() => setIsCancelModalOpen(false)}
+                >
+                    <div
+                        className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-gray-100 relative overflow-hidden"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+                            <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
+                                    ✕
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-black text-slate-900">
+                                        Cancel Reservation
+                                    </h3>
+                                    <p className="text-[11px] text-slate-500">
+                                        #{reservation.confirmationNumber}
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setIsCancelModalOpen(false)}
+                                className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <div className="space-y-4 text-xs">
+                            <p className="text-slate-600 leading-relaxed">
+                                Are you sure you want to cancel this
+                                reservation? The reservation status will be
+                                updated to{" "}
+                                <strong className="text-rose-600 font-bold">
+                                    "Cancelled"
+                                </strong>
+                                .
+                            </p>
+
+                            <div>
+                                <label className="block font-bold uppercase text-slate-700 text-[11px] mb-1.5">
+                                    Cancellation Reason (saved to Special Notes)
+                                </label>
+                                <textarea
+                                    rows={3}
+                                    value={cancellationReason}
+                                    onChange={(e) =>
+                                        setCancellationReason(e.target.value)
+                                    }
+                                    placeholder="Enter reason for cancellation (e.g., Customer requested cancellation, Vehicle maintenance issue)..."
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-semibold text-purple"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2.5 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsCancelModalOpen(false)}
+                                    className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs transition"
+                                >
+                                    Keep Reservation
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleConfirmCancel}
+                                    disabled={isSubmittingCancel}
+                                    className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition shadow-sm disabled:opacity-50 flex items-center justify-center gap-1.5"
+                                >
+                                    <span>
+                                        {isSubmittingCancel
+                                            ? "Cancelling..."
+                                            : "Confirm Cancellation"}
+                                    </span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

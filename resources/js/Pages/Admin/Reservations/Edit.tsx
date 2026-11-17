@@ -579,6 +579,13 @@ export default function Edit({ confirmationNumber }: EditProps) {
                                         <option value="Approved">
                                             Approved
                                         </option>
+                                        <option value="Active">Active</option>
+                                        <option value="Completed">
+                                            Completed
+                                        </option>
+                                        <option value="Cancelled">
+                                            Cancelled
+                                        </option>
                                         <option value="Declined">
                                             Declined
                                         </option>
