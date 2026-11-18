@@ -53,6 +53,27 @@ Route::get('/contact', function () {
     ]);
 })->name('contact');
 
+Route::get('/privacy-policy', function () {
+    return Inertia::render('PrivacyPolicy', [
+        'canLogin' => Route::has('login'),
+        'canRegister' => Route::has('register'),
+    ]);
+})->name('privacy-policy');
+
+Route::get('/terms-of-service', function () {
+    return Inertia::render('TermsOfService', [
+        'canLogin' => Route::has('login'),
+        'canRegister' => Route::has('register'),
+    ]);
+})->name('terms-of-service');
+
+Route::get('/cookie-settings', function () {
+    return Inertia::render('CookieSettings', [
+        'canLogin' => Route::has('login'),
+        'canRegister' => Route::has('register'),
+    ]);
+})->name('cookie-settings');
+
 Route::post('/contact', [\App\Http\Controllers\ContactController::class, 'submit'])->name('contact.submit');
 
 Route::get('/dashboard', function () {
