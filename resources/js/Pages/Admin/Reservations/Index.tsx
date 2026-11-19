@@ -5,10 +5,12 @@ import {
     fetchAllReservations,
     fetchAllVehicles,
     formatDriveImageUrl,
+    formatEstNow,
     ReservationRecord,
     sendAlternativeOfferEmail,
     sendReservationApprovalEmail,
     sendReservationCancellationEmail,
+    sendReservationCompletedEmail,
 } from "@/Services/vehicleService";
 import { Head, Link } from "@inertiajs/react";
 import { useEffect, useMemo, useState } from "react";
@@ -630,6 +632,29 @@ export default function Index() {
             }
         }
 
+        // Send completion email if status changed to Completed
+        if (newResStatus === "Completed") {
+            try {
+                const vehicle = resStatusModalRes.vehicle;
+                await sendReservationCompletedEmail({
+                    confirmationNumber: confNum,
+                    firstName: resStatusModalRes.firstName,
+                    lastName: resStatusModalRes.lastName,
+                    email: resStatusModalRes.email,
+                    phone: resStatusModalRes.phone,
+                    carYear: vehicle?.year || "",
+                    carMake: vehicle?.make || "",
+                    carModel: vehicle?.model || "",
+                    carTitle: resStatusModalRes.carTitle || "",
+                    actualReturnDateTime: formatEstNow(),
+                    estimatedTotal: resStatusModalRes.estimatedTotal,
+                    paymentStatus: resStatusModalRes.paymentStatus || "Paid",
+                });
+            } catch (compErr) {
+                console.error("Failed to send completed email:", compErr);
+            }
+        }
+
         setIsUpdatingResStatus(false);
         setResStatusModalRes(null);
         setAlertModal({
@@ -858,6 +883,29 @@ export default function Index() {
                 await sendReservationApprovalEmail(updated);
             } catch (emailErr) {
                 console.error("Failed to send approval email:", emailErr);
+            }
+        }
+
+        // Send completion email if status changed to Completed (Process Return)
+        if (newStatus === "Completed") {
+            try {
+                const vehicle = updated.vehicle || res.vehicle;
+                await sendReservationCompletedEmail({
+                    confirmationNumber: confNum,
+                    firstName: updated.firstName,
+                    lastName: updated.lastName,
+                    email: updated.email,
+                    phone: updated.phone,
+                    carYear: vehicle?.year || "",
+                    carMake: vehicle?.make || "",
+                    carModel: vehicle?.model || "",
+                    carTitle: updated.carTitle || "",
+                    actualReturnDateTime: formatEstNow(),
+                    estimatedTotal: updated.estimatedTotal,
+                    paymentStatus: updated.paymentStatus || "Paid",
+                });
+            } catch (compErr) {
+                console.error("Failed to send completed email:", compErr);
             }
         }
 
