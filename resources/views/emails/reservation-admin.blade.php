@@ -120,7 +120,7 @@
 
     $appUrl = rtrim(config('app.url') ?: 'https://wrightfindermotors.com', '/');
     $cancellationUrl = url("/rent/reservations/{$confirmationNumber}/cancel");
-    $policyUrl = $appUrl . '/privacy-policy';
+    $policyUrl = 'https://wrightfindermotors.com/privacy-policy';
     $websiteUrl = 'https://wrightfindermotors.com/';
     $adminPortalUrl = url("/admin/rent-reservations/{$confirmationNumber}");
     @endphp
