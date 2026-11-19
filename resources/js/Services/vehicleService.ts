@@ -503,3 +503,67 @@ export async function fetchAllReservations(): Promise<ReservationRecord[]> {
     // Newest reservations first
     return reservations.reverse();
 }
+
+/**
+ * Trigger backend approval email to Customer and Administrator
+ */
+export async function sendReservationApprovalEmail(
+    reservation: Partial<ReservationRecord>,
+): Promise<{ status: string; message: string }> {
+    try {
+        const csrfToken =
+            (
+                document.querySelector(
+                    'meta[name="csrf-token"]',
+                ) as HTMLMetaElement
+            )?.content || "";
+
+        const payload = {
+            confirmationNumber: reservation.confirmationNumber,
+            carId: reservation.carId || "",
+            carTitle: reservation.carTitle || "",
+            carMake: reservation.vehicle?.make || "",
+            carModel: reservation.vehicle?.model || "",
+            carYear: reservation.vehicle?.year || "",
+            rentalRate: reservation.rentalRate || 0,
+            discount: reservation.discount || 0,
+            couponCode: reservation.couponCode || "",
+            couponDiscount: reservation.couponDiscount || 0,
+            estimatedTotal: reservation.estimatedTotal || 0,
+            firstName: reservation.firstName || "",
+            lastName: reservation.lastName || "",
+            email: reservation.email || "",
+            phone: reservation.phone || "",
+            age: reservation.age || "",
+            residency: reservation.residency || "",
+            pickupLocation: reservation.pickupLocation || "",
+            pickupDate: reservation.pickupDate || "",
+            pickupTime: reservation.pickupTime || "",
+            returnLocation: reservation.returnLocation || "",
+            returnDate: reservation.returnDate || "",
+            returnTime: reservation.returnTime || "",
+            paymentOption: reservation.paymentOption || "",
+            paymentStatus: reservation.paymentStatus || "Paid",
+            reservationStatus: "Approved",
+            notes: reservation.notes || "",
+        };
+
+        const res = await fetch("/rent/reservations/send-approval-email", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+                "X-CSRF-TOKEN": csrfToken,
+            },
+            body: JSON.stringify(payload),
+        });
+
+        return await res.json();
+    } catch (err: any) {
+        console.error("Failed to send reservation approval email:", err);
+        return {
+            status: "error",
+            message: err?.message || "Failed to send approval email.",
+        };
+    }
+}

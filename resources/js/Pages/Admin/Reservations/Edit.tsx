@@ -5,6 +5,7 @@ import {
     fetchAllVehicles,
     formatDriveImageUrl,
     ReservationRecord,
+    sendReservationApprovalEmail,
 } from "@/Services/vehicleService";
 import { Head, Link, router } from "@inertiajs/react";
 import React, { useEffect, useState } from "react";
@@ -332,6 +333,21 @@ export default function Edit({ confirmationNumber }: EditProps) {
                 });
             } catch (err) {
                 console.error("Save edit reservation webhook error:", err);
+            }
+        }
+
+        // Send approval emails to customer and admin if status changed to Approved
+        if (
+            form.reservationStatus === "Approved" &&
+            reservation.reservationStatus !== "Approved"
+        ) {
+            try {
+                await sendReservationApprovalEmail({
+                    ...reservation,
+                    ...form,
+                });
+            } catch (emailErr) {
+                console.error("Failed to send approval email:", emailErr);
             }
         }
 

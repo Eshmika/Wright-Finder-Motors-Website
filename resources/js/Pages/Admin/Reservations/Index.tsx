@@ -6,6 +6,7 @@ import {
     fetchAllVehicles,
     formatDriveImageUrl,
     ReservationRecord,
+    sendReservationApprovalEmail,
 } from "@/Services/vehicleService";
 import { Head, Link } from "@inertiajs/react";
 import { useEffect, useMemo, useState } from "react";
@@ -618,6 +619,15 @@ export default function Index() {
             }
         }
 
+        // Send approval emails to customer and admin if status changed to Approved
+        if (newResStatus === "Approved") {
+            try {
+                await sendReservationApprovalEmail(resStatusModalRes);
+            } catch (emailErr) {
+                console.error("Failed to send approval email:", emailErr);
+            }
+        }
+
         setIsUpdatingResStatus(false);
         setResStatusModalRes(null);
         setAlertModal({
@@ -837,6 +847,15 @@ export default function Index() {
                 });
             } catch (err) {
                 console.error("Quick status webhook error:", err);
+            }
+        }
+
+        // Send approval emails to customer and admin if status changed to Approved
+        if (newStatus === "Approved") {
+            try {
+                await sendReservationApprovalEmail(updated);
+            } catch (emailErr) {
+                console.error("Failed to send approval email:", emailErr);
             }
         }
 
