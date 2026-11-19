@@ -5,10 +5,12 @@ import {
     fetchAllReservations,
     fetchAllVehicles,
     formatDriveImageUrl,
+    formatEstNow,
     ReservationRecord,
     sendAlternativeOfferEmail,
     sendReservationApprovalEmail,
     sendReservationCancellationEmail,
+    sendReservationCompletedEmail,
 } from "@/Services/vehicleService";
 import { Head, Link } from "@inertiajs/react";
 import { useEffect, useState } from "react";
@@ -366,6 +368,29 @@ export default function Show({ confirmationNumber }: ShowProps) {
                 await sendReservationApprovalEmail(updated);
             } catch (emailErr) {
                 console.error("Failed to send approval email:", emailErr);
+            }
+        }
+
+        // Send completion email if status changed to Completed (Process Return)
+        if (newStatus === "Completed") {
+            try {
+                const vehicle = updated.vehicle || reservation.vehicle;
+                await sendReservationCompletedEmail({
+                    confirmationNumber: confNum,
+                    firstName: updated.firstName,
+                    lastName: updated.lastName,
+                    email: updated.email,
+                    phone: updated.phone,
+                    carYear: vehicle?.year || "",
+                    carMake: vehicle?.make || "",
+                    carModel: vehicle?.model || "",
+                    carTitle: updated.carTitle || "",
+                    actualReturnDateTime: formatEstNow(),
+                    estimatedTotal: updated.estimatedTotal,
+                    paymentStatus: updated.paymentStatus || "Paid",
+                });
+            } catch (compErr) {
+                console.error("Failed to send completed email:", compErr);
             }
         }
 

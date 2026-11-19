@@ -40,6 +40,7 @@ Route::post('/rent/reserve', [\App\Http\Controllers\ReservationController::class
 Route::post('/rent/reservations/send-approval-email', [\App\Http\Controllers\ReservationController::class, 'sendApprovalEmail'])->name('rent.reserve.sendApprovalEmail');
 Route::post('/rent/reservations/send-alternative-offer-email', [\App\Http\Controllers\ReservationController::class, 'sendAlternativeOfferEmail'])->name('rent.reserve.sendAlternativeOfferEmail');
 Route::post('/rent/reservations/send-cancellation-email', [\App\Http\Controllers\ReservationController::class, 'sendCancellationEmail'])->name('rent.reserve.sendCancellationEmail');
+Route::post('/rent/reservations/send-completed-email', [\App\Http\Controllers\ReservationController::class, 'sendCompletedEmail'])->name('rent.reserve.sendCompletedEmail');
 Route::get('/rent/reservations/{confirmationNumber}/accept-alternative', [\App\Http\Controllers\ReservationController::class, 'acceptAlternative'])->name('rent.reserve.acceptAlternative');
 Route::get('/rent/reservations/{confirmationNumber}/cancel', [\App\Http\Controllers\ReservationController::class, 'cancel'])->name('rent.reserve.cancel');
 

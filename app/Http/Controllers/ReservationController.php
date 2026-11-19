@@ -9,6 +9,8 @@ use App\Mail\ReservationApprovedAdminMail;
 use App\Mail\ReservationApprovedUserMail;
 use App\Mail\ReservationCancelledAdminMail;
 use App\Mail\ReservationCancelledUserMail;
+use App\Mail\ReservationCompletedAdminMail;
+use App\Mail\ReservationCompletedUserMail;
 use App\Mail\ReservationUserMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -378,6 +380,65 @@ class ReservationController extends Controller
             'message' => ($userEmailSent && $adminEmailSent)
                 ? 'Cancellation emails sent successfully to user and admin.'
                 : ($errorMessage ?: 'Failed to send cancellation email.'),
+            'userEmailSent' => $userEmailSent,
+            'adminEmailSent' => $adminEmailSent,
+        ]);
+    }
+
+    /**
+     * Send rental completed (return processed) email to Customer and Admin.
+     */
+    public function sendCompletedEmail(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'confirmationNumber' => 'required|string',
+            'email' => 'required|email',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Validation failed: ' . implode(', ', $validator->errors()->all()),
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $data = $request->all();
+        if (empty($data['actualReturnDateTime'])) {
+            $data['actualReturnDateTime'] = date('Y-m-d h:i A') . ' EST';
+        }
+
+        $adminEmail = config('mail.from.address') ?: env('MAIL_FROM_ADDRESS', 'contact@wrightfindermotors.com');
+
+        $userEmailSent = false;
+        $adminEmailSent = false;
+        $errorMessage = null;
+
+        try {
+            // 1. Send branded HTML Completed notification to Customer
+            Mail::to($data['email'])->send(new ReservationCompletedUserMail($data));
+            $userEmailSent = true;
+        } catch (\Throwable $e) {
+            Log::warning('Rental completed customer email error: ' . $e->getMessage());
+            $errorMessage = $e->getMessage();
+        }
+
+        try {
+            // 2. Send branded HTML Completed notification to Admin
+            Mail::to($adminEmail)->send(new ReservationCompletedAdminMail($data));
+            $adminEmailSent = true;
+        } catch (\Throwable $e) {
+            Log::warning('Rental completed admin email error: ' . $e->getMessage());
+            if (!$errorMessage) {
+                $errorMessage = $e->getMessage();
+            }
+        }
+
+        return response()->json([
+            'status' => ($userEmailSent || $adminEmailSent) ? 'success' : 'error',
+            'message' => ($userEmailSent && $adminEmailSent)
+                ? 'Completion emails sent successfully to user and admin.'
+                : ($errorMessage ?: 'Failed to send completion email.'),
             'userEmailSent' => $userEmailSent,
             'adminEmailSent' => $adminEmailSent,
         ]);
