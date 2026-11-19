@@ -37,6 +37,7 @@ Route::get('/rent/reserve/{id}', function ($id) {
 })->name('rent.reserve');
 
 Route::post('/rent/reserve', [\App\Http\Controllers\ReservationController::class, 'store'])->name('rent.reserve.store');
+Route::post('/rent/reservations/send-approval-email', [\App\Http\Controllers\ReservationController::class, 'sendApprovalEmail'])->name('rent.reserve.sendApprovalEmail');
 Route::get('/rent/reservations/{confirmationNumber}/cancel', [\App\Http\Controllers\ReservationController::class, 'cancel'])->name('rent.reserve.cancel');
 
 Route::get('/vehicles/{id}', function ($id) {

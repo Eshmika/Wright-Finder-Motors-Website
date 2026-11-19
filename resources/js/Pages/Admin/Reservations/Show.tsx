@@ -6,6 +6,7 @@ import {
     fetchAllVehicles,
     formatDriveImageUrl,
     ReservationRecord,
+    sendReservationApprovalEmail,
 } from "@/Services/vehicleService";
 import { Head, Link } from "@inertiajs/react";
 import { useEffect, useState } from "react";
@@ -354,6 +355,15 @@ export default function Show({ confirmationNumber }: ShowProps) {
                 });
             } catch (err) {
                 console.error("Status webhook error:", err);
+            }
+        }
+
+        // Send approval emails to customer and admin if status changed to Approved
+        if (newStatus === "Approved") {
+            try {
+                await sendReservationApprovalEmail(updated);
+            } catch (emailErr) {
+                console.error("Failed to send approval email:", emailErr);
             }
         }
 
