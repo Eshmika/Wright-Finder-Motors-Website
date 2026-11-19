@@ -37,6 +37,7 @@ Route::get('/rent/reserve/{id}', function ($id) {
 })->name('rent.reserve');
 
 Route::post('/rent/reserve', [\App\Http\Controllers\ReservationController::class, 'store'])->name('rent.reserve.store');
+Route::get('/rent/reservations/{confirmationNumber}/cancel', [\App\Http\Controllers\ReservationController::class, 'cancel'])->name('rent.reserve.cancel');
 
 Route::get('/vehicles/{id}', function ($id) {
     return Inertia::render('VehicleDetail', [
@@ -52,6 +53,27 @@ Route::get('/contact', function () {
         'canRegister' => Route::has('register'),
     ]);
 })->name('contact');
+
+Route::get('/privacy-policy', function () {
+    return Inertia::render('PrivacyPolicy', [
+        'canLogin' => Route::has('login'),
+        'canRegister' => Route::has('register'),
+    ]);
+})->name('privacy-policy');
+
+Route::get('/terms-of-service', function () {
+    return Inertia::render('TermsOfService', [
+        'canLogin' => Route::has('login'),
+        'canRegister' => Route::has('register'),
+    ]);
+})->name('terms-of-service');
+
+Route::get('/cookie-settings', function () {
+    return Inertia::render('CookieSettings', [
+        'canLogin' => Route::has('login'),
+        'canRegister' => Route::has('register'),
+    ]);
+})->name('cookie-settings');
 
 Route::post('/contact', [\App\Http\Controllers\ContactController::class, 'submit'])->name('contact.submit');
 

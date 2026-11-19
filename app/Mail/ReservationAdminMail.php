@@ -28,12 +28,10 @@ class ReservationAdminMail extends Mailable
      */
     public function envelope(): Envelope
     {
-        $confirmation = $this->reservationData['confirmationNumber'] ?? 'Pending';
-        $carTitle = $this->reservationData['carTitle'] ?? 'Vehicle Rental';
         $customerName = trim(($this->reservationData['firstName'] ?? '') . ' ' . ($this->reservationData['lastName'] ?? ''));
 
         return new Envelope(
-            subject: "🚗 [New Rental Reservation #{$confirmation}] - {$carTitle} (from {$customerName})",
+            subject: 'We Received Your Reservation Request – WFM',
             replyTo: [
                 new Address(
                     $this->reservationData['email'],

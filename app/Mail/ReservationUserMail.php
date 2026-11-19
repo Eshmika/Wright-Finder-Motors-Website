@@ -27,11 +27,8 @@ class ReservationUserMail extends Mailable
      */
     public function envelope(): Envelope
     {
-        $appName = config('app.name', 'Wright Finder Motors');
-        $confirmation = $this->reservationData['confirmationNumber'] ?? 'Pending';
-
         return new Envelope(
-            subject: "Your Rental Reservation Confirmation [{$confirmation}] - {$appName}",
+            subject: 'We Received Your Reservation Request – WFM',
         );
     }
 

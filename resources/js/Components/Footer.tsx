@@ -251,15 +251,24 @@ export default function Footer() {
                             All rights reserved.
                         </p>
                         <div className="flex-col lg:flex-row gap-3 justify-center items-center flex text-center lg:text-left w-full lg:w-auto">
-                            <a href="#" className="hover:text-white transition">
+                            <Link
+                                href="/privacy-policy"
+                                className="hover:text-white transition"
+                            >
                                 Privacy Policy
-                            </a>
-                            <a href="#" className="hover:text-white transition">
+                            </Link>
+                            <Link
+                                href="/terms-of-service"
+                                className="hover:text-white transition"
+                            >
                                 Terms of Service
-                            </a>
-                            <a href="#" className="hover:text-white transition">
+                            </Link>
+                            <Link
+                                href="/cookie-settings"
+                                className="hover:text-white transition"
+                            >
                                 Cookie Settings
-                            </a>
+                            </Link>
                         </div>
                     </div>
                 </div>

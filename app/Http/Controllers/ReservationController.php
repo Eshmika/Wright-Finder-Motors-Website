@@ -115,4 +115,40 @@ class ReservationController extends Controller
             'details' => $googleSheetMessage,
         ]);
     }
+
+    /**
+     * Cancel a reservation by confirmation number (e.g. from user cancellation email link).
+     */
+    public function cancel(Request $request, string $confirmationNumber)
+    {
+        $confirmationNumber = trim($confirmationNumber);
+        $scriptUrl = config('services.google.apps_script_url') ?: env('GOOGLE_APPS_SCRIPT_URL');
+        $status = 'Cancelled';
+        $syncSuccess = false;
+
+        if ($scriptUrl && !empty($confirmationNumber)) {
+            try {
+                $response = Http::withoutVerifying()
+                    ->timeout(25)
+                    ->withOptions(['allow_redirects' => true])
+                    ->post($scriptUrl, [
+                        'action' => 'update_reservation_status',
+                        'confirmationNumber' => $confirmationNumber,
+                        'reservationStatus' => 'Cancelled',
+                        'notes' => '[Cancelled by Customer via Email Link at ' . date('Y-m-d H:i:s') . ' EST]',
+                    ]);
+
+                if ($response->successful()) {
+                    $syncSuccess = true;
+                }
+            } catch (\Exception $e) {
+                Log::warning('Could not sync customer cancellation to Google Apps Script: ' . $e->getMessage());
+            }
+        }
+
+        return \Inertia\Inertia::render('Rent/ReservationCancelled', [
+            'confirmationNumber' => $confirmationNumber,
+            'syncSuccess' => $syncSuccess,
+        ]);
+    }
 }
