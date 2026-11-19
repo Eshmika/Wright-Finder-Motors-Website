@@ -37,6 +37,7 @@ Route::get('/rent/reserve/{id}', function ($id) {
 })->name('rent.reserve');
 
 Route::post('/rent/reserve', [\App\Http\Controllers\ReservationController::class, 'store'])->name('rent.reserve.store');
+Route::get('/rent/reservations/{confirmationNumber}/cancel', [\App\Http\Controllers\ReservationController::class, 'cancel'])->name('rent.reserve.cancel');
 
 Route::get('/vehicles/{id}', function ($id) {
     return Inertia::render('VehicleDetail', [
