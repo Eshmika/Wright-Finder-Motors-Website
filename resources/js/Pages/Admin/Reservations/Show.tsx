@@ -8,6 +8,7 @@ import {
     formatEstNow,
     ReservationRecord,
     sendAlternativeOfferEmail,
+    sendRentalExtendedEmail,
     sendReservationApprovalEmail,
     sendReservationCancellationEmail,
     sendReservationCompletedEmail,
@@ -544,6 +545,35 @@ export default function Show({ confirmationNumber }: ShowProps) {
             } catch (err) {
                 console.error("Extend rental webhook error:", err);
             }
+        }
+
+        // Send Rental Extended Confirmation Email to User and Admin
+        try {
+            const prevReturnWithTime = reservation.returnTime
+                ? `${formatDisplayDate(currentReturnDate)} ${reservation.returnTime}`
+                : formatDisplayDate(currentReturnDate);
+            const newReturnWithTime = reservation.returnTime
+                ? `${formatDisplayDate(newReturnDate)} ${reservation.returnTime}`
+                : formatDisplayDate(newReturnDate);
+
+            await sendRentalExtendedEmail({
+                confirmationNumber: confNum,
+                firstName: reservation.firstName,
+                lastName: reservation.lastName,
+                email: reservation.email,
+                phone: reservation.phone,
+                carYear: car?.year,
+                carMake: car?.make,
+                carModel: car?.model,
+                carTitle: reservation.carTitle || car?.title,
+                previousReturnDateTime: prevReturnWithTime,
+                newReturnDateTime: newReturnWithTime,
+                additionalDays: extendDays,
+                extensionCharge: extraCharge,
+                updatedRentalTotal: newEstimatedTotal,
+            });
+        } catch (mailErr) {
+            console.error("Failed to send rental extended email:", mailErr);
         }
 
         setIsExtending(false);
