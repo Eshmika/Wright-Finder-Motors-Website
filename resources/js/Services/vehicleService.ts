@@ -606,7 +606,58 @@ export async function sendAlternativeOfferEmail(
                 ) as HTMLMetaElement
             )?.content || "";
 
-        const res = await fetch("/rent/reservations/send-alternative-offer-email", {
+        const res = await fetch(
+            "/rent/reservations/send-alternative-offer-email",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Accept: "application/json",
+                    "X-CSRF-TOKEN": csrfToken,
+                },
+                body: JSON.stringify(payload),
+            },
+        );
+
+        return await res.json();
+    } catch (err: any) {
+        console.error("Failed to send alternative offer email:", err);
+        return {
+            status: "error",
+            message: err?.message || "Failed to send alternative offer email.",
+        };
+    }
+}
+
+export interface CancellationEmailPayload {
+    confirmationNumber: string;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    phone?: string;
+    carYear?: string | number;
+    carMake?: string;
+    carModel?: string;
+    carTitle?: string;
+    pickupDate?: string;
+    cancellationDate?: string;
+}
+
+/**
+ * Trigger backend cancellation confirmation email to Customer and Administrator
+ */
+export async function sendReservationCancellationEmail(
+    payload: CancellationEmailPayload,
+): Promise<{ status: string; message: string }> {
+    try {
+        const csrfToken =
+            (
+                document.querySelector(
+                    'meta[name="csrf-token"]',
+                ) as HTMLMetaElement
+            )?.content || "";
+
+        const res = await fetch("/rent/reservations/send-cancellation-email", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -618,10 +669,10 @@ export async function sendAlternativeOfferEmail(
 
         return await res.json();
     } catch (err: any) {
-        console.error("Failed to send alternative offer email:", err);
+        console.error("Failed to send cancellation email:", err);
         return {
             status: "error",
-            message: err?.message || "Failed to send alternative offer email.",
+            message: err?.message || "Failed to send cancellation email.",
         };
     }
 }

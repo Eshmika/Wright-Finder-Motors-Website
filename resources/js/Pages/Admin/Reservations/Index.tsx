@@ -8,6 +8,7 @@ import {
     ReservationRecord,
     sendAlternativeOfferEmail,
     sendReservationApprovalEmail,
+    sendReservationCancellationEmail,
 } from "@/Services/vehicleService";
 import { Head, Link } from "@inertiajs/react";
 import { useEffect, useMemo, useState } from "react";
@@ -920,6 +921,26 @@ export default function Index() {
             } catch (err) {
                 console.error("Cancel webhook error:", err);
             }
+        }
+
+        // Trigger cancellation email to customer and admin
+        try {
+            const vehicle = cancelModalRes.vehicle;
+            await sendReservationCancellationEmail({
+                confirmationNumber: confNum,
+                firstName: cancelModalRes.firstName,
+                lastName: cancelModalRes.lastName,
+                email: cancelModalRes.email,
+                phone: cancelModalRes.phone,
+                carYear: vehicle?.year || "",
+                carMake: vehicle?.make || "",
+                carModel: vehicle?.model || "",
+                carTitle: cancelModalRes.carTitle || "",
+                pickupDate: cancelModalRes.pickupDate || "",
+                cancellationDate: new Date().toISOString().split("T")[0],
+            });
+        } catch (emailErr) {
+            console.error("Failed to send cancellation email:", emailErr);
         }
 
         setIsSubmittingCancel(false);

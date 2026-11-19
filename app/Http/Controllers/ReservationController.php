@@ -7,6 +7,8 @@ use App\Mail\AlternativeOfferUserMail;
 use App\Mail\ReservationAdminMail;
 use App\Mail\ReservationApprovedAdminMail;
 use App\Mail\ReservationApprovedUserMail;
+use App\Mail\ReservationCancelledAdminMail;
+use App\Mail\ReservationCancelledUserMail;
 use App\Mail\ReservationUserMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -319,6 +321,65 @@ class ReservationController extends Controller
             'carId' => $carId,
             'newTotal' => $total,
             'syncSuccess' => $syncSuccess,
+        ]);
+    }
+
+    /**
+     * Send cancellation confirmation email to Customer and Admin.
+     */
+    public function sendCancellationEmail(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'confirmationNumber' => 'required|string',
+            'email' => 'required|email',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Validation failed: ' . implode(', ', $validator->errors()->all()),
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $data = $request->all();
+        if (empty($data['cancellationDate'])) {
+            $data['cancellationDate'] = date('Y-m-d');
+        }
+
+        $adminEmail = config('mail.from.address') ?: env('MAIL_FROM_ADDRESS', 'contact@wrightfindermotors.com');
+
+        $userEmailSent = false;
+        $adminEmailSent = false;
+        $errorMessage = null;
+
+        try {
+            // 1. Send branded HTML Cancellation notification to Customer
+            Mail::to($data['email'])->send(new ReservationCancelledUserMail($data));
+            $userEmailSent = true;
+        } catch (\Throwable $e) {
+            Log::warning('Reservation cancellation customer email error: ' . $e->getMessage());
+            $errorMessage = $e->getMessage();
+        }
+
+        try {
+            // 2. Send branded HTML Cancellation notification to Admin
+            Mail::to($adminEmail)->send(new ReservationCancelledAdminMail($data));
+            $adminEmailSent = true;
+        } catch (\Throwable $e) {
+            Log::warning('Reservation cancellation admin email error: ' . $e->getMessage());
+            if (!$errorMessage) {
+                $errorMessage = $e->getMessage();
+            }
+        }
+
+        return response()->json([
+            'status' => ($userEmailSent || $adminEmailSent) ? 'success' : 'error',
+            'message' => ($userEmailSent && $adminEmailSent)
+                ? 'Cancellation emails sent successfully to user and admin.'
+                : ($errorMessage ?: 'Failed to send cancellation email.'),
+            'userEmailSent' => $userEmailSent,
+            'adminEmailSent' => $adminEmailSent,
         ]);
     }
 }
