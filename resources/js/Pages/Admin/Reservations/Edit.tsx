@@ -4,7 +4,9 @@ import {
     fetchAllReservations,
     fetchAllVehicles,
     formatDriveImageUrl,
+    formatEstNow,
     ReservationRecord,
+    sendPaymentConfirmationEmail,
     sendReservationApprovalEmail,
 } from "@/Services/vehicleService";
 import { Head, Link, router } from "@inertiajs/react";
@@ -112,6 +114,13 @@ export default function Edit({ confirmationNumber }: EditProps) {
         message: "",
         type: "success",
     });
+
+    // Payment Modal State
+    const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+    const [paymentInputAmount, setPaymentInputAmount] = useState("");
+    const [paymentMethodOption, setPaymentMethodOption] = useState("Zelle");
+    const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
+    const [paymentError, setPaymentError] = useState("");
 
     const loadData = async () => {
         setLoading(true);
@@ -358,6 +367,111 @@ export default function Edit({ confirmationNumber }: EditProps) {
             title: "Reservation Details Saved!",
             message: `Reservation #${confNum} details updated successfully.`,
         });
+    };
+
+    const handleRecordPayment = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!reservation) return;
+
+        const enteredVal = parseFloat(paymentInputAmount);
+        if (isNaN(enteredVal) || enteredVal <= 0) {
+            setPaymentError(
+                "Please enter a valid payment amount greater than 0.",
+            );
+            return;
+        }
+
+        setIsSubmittingPayment(true);
+        setPaymentError("");
+
+        try {
+            const currentReceived = Number(reservation.amountReceived || 0);
+            const newTotalReceived =
+                Math.round((currentReceived + enteredVal) * 100) / 100;
+            const estimatedTotal = Number(reservation.estimatedTotal || 0);
+
+            // If cumulative received >= estimatedTotal -> Paid, else Partial
+            const newPaymentStatus =
+                newTotalReceived >= estimatedTotal ? "Paid" : "Partial";
+            const paymentDate = formatEstNow();
+            const remainingBalance = Math.max(
+                0,
+                Math.round((estimatedTotal - newTotalReceived) * 100) / 100,
+            );
+
+            const webhook =
+                typeof window !== "undefined"
+                    ? localStorage.getItem("WFM_APPS_SCRIPT_URL") || ""
+                    : "";
+
+            if (webhook) {
+                await fetch(webhook, {
+                    method: "POST",
+                    headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify({
+                        action: "update_reservation_status",
+                        confirmationNumber: reservation.confirmationNumber,
+                        paymentStatus: newPaymentStatus,
+                        paymentOption: paymentMethodOption,
+                        amountReceived: newTotalReceived,
+                    }),
+                });
+            }
+
+            // Update local state
+            setReservation((prev) =>
+                prev
+                    ? {
+                          ...prev,
+                          paymentStatus: newPaymentStatus,
+                          paymentOption: paymentMethodOption,
+                          amountReceived: newTotalReceived,
+                      }
+                    : prev,
+            );
+            setForm((prev) => ({
+                ...prev,
+                paymentStatus: newPaymentStatus,
+                paymentOption: paymentMethodOption,
+            }));
+
+            // Send Payment Confirmation Email to Customer and Admin
+            try {
+                await sendPaymentConfirmationEmail({
+                    confirmationNumber: reservation.confirmationNumber,
+                    firstName: form.firstName || reservation.firstName,
+                    lastName: form.lastName || reservation.lastName,
+                    email: form.email || reservation.email,
+                    phone: form.phone || reservation.phone,
+                    amountReceived: enteredVal,
+                    paymentOption: paymentMethodOption,
+                    paymentDate,
+                    remainingBalance,
+                    estimatedTotal,
+                });
+            } catch (mailErr) {
+                console.error(
+                    "Failed to send payment confirmation email:",
+                    mailErr,
+                );
+            }
+
+            setIsPaymentModalOpen(false);
+            setPaymentInputAmount("");
+            setAlertModal({
+                isOpen: true,
+                type: "success",
+                title: "Payment Recorded Successfully!",
+                message: `$${enteredVal.toFixed(2)} received recorded. Payment status updated to "${newPaymentStatus}". Confirmation emails sent to customer and admin.`,
+            });
+        } catch (err: any) {
+            console.error("Payment recording error:", err);
+            setPaymentError(
+                err?.message || "Failed to record payment. Please try again.",
+            );
+        } finally {
+            setIsSubmittingPayment(false);
+        }
     };
 
     if (loading) {
@@ -616,20 +730,74 @@ export default function Edit({ confirmationNumber }: EditProps) {
                                     <label className="block font-bold text-slate-700 text-[11px] uppercase mb-1">
                                         Payment Status
                                     </label>
-                                    <select
-                                        value={form.paymentStatus}
-                                        onChange={(e) =>
-                                            setForm({
-                                                ...form,
-                                                paymentStatus: e.target.value,
-                                            })
-                                        }
-                                        className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-purple/40 text-xs font-bold text-slate-800"
-                                    >
-                                        <option value="Pending">Pending</option>
-                                        <option value="Paid">Paid</option>
-                                        <option value="Unpaid">Unpaid</option>
-                                    </select>
+                                    <div className="flex flex-col gap-1.5">
+                                        <div className="flex items-center gap-2">
+                                            <span
+                                                className={`inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider border shadow-sm ${
+                                                    form.paymentStatus ===
+                                                    "Paid"
+                                                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                                        : form.paymentStatus ===
+                                                            "Partial"
+                                                          ? "bg-amber-50 text-amber-700 border-amber-200"
+                                                          : form.paymentStatus ===
+                                                              "Unpaid"
+                                                            ? "bg-red-50 text-red-700 border-red-200"
+                                                            : "bg-blue-50 text-blue-700 border-blue-200"
+                                                }`}
+                                            >
+                                                {form.paymentStatus ||
+                                                    "Pending"}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setPaymentInputAmount("");
+                                                    setPaymentError("");
+                                                    setPaymentMethodOption(
+                                                        cleanPaymentOption(
+                                                            form.paymentOption,
+                                                        ),
+                                                    );
+                                                    setIsPaymentModalOpen(true);
+                                                }}
+                                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-purple hover:bg-dark-purple text-white text-xs font-bold transition shadow-sm"
+                                            >
+                                                <svg
+                                                    className="w-3.5 h-3.5"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                    stroke="currentColor"
+                                                    strokeWidth={2}
+                                                >
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        d="M12 6v12m6-6H6"
+                                                    />
+                                                </svg>
+                                                <span>Amount Received</span>
+                                            </button>
+                                        </div>
+                                        <div className="text-[11px] text-slate-500 font-medium">
+                                            Received:{" "}
+                                            <span className="font-bold text-slate-800">
+                                                $
+                                                {Number(
+                                                    reservation.amountReceived ||
+                                                        0,
+                                                ).toFixed(2)}
+                                            </span>{" "}
+                                            / Total:{" "}
+                                            <span className="font-bold text-slate-800">
+                                                $
+                                                {Number(
+                                                    reservation.estimatedTotal ||
+                                                        0,
+                                                ).toFixed(2)}
+                                            </span>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div>
                                     <label className="block font-bold text-slate-700 text-[11px] uppercase mb-1">
@@ -1249,6 +1417,18 @@ export default function Edit({ confirmationNumber }: EditProps) {
                             {alertModal.message}
                         </p>
                         <div className="mt-5 flex items-center justify-center gap-2">
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    setAlertModal((prev) => ({
+                                        ...prev,
+                                        isOpen: false,
+                                    }))
+                                }
+                                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold transition shadow-sm"
+                            >
+                                Close
+                            </button>
                             <Link
                                 href={route("admin.reservations.show", {
                                     confirmationNumber:
@@ -1259,6 +1439,187 @@ export default function Edit({ confirmationNumber }: EditProps) {
                                 View Reservation
                             </Link>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Record Payment / Amount Received Modal */}
+            {isPaymentModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+                    <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-gray-100 text-left relative overflow-hidden">
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                            <div className="flex items-center gap-2.5">
+                                <div className="w-9 h-9 rounded-xl bg-purple/10 text-purple flex items-center justify-center">
+                                    <svg
+                                        className="w-5 h-5"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        strokeWidth={2}
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
+                                        />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3 className="text-base font-extrabold text-slate-900">
+                                        Record Amount Received
+                                    </h3>
+                                    <p className="text-[11px] text-slate-500 font-medium">
+                                        Reservation #
+                                        {reservation.confirmationNumber}
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setIsPaymentModalOpen(false)}
+                                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
+                            >
+                                <svg
+                                    className="w-5 h-5"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M6 18L18 6M6 6l12 12"
+                                    />
+                                </svg>
+                            </button>
+                        </div>
+
+                        {/* Summary breakdown card */}
+                        <div className="my-4 p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2 text-xs">
+                            <div className="flex justify-between items-center text-slate-600">
+                                <span>Estimated Total:</span>
+                                <span className="font-extrabold text-slate-900 font-mono">
+                                    $
+                                    {Number(
+                                        reservation.estimatedTotal || 0,
+                                    ).toFixed(2)}
+                                </span>
+                            </div>
+                            <div className="flex justify-between items-center text-slate-600">
+                                <span>Previously Received:</span>
+                                <span className="font-bold text-emerald-600 font-mono">
+                                    $
+                                    {Number(
+                                        reservation.amountReceived || 0,
+                                    ).toFixed(2)}
+                                </span>
+                            </div>
+                            <div className="flex justify-between items-center text-slate-600 pt-1.5 border-t border-slate-200">
+                                <span className="font-bold text-slate-800">
+                                    Remaining Balance:
+                                </span>
+                                <span className="font-extrabold text-purple font-mono">
+                                    $
+                                    {Math.max(
+                                        0,
+                                        Number(
+                                            reservation.estimatedTotal || 0,
+                                        ) -
+                                            Number(
+                                                reservation.amountReceived || 0,
+                                            ),
+                                    ).toFixed(2)}
+                                </span>
+                            </div>
+                        </div>
+
+                        <form
+                            onSubmit={handleRecordPayment}
+                            className="space-y-4"
+                        >
+                            <div>
+                                <label className="block font-bold text-slate-700 text-[11px] uppercase mb-1">
+                                    Amount Received ($){" "}
+                                    <span className="text-vivid-red">*</span>
+                                </label>
+                                <div className="relative">
+                                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-bold text-sm">
+                                        $
+                                    </span>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        min="0.01"
+                                        value={paymentInputAmount}
+                                        onChange={(e) => {
+                                            setPaymentInputAmount(
+                                                e.target.value,
+                                            );
+                                            if (paymentError)
+                                                setPaymentError("");
+                                        }}
+                                        placeholder="0.00"
+                                        className="w-full pl-8 pr-3 py-2 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-purple/40 text-sm font-bold text-slate-900 font-mono"
+                                        required
+                                        autoFocus
+                                    />
+                                </div>
+                                <span className="text-[10px] text-slate-400 mt-1 block">
+                                    This amount will be added cumulatively to
+                                    the current received amount.
+                                </span>
+                            </div>
+
+                            <div>
+                                <label className="block font-bold text-slate-700 text-[11px] uppercase mb-1">
+                                    Payment Method
+                                </label>
+                                <select
+                                    value={paymentMethodOption}
+                                    onChange={(e) =>
+                                        setPaymentMethodOption(e.target.value)
+                                    }
+                                    className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-purple/40 text-xs font-bold text-slate-800"
+                                >
+                                    <option value="Zelle">Zelle Payment</option>
+                                    <option value="Cash App">Cash App</option>
+                                    <option value="In Person">
+                                        In Person / Cash
+                                    </option>
+                                </select>
+                            </div>
+
+                            {paymentError && (
+                                <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs font-semibold">
+                                    {paymentError}
+                                </div>
+                            )}
+
+                            <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
+                                <button
+                                    type="button"
+                                    disabled={isSubmittingPayment}
+                                    onClick={() => setIsPaymentModalOpen(false)}
+                                    className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs transition disabled:opacity-50"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isSubmittingPayment}
+                                    className="px-5 py-2.5 rounded-xl bg-purple hover:bg-dark-purple text-white font-bold text-xs transition shadow-sm disabled:opacity-50 flex items-center gap-1.5"
+                                >
+                                    {isSubmittingPayment ? (
+                                        <span>Saving &amp; Sending...</span>
+                                    ) : (
+                                        <span>
+                                            Save &amp; Send Confirmation
+                                        </span>
+                                    )}
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

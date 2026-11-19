@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Mail\AlternativeOfferAdminMail;
 use App\Mail\AlternativeOfferUserMail;
+use App\Mail\PaymentConfirmationAdminMail;
+use App\Mail\PaymentConfirmationUserMail;
 use App\Mail\ReservationAdminMail;
 use App\Mail\ReservationApprovedAdminMail;
 use App\Mail\ReservationApprovedUserMail;
@@ -439,6 +441,66 @@ class ReservationController extends Controller
             'message' => ($userEmailSent && $adminEmailSent)
                 ? 'Completion emails sent successfully to user and admin.'
                 : ($errorMessage ?: 'Failed to send completion email.'),
+            'userEmailSent' => $userEmailSent,
+            'adminEmailSent' => $adminEmailSent,
+        ]);
+    }
+
+    /**
+     * Send payment confirmation email to Customer and Admin when payment is received.
+     */
+    public function sendPaymentEmail(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'confirmationNumber' => 'required|string',
+            'email' => 'required|email',
+            'amountReceived' => 'required',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Validation failed: ' . implode(', ', $validator->errors()->all()),
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $data = $request->all();
+        if (empty($data['paymentDate'])) {
+            $data['paymentDate'] = date('Y-m-d h:i A') . ' EST';
+        }
+
+        $adminEmail = config('mail.from.address') ?: env('MAIL_FROM_ADDRESS', 'contact@wrightfindermotors.com');
+
+        $userEmailSent = false;
+        $adminEmailSent = false;
+        $errorMessage = null;
+
+        try {
+            // 1. Send branded HTML Payment Confirmation to Customer
+            Mail::to($data['email'])->send(new PaymentConfirmationUserMail($data));
+            $userEmailSent = true;
+        } catch (\Throwable $e) {
+            Log::warning('Payment confirmation customer email error: ' . $e->getMessage());
+            $errorMessage = $e->getMessage();
+        }
+
+        try {
+            // 2. Send branded HTML Payment Confirmation to Admin
+            Mail::to($adminEmail)->send(new PaymentConfirmationAdminMail($data));
+            $adminEmailSent = true;
+        } catch (\Throwable $e) {
+            Log::warning('Payment confirmation admin email error: ' . $e->getMessage());
+            if (!$errorMessage) {
+                $errorMessage = $e->getMessage();
+            }
+        }
+
+        return response()->json([
+            'status' => ($userEmailSent || $adminEmailSent) ? 'success' : 'error',
+            'message' => ($userEmailSent && $adminEmailSent)
+                ? 'Payment confirmation emails sent successfully to user and admin.'
+                : ($errorMessage ?: 'Failed to send payment confirmation email.'),
             'userEmailSent' => $userEmailSent,
             'adminEmailSent' => $adminEmailSent,
         ]);

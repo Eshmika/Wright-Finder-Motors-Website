@@ -322,6 +322,7 @@ export interface ReservationRecord {
     paymentStatus: string;
     reservationStatus?: string;
     notes: string;
+    amountReceived?: number;
     // Joined vehicle details
     vehicle?: DetailedVehicle;
 }
@@ -389,6 +390,7 @@ export async function fetchAllReservations(): Promise<ReservationRecord[]> {
         getIndex("Special Notes") !== -1
             ? getIndex("Special Notes")
             : getIndex("Notes");
+    const amountReceivedIdx = getIndex("Amount Received");
 
     const reservations: ReservationRecord[] = [];
 
@@ -427,7 +429,9 @@ export async function fetchAllReservations(): Promise<ReservationRecord[]> {
             paymentStatusIdx !== -1 ? row[paymentStatusIdx]?.trim() || "" : "";
         let paymentStatus = "Pending";
         const plower = rawPaymentStatus.toLowerCase();
-        if (plower.includes("paid") && !plower.includes("unpaid")) {
+        if (plower.includes("partial")) {
+            paymentStatus = "Partial";
+        } else if (plower.includes("paid") && !plower.includes("unpaid")) {
             paymentStatus = "Paid";
         } else if (plower.includes("unpaid")) {
             paymentStatus = "Unpaid";
@@ -440,6 +444,13 @@ export async function fetchAllReservations(): Promise<ReservationRecord[]> {
         } else {
             paymentStatus = rawPaymentStatus;
         }
+
+        const amountReceived =
+            amountReceivedIdx !== -1
+                ? parseFloat(
+                      row[amountReceivedIdx]?.replace(/[^0-9.]/g, "") || "0",
+                  )
+                : 0;
 
         const rawResStatus =
             resStatusIdx !== -1 ? row[resStatusIdx]?.trim() || "" : "";
@@ -497,6 +508,7 @@ export async function fetchAllReservations(): Promise<ReservationRecord[]> {
             paymentStatus,
             reservationStatus,
             notes: notesIdx !== -1 ? row[notesIdx]?.trim() || "" : "",
+            amountReceived,
         });
     }
 
@@ -751,6 +763,54 @@ export async function sendReservationCompletedEmail(
         return {
             status: "error",
             message: err?.message || "Failed to send completed email.",
+        };
+    }
+}
+
+export interface PaymentEmailPayload {
+    confirmationNumber: string;
+    firstName?: string;
+    lastName?: string;
+    email: string;
+    phone?: string;
+    amountReceived: number | string;
+    paymentOption?: string;
+    paymentDate?: string;
+    remainingBalance?: number | string;
+    estimatedTotal?: number | string;
+}
+
+/**
+ * Trigger backend payment confirmation email to Customer and Administrator
+ */
+export async function sendPaymentConfirmationEmail(
+    payload: PaymentEmailPayload,
+): Promise<{ status: string; message: string }> {
+    try {
+        const csrfToken =
+            (
+                document.querySelector(
+                    'meta[name="csrf-token"]',
+                ) as HTMLMetaElement
+            )?.content || "";
+
+        const res = await fetch("/rent/reservations/send-payment-email", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+                "X-CSRF-TOKEN": csrfToken,
+            },
+            body: JSON.stringify(payload),
+        });
+
+        return await res.json();
+    } catch (err: any) {
+        console.error("Failed to send payment confirmation email:", err);
+        return {
+            status: "error",
+            message:
+                err?.message || "Failed to send payment confirmation email.",
         };
     }
 }

@@ -475,6 +475,7 @@ function doPost(e) {
             var paymentStatusColIdx = -1;
             var paymentOptionColIdx = -1;
             var resStatusColIdx = -1;
+            var amountReceivedColIdx = -1;
 
             for (var c = 0; c < headers.length; c++) {
                 var h = headers[c]
@@ -483,6 +484,7 @@ function doPost(e) {
                 if (h === "confirmation number") confColIdx = c + 1;
                 if (h === "payment status") paymentStatusColIdx = c + 1;
                 if (h === "payment option") paymentOptionColIdx = c + 1;
+                if (h === "amount received") amountReceivedColIdx = c + 1;
                 if (h === "reservation status" || h === "status")
                     resStatusColIdx = c + 1;
             }
@@ -491,11 +493,27 @@ function doPost(e) {
             if (resStatusColIdx === -1) {
                 resSheet.insertColumnAfter(lastCol);
                 resStatusColIdx = lastCol + 1;
+                lastCol = resStatusColIdx;
                 var newHdr = resSheet.getRange(1, resStatusColIdx);
                 newHdr.setValue("Reservation Status");
                 newHdr.setBackground("#170a3d");
                 newHdr.setFontColor("#ffffff");
                 newHdr.setFontWeight("bold");
+            }
+
+            // Ensure Amount Received column exists if missing and data provides it
+            if (
+                amountReceivedColIdx === -1 &&
+                data.amountReceived !== undefined
+            ) {
+                resSheet.insertColumnAfter(lastCol);
+                amountReceivedColIdx = lastCol + 1;
+                lastCol = amountReceivedColIdx;
+                var newAmtHdr = resSheet.getRange(1, amountReceivedColIdx);
+                newAmtHdr.setValue("Amount Received");
+                newAmtHdr.setBackground("#170a3d");
+                newAmtHdr.setFontColor("#ffffff");
+                newAmtHdr.setFontWeight("bold");
             }
 
             var confVals = resSheet
@@ -539,6 +557,11 @@ function doPost(e) {
                 resSheet
                     .getRange(targetRow, resStatusColIdx)
                     .setValue(data.reservationStatus);
+            }
+            if (data.amountReceived !== undefined && amountReceivedColIdx > 0) {
+                resSheet
+                    .getRange(targetRow, amountReceivedColIdx)
+                    .setValue(data.amountReceived);
             }
 
             // Optional updates for reservation details, extension, or customer edits
