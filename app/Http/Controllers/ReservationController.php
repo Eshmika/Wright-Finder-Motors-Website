@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\AlternativeOfferAdminMail;
+use App\Mail\AlternativeOfferUserMail;
 use App\Mail\ReservationAdminMail;
 use App\Mail\ReservationApprovedAdminMail;
 use App\Mail\ReservationApprovedUserMail;
@@ -206,6 +208,117 @@ class ReservationController extends Controller
                 : ($errorMessage ?: 'Failed to send approval email.'),
             'userEmailSent' => $userEmailSent,
             'adminEmailSent' => $adminEmailSent,
+        ]);
+    }
+
+    /**
+     * Send alternative vehicle offer email to Customer and Admin.
+     */
+    public function sendAlternativeOfferEmail(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'confirmationNumber' => 'required|string',
+            'email' => 'required|email',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Validation failed: ' . implode(', ', $validator->errors()->all()),
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $data = $request->all();
+        $adminEmail = config('mail.from.address') ?: env('MAIL_FROM_ADDRESS', 'contact@wrightfindermotors.com');
+
+        $userEmailSent = false;
+        $adminEmailSent = false;
+        $errorMessage = null;
+
+        try {
+            // 1. Send branded HTML Alternative Offer notification to Customer
+            Mail::to($data['email'])->send(new AlternativeOfferUserMail($data));
+            $userEmailSent = true;
+        } catch (\Throwable $e) {
+            Log::warning('Alternative offer customer email error: ' . $e->getMessage());
+            $errorMessage = $e->getMessage();
+        }
+
+        try {
+            // 2. Send branded HTML Alternative Offer notification to Admin
+            Mail::to($adminEmail)->send(new AlternativeOfferAdminMail($data));
+            $adminEmailSent = true;
+        } catch (\Throwable $e) {
+            Log::warning('Alternative offer admin email error: ' . $e->getMessage());
+            if (!$errorMessage) {
+                $errorMessage = $e->getMessage();
+            }
+        }
+
+        return response()->json([
+            'status' => ($userEmailSent || $adminEmailSent) ? 'success' : 'error',
+            'message' => ($userEmailSent && $adminEmailSent)
+                ? 'Alternative vehicle offer emails sent successfully to user and admin.'
+                : ($errorMessage ?: 'Failed to send alternative offer email.'),
+            'userEmailSent' => $userEmailSent,
+            'adminEmailSent' => $adminEmailSent,
+        ]);
+    }
+
+    /**
+     * Customer accepts alternative vehicle offer via link in email.
+     */
+    public function acceptAlternative(Request $request, string $confirmationNumber)
+    {
+        $confirmationNumber = trim($confirmationNumber);
+        $scriptUrl = config('services.google.apps_script_url') ?: env('GOOGLE_APPS_SCRIPT_URL');
+        $syncSuccess = false;
+
+        $carId = $request->query('carId');
+        $carTitle = $request->query('carTitle');
+        $total = $request->query('total');
+        $rate = $request->query('rate');
+
+        if ($scriptUrl && !empty($confirmationNumber)) {
+            try {
+                $updatePayload = [
+                    'action' => 'update_reservation_status',
+                    'confirmationNumber' => $confirmationNumber,
+                    'notes' => '[Customer Accepted Alternative Vehicle via Email Link at ' . date('Y-m-d H:i:s') . ' EST]',
+                ];
+                if (!empty($carId)) {
+                    $updatePayload['carId'] = $carId;
+                }
+                if (!empty($carTitle)) {
+                    $updatePayload['carTitle'] = $carTitle;
+                }
+                if (!empty($total)) {
+                    $updatePayload['estimatedTotal'] = $total;
+                }
+                if (!empty($rate)) {
+                    $updatePayload['rentalRate'] = $rate;
+                }
+
+                $response = Http::withoutVerifying()
+                    ->timeout(25)
+                    ->withOptions(['allow_redirects' => true])
+                    ->post($scriptUrl, $updatePayload);
+
+                if ($response->successful()) {
+                    $syncSuccess = true;
+                }
+            } catch (\Exception $e) {
+                Log::warning('Could not sync alternative vehicle acceptance to Google Apps Script: ' . $e->getMessage());
+            }
+        }
+
+        return \Inertia\Inertia::render('Rent/AlternativeAccepted', [
+            'confirmationNumber' => $confirmationNumber,
+            'carTitle' => $carTitle,
+            'carId' => $carId,
+            'newTotal' => $total,
+            'syncSuccess' => $syncSuccess,
         ]);
     }
 }
