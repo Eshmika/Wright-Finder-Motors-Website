@@ -1083,7 +1083,7 @@ export default function Show({ confirmationNumber }: ShowProps) {
                             </>
                         )}
 
-                        {/* APPROVED & ACTIVE STATUS: Edit Reservation, Print Voucher */}
+                        {/* APPROVED & ACTIVE STATUS: Edit Reservation, Offer alternative (if Approved), Print Voucher */}
                         {(isApproved || isActive) && (
                             <>
                                 <Link
@@ -1108,6 +1108,28 @@ export default function Show({ confirmationNumber }: ShowProps) {
                                     </svg>
                                     <span>Edit Reservation</span>
                                 </Link>
+                                {isApproved && (
+                                    <button
+                                        type="button"
+                                        onClick={handleOpenOfferModal}
+                                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-purple/10 border border-purple/30 text-purple hover:bg-purple hover:text-white transition shadow-sm"
+                                    >
+                                        <svg
+                                            className="w-4 h-4"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                            strokeWidth={2}
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+                                            />
+                                        </svg>
+                                        <span>Offer alternative</span>
+                                    </button>
+                                )}
                                 <button
                                     type="button"
                                     onClick={() => window.print()}
@@ -1866,7 +1888,7 @@ export default function Show({ confirmationNumber }: ShowProps) {
                                     </>
                                 )}
 
-                                {/* APPROVED: Edit Reservation, Cancel */}
+                                {/* APPROVED: Edit Reservation, Offer alternative, Cancel */}
                                 {isApproved && (
                                     <>
                                         <Link
@@ -1881,6 +1903,26 @@ export default function Show({ confirmationNumber }: ShowProps) {
                                         >
                                             Edit Reservation
                                         </Link>
+                                        <button
+                                            type="button"
+                                            onClick={handleOpenOfferModal}
+                                            className="px-4 py-2 rounded-xl border border-purple/40 bg-purple text-white hover:bg-dark-purple font-bold text-xs transition shadow-sm inline-flex items-center gap-1.5"
+                                        >
+                                            <svg
+                                                className="w-3.5 h-3.5"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                                strokeWidth={2}
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+                                                />
+                                            </svg>
+                                            <span>Offer alternative</span>
+                                        </button>
                                         <button
                                             type="button"
                                             onClick={handleOpenCancelModal}

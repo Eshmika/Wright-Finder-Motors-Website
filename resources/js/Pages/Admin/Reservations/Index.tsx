@@ -2385,7 +2385,7 @@ export default function Index() {
                                                             </>
                                                         )}
 
-                                                        {/* --- APPROVED: View, Edit, Extend Rental, Cancel --- */}
+                                                        {/* --- APPROVED: View, Edit, Offer alternative, Extend Rental, Cancel --- */}
                                                         {isApproved && (
                                                             <>
                                                                 {/* Edit */}
@@ -2417,6 +2417,35 @@ export default function Index() {
                                                                         />
                                                                     </svg>
                                                                 </Link>
+
+                                                                {/* Offer alternative */}
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        handleOpenOfferModal(
+                                                                            res,
+                                                                        )
+                                                                    }
+                                                                    title="Offer alternative vehicle"
+                                                                    aria-label="Offer Alternative"
+                                                                    className="p-1.5 rounded-lg text-purple hover:text-white hover:bg-purple bg-purple/10 border border-purple/30 transition shadow-sm inline-flex items-center justify-center"
+                                                                >
+                                                                    <svg
+                                                                        className="w-4 h-4"
+                                                                        fill="none"
+                                                                        viewBox="0 0 24 24"
+                                                                        stroke="currentColor"
+                                                                        strokeWidth={
+                                                                            2
+                                                                        }
+                                                                    >
+                                                                        <path
+                                                                            strokeLinecap="round"
+                                                                            strokeLinejoin="round"
+                                                                            d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+                                                                        />
+                                                                    </svg>
+                                                                </button>
 
                                                                 {/* Extend Rental */}
                                                                 <button
@@ -3627,6 +3656,20 @@ export default function Index() {
                                                             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-purple/30 bg-purple/10 text-purple hover:bg-purple hover:text-white font-bold text-xs transition shadow-sm"
                                                         >
                                                             <span>Edit</span>
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                handleOpenOfferModal(
+                                                                    selectedRes,
+                                                                )
+                                                            }
+                                                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-purple/40 bg-purple text-white hover:bg-dark-purple font-bold text-xs transition shadow-sm"
+                                                        >
+                                                            <span>
+                                                                Offer
+                                                                alternative
+                                                            </span>
                                                         </button>
                                                         <button
                                                             type="button"
