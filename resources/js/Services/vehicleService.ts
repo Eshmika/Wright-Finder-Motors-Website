@@ -814,3 +814,54 @@ export async function sendPaymentConfirmationEmail(
         };
     }
 }
+
+export interface RentalExtendedEmailPayload {
+    confirmationNumber: string;
+    firstName?: string;
+    lastName?: string;
+    email: string;
+    phone?: string;
+    carYear?: string | number;
+    carMake?: string;
+    carModel?: string;
+    carTitle?: string;
+    previousReturnDateTime?: string;
+    newReturnDateTime?: string;
+    additionalDays: number | string;
+    extensionCharge: number | string;
+    updatedRentalTotal: number | string;
+}
+
+/**
+ * Trigger backend rental extended confirmation email to Customer and Administrator
+ */
+export async function sendRentalExtendedEmail(
+    payload: RentalExtendedEmailPayload,
+): Promise<{ status: string; message: string }> {
+    try {
+        const csrfToken =
+            (
+                document.querySelector(
+                    'meta[name="csrf-token"]',
+                ) as HTMLMetaElement
+            )?.content || "";
+
+        const res = await fetch("/rent/reservations/send-extended-email", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+                "X-CSRF-TOKEN": csrfToken,
+            },
+            body: JSON.stringify(payload),
+        });
+
+        return await res.json();
+    } catch (err: any) {
+        console.error("Failed to send rental extended email:", err);
+        return {
+            status: "error",
+            message: err?.message || "Failed to send rental extended email.",
+        };
+    }
+}
