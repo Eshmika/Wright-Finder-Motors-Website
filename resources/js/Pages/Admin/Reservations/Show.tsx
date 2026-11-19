@@ -6,7 +6,9 @@ import {
     fetchAllVehicles,
     formatDriveImageUrl,
     ReservationRecord,
+    sendAlternativeOfferEmail,
     sendReservationApprovalEmail,
+    sendReservationCancellationEmail,
 } from "@/Services/vehicleService";
 import { Head, Link } from "@inertiajs/react";
 import { useEffect, useState } from "react";
@@ -425,6 +427,26 @@ export default function Show({ confirmationNumber }: ShowProps) {
             }
         }
 
+        // Trigger cancellation email to customer and admin
+        try {
+            const vehicle = reservation.vehicle;
+            await sendReservationCancellationEmail({
+                confirmationNumber: confNum,
+                firstName: reservation.firstName,
+                lastName: reservation.lastName,
+                email: reservation.email,
+                phone: reservation.phone,
+                carYear: vehicle?.year || "",
+                carMake: vehicle?.make || "",
+                carModel: vehicle?.model || "",
+                carTitle: reservation.carTitle || "",
+                pickupDate: reservation.pickupDate || "",
+                cancellationDate: new Date().toISOString().split("T")[0],
+            });
+        } catch (emailErr) {
+            console.error("Failed to send cancellation email:", emailErr);
+        }
+
         setIsSubmittingCancel(false);
         setIsCancelModalOpen(false);
         setAlertModal({
@@ -632,6 +654,43 @@ export default function Show({ confirmationNumber }: ShowProps) {
             } catch (err) {
                 console.error("Alternative offer webhook error:", err);
             }
+        }
+
+        // Trigger alternative offer email to customer and admin
+        try {
+            const originalVehicle = reservation.vehicle;
+            const origTotal = reservation.estimatedTotal || 0;
+            const diff = newEstimatedTotal - origTotal;
+            let priceDiffStr = "$0.00 (Same Price)";
+            if (diff > 0) {
+                priceDiffStr = `+$${diff.toFixed(2)} (Upgrade)`;
+            } else if (diff < 0) {
+                priceDiffStr = `-$${Math.abs(diff).toFixed(2)} (Savings)`;
+            }
+
+            await sendAlternativeOfferEmail({
+                confirmationNumber: confNum,
+                firstName: reservation.firstName,
+                lastName: reservation.lastName,
+                email: reservation.email,
+                phone: reservation.phone,
+                originalCarYear: originalVehicle?.year || "",
+                originalCarMake: originalVehicle?.make || "",
+                originalCarModel: originalVehicle?.model || "",
+                originalCarTitle: reservation.carTitle || "",
+                originalEstimatedTotal: origTotal,
+                originalRentalRate: originalDailyRate,
+                alternativeCarId: targetVehicle.id,
+                alternativeCarYear: targetVehicle.year || "",
+                alternativeCarMake: targetVehicle.make || "",
+                alternativeCarModel: targetVehicle.model || "",
+                alternativeCarTitle: newCarTitle,
+                alternativeEstimatedTotal: newEstimatedTotal,
+                alternativeRentalRate: newDailyRate,
+                priceDifference: priceDiffStr,
+            });
+        } catch (emailErr) {
+            console.error("Failed to send alternative offer email:", emailErr);
         }
 
         setIsSubmittingOffer(false);
