@@ -877,6 +877,346 @@ function doPost(e) {
             }
         }
 
+        // ==========================================
+        // ACTION: CATEGORY MANAGEMENT ("Category" tab)
+        // save_category / delete_category
+        // ==========================================
+        if (
+            data.action === "save_category" ||
+            data.action === "delete_category"
+        ) {
+            var catSheet = ss.getSheetByName("Category");
+            var catHeaders = [
+                "Category ID",
+                "Category Name",
+                "Category Icon",
+                "Description",
+                "Status",
+                "Updated At",
+            ];
+
+            if (!catSheet) {
+                catSheet = ss.insertSheet("Category");
+                catSheet.appendRow(catHeaders);
+                var catHeaderRange = catSheet.getRange(
+                    1,
+                    1,
+                    1,
+                    catHeaders.length,
+                );
+                catHeaderRange.setBackground("#170a3d");
+                catHeaderRange.setFontColor("#ffffff");
+                catHeaderRange.setFontWeight("bold");
+            }
+
+            var catLastCol = catSheet.getLastColumn();
+            var catTotalRows = catSheet.getLastRow();
+
+            // Process SVG Icon Upload if provided as fileObj
+            var catIconUrlOrSvg = data.icon || data.categoryIcon || "";
+            if (data.iconFile && (data.iconFile.base64 || data.iconFile.data)) {
+                var uploadedIcon = uploadBase64Image(data.iconFile, "icon");
+                if (uploadedIcon) {
+                    catIconUrlOrSvg = uploadedIcon;
+                }
+            }
+
+            var targetCatId = (data.id || data.categoryId || "")
+                .toString()
+                .trim();
+            var targetCatName = (data.name || data.categoryName || "")
+                .toString()
+                .trim();
+
+            if (data.action === "delete_category") {
+                if (!targetCatId && !targetCatName) {
+                    return ContentService.createTextOutput(
+                        JSON.stringify({
+                            status: "error",
+                            message:
+                                "Category ID or Name is required for deletion.",
+                        }),
+                    ).setMimeType(ContentService.MimeType.JSON);
+                }
+
+                if (catTotalRows > 1) {
+                    var catVals = catSheet
+                        .getRange(2, 1, catTotalRows - 1, 2)
+                        .getValues();
+                    for (var cr = catVals.length - 1; cr >= 0; cr--) {
+                        var rowId = (catVals[cr][0] || "").toString().trim();
+                        var rowName = (catVals[cr][1] || "").toString().trim();
+                        if (
+                            (targetCatId &&
+                                rowId.toLowerCase() ===
+                                    targetCatId.toLowerCase()) ||
+                            (targetCatName &&
+                                rowName.toLowerCase() ===
+                                    targetCatName.toLowerCase())
+                        ) {
+                            catSheet.deleteRow(cr + 2);
+                            return ContentService.createTextOutput(
+                                JSON.stringify({
+                                    status: "success",
+                                    message: "Category deleted successfully.",
+                                }),
+                            ).setMimeType(ContentService.MimeType.JSON);
+                        }
+                    }
+                }
+
+                return ContentService.createTextOutput(
+                    JSON.stringify({
+                        status: "error",
+                        message: "Category not found for deletion.",
+                    }),
+                ).setMimeType(ContentService.MimeType.JSON);
+            }
+
+            // Save Category (Insert or Update)
+            if (data.action === "save_category") {
+                if (!targetCatName) {
+                    return ContentService.createTextOutput(
+                        JSON.stringify({
+                            status: "error",
+                            message: "Category Name is required.",
+                        }),
+                    ).setMimeType(ContentService.MimeType.JSON);
+                }
+
+                var catFoundRow = -1;
+                if (catTotalRows > 1) {
+                    var catSearch = catSheet
+                        .getRange(2, 1, catTotalRows - 1, 2)
+                        .getValues();
+                    for (var r = 0; r < catSearch.length; r++) {
+                        var cid = (catSearch[r][0] || "").toString().trim();
+                        var cname = (catSearch[r][1] || "").toString().trim();
+                        if (
+                            (targetCatId &&
+                                cid.toLowerCase() ===
+                                    targetCatId.toLowerCase()) ||
+                            (!targetCatId &&
+                                cname.toLowerCase() ===
+                                    targetCatName.toLowerCase())
+                        ) {
+                            catFoundRow = r + 2;
+                            break;
+                        }
+                    }
+                }
+
+                var finalCatId = targetCatId || "CAT-" + catTotalRows;
+                var catRow = [
+                    finalCatId,
+                    targetCatName,
+                    catIconUrlOrSvg,
+                    data.description || "",
+                    data.status || "Active",
+                    new Date().toISOString(),
+                ];
+
+                if (catFoundRow > 0) {
+                    catSheet
+                        .getRange(catFoundRow, 1, 1, catRow.length)
+                        .setValues([catRow]);
+                } else {
+                    catSheet.appendRow(catRow);
+                }
+
+                return ContentService.createTextOutput(
+                    JSON.stringify({
+                        status: "success",
+                        message:
+                            "Category '" +
+                            targetCatName +
+                            "' saved successfully.",
+                        id: finalCatId,
+                        icon: catIconUrlOrSvg,
+                    }),
+                ).setMimeType(ContentService.MimeType.JSON);
+            }
+        }
+
+        // ==========================================
+        // ACTION: REPAIR SERVICE MANAGEMENT ("Service" tab)
+        // save_service / delete_service
+        // ==========================================
+        if (
+            data.action === "save_service" ||
+            data.action === "delete_service"
+        ) {
+            var srvSheet = ss.getSheetByName("Service");
+            var srvHeaders = [
+                "Service ID",
+                "Service Name",
+                "Image URL",
+                "Category",
+                "Price",
+                "Labor Time",
+                "Service Description",
+                "Service Includes",
+                "Status",
+                "Updated At",
+            ];
+
+            if (!srvSheet) {
+                srvSheet = ss.insertSheet("Service");
+                srvSheet.appendRow(srvHeaders);
+                var srvHeaderRange = srvSheet.getRange(
+                    1,
+                    1,
+                    1,
+                    srvHeaders.length,
+                );
+                srvHeaderRange.setBackground("#170a3d");
+                srvHeaderRange.setFontColor("#ffffff");
+                srvHeaderRange.setFontWeight("bold");
+            }
+
+            var srvTotalRows = srvSheet.getLastRow();
+            var targetSrvId = (data.id || data.serviceId || "")
+                .toString()
+                .trim();
+            var targetSrvName = (data.name || data.serviceName || "")
+                .toString()
+                .trim();
+
+            if (data.action === "delete_service") {
+                if (!targetSrvId && !targetSrvName) {
+                    return ContentService.createTextOutput(
+                        JSON.stringify({
+                            status: "error",
+                            message:
+                                "Service ID or Service Name is required for deletion.",
+                        }),
+                    ).setMimeType(ContentService.MimeType.JSON);
+                }
+
+                if (srvTotalRows > 1) {
+                    var srvVals = srvSheet
+                        .getRange(2, 1, srvTotalRows - 1, 2)
+                        .getValues();
+                    for (var sr = srvVals.length - 1; sr >= 0; sr--) {
+                        var sId = (srvVals[sr][0] || "").toString().trim();
+                        var sName = (srvVals[sr][1] || "").toString().trim();
+                        if (
+                            (targetSrvId &&
+                                sId.toLowerCase() ===
+                                    targetSrvId.toLowerCase()) ||
+                            (targetSrvName &&
+                                sName.toLowerCase() ===
+                                    targetSrvName.toLowerCase())
+                        ) {
+                            srvSheet.deleteRow(sr + 2);
+                            return ContentService.createTextOutput(
+                                JSON.stringify({
+                                    status: "success",
+                                    message: "Service deleted successfully.",
+                                }),
+                            ).setMimeType(ContentService.MimeType.JSON);
+                        }
+                    }
+                }
+
+                return ContentService.createTextOutput(
+                    JSON.stringify({
+                        status: "error",
+                        message: "Service not found for deletion.",
+                    }),
+                ).setMimeType(ContentService.MimeType.JSON);
+            }
+
+            // Save Service (Insert or Update)
+            if (data.action === "save_service") {
+                if (!targetSrvName) {
+                    return ContentService.createTextOutput(
+                        JSON.stringify({
+                            status: "error",
+                            message: "Service Name is required.",
+                        }),
+                    ).setMimeType(ContentService.MimeType.JSON);
+                }
+
+                var srvImageUrl = data.image || data.imageUrl || "";
+                if (
+                    data.imageFile &&
+                    (data.imageFile.base64 || data.imageFile.data)
+                ) {
+                    var uploadedSrvImg = uploadBase64Image(
+                        data.imageFile,
+                        "service",
+                    );
+                    if (uploadedSrvImg) {
+                        srvImageUrl = uploadedSrvImg;
+                    }
+                }
+
+                var srvFoundRow = -1;
+                if (srvTotalRows > 1) {
+                    var srvSearch = srvSheet
+                        .getRange(2, 1, srvTotalRows - 1, 2)
+                        .getValues();
+                    for (var s = 0; s < srvSearch.length; s++) {
+                        var sid = (srvSearch[s][0] || "").toString().trim();
+                        var sname = (srvSearch[s][1] || "").toString().trim();
+                        if (
+                            (targetSrvId &&
+                                sid.toLowerCase() ===
+                                    targetSrvId.toLowerCase()) ||
+                            (!targetSrvId &&
+                                sname.toLowerCase() ===
+                                    targetSrvName.toLowerCase())
+                        ) {
+                            srvFoundRow = s + 2;
+                            break;
+                        }
+                    }
+                }
+
+                var includesJoined = "";
+                if (Array.isArray(data.includes)) {
+                    includesJoined = data.includes.join("\n");
+                } else if (typeof data.includes === "string") {
+                    includesJoined = data.includes;
+                }
+
+                var finalSrvId = targetSrvId || "SRV-" + srvTotalRows;
+                var srvRow = [
+                    finalSrvId,
+                    targetSrvName,
+                    srvImageUrl,
+                    data.category || "Maintenance",
+                    data.price !== undefined ? data.price : "0",
+                    data.laborTime || "30 min",
+                    data.description || "",
+                    includesJoined,
+                    data.status || "Active",
+                    new Date().toISOString(),
+                ];
+
+                if (srvFoundRow > 0) {
+                    srvSheet
+                        .getRange(srvFoundRow, 1, 1, srvRow.length)
+                        .setValues([srvRow]);
+                } else {
+                    srvSheet.appendRow(srvRow);
+                }
+
+                return ContentService.createTextOutput(
+                    JSON.stringify({
+                        status: "success",
+                        message:
+                            "Service '" +
+                            targetSrvName +
+                            "' saved successfully.",
+                        id: finalSrvId,
+                        imageUrl: srvImageUrl,
+                    }),
+                ).setMimeType(ContentService.MimeType.JSON);
+            }
+        }
+
         var sheet = ss.getSheetByName("Vehicle details");
         if (!sheet) {
             return ContentService.createTextOutput(
