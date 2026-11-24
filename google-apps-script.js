@@ -165,6 +165,56 @@ function doPost(e) {
             ss = SpreadsheetApp.openById(SPREADSHEET_ID);
         }
 
+        // Action: ADD ESTIMATE (Save to "Estimate" tab)
+        if (data.action === "addEstimate" || data.sheet === "Estimate") {
+            var estSheet = ss.getSheetByName("Estimate");
+            if (!estSheet) {
+                estSheet = ss.insertSheet("Estimate");
+            }
+
+            var estHeaders = [
+                "Estimate Request ID",
+                "Timestamp",
+                "Year",
+                "Make",
+                "Model",
+                "Mileage",
+                "Services Needed",
+                "Additional Details",
+                "Service Location",
+                "Full Name",
+                "Email",
+                "Phone",
+            ];
+
+            if (estSheet.getLastRow() === 0) {
+                estSheet.appendRow(estHeaders);
+            }
+
+            estSheet.appendRow([
+                data.estimateRequestId || "",
+                data.timestamp || new Date().toISOString(),
+                data.year || "",
+                data.make || "",
+                data.model || "",
+                data.mileage || "",
+                data.servicesNeeded || "",
+                data.additionalDetails || "",
+                data.serviceLocation || "",
+                data.fullName || "",
+                data.email || "",
+                data.phone || "",
+            ]);
+
+            return ContentService.createTextOutput(
+                JSON.stringify({
+                    status: "success",
+                    message: "Estimate saved to Google Sheet.",
+                    estimateRequestId: data.estimateRequestId || "",
+                }),
+            ).setMimeType(ContentService.MimeType.JSON);
+        }
+
         // Action: RESERVE (Save to "Reservation" tab)
         if (data.action === "reserve") {
             var resSheet = ss.getSheetByName("Reservation");

@@ -7,8 +7,25 @@ import {
     fetchAllServices,
     PRESET_CATEGORY_ICONS,
 } from "@/Services/repairService";
-import { formatDriveImageUrl } from "@/Services/vehicleService";
+import { formatDriveImageUrl, parseCsv } from "@/Services/vehicleService";
 import { fetchAllCoupons, Coupon } from "@/Services/couponService";
+
+const CAR_LIST_CSV_URL =
+    "https://docs.google.com/spreadsheets/d/16dhtw1POBIeifrAEk0ZqmH3jV8s20quo9Si3GfebifE/export?format=csv&gid=1307580665";
+
+interface CarListRow {
+    carName: string;
+    model: string;
+    yearsSold: string;
+}
+
+function formatPhoneNumber(value: string): string {
+    const digits = value.replace(/\D/g, "").slice(0, 10);
+    if (!digits) return "";
+    if (digits.length <= 3) return `(${digits}`;
+    if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+}
 
 type SubMenuTab = "services" | "appointment" | "estimate" | "coupons";
 
@@ -48,6 +65,30 @@ export default function RepairServicesSection() {
     // Estimate calculator state
     const [estimateZip, setEstimateZip] = useState("");
     const [estimateSubmitted, setEstimateSubmitted] = useState(false);
+    const [estimateSubmitting, setEstimateSubmitting] = useState(false);
+    const [estimateError, setEstimateError] = useState<string | null>(null);
+    const [estimateRequestId, setEstimateRequestId] = useState<string | null>(
+        null,
+    );
+
+    // Car List & Estimate Form State
+    const [carList, setCarList] = useState<CarListRow[]>([]);
+    const [carListLoading, setCarListLoading] = useState(false);
+    const [estimateYear, setEstimateYear] = useState("");
+    const [estimateMake, setEstimateMake] = useState("");
+    const [estimateModel, setEstimateModel] = useState("");
+    const [estimateMileage, setEstimateMileage] = useState("");
+    const [estimateCategories, setEstimateCategories] = useState<string[]>([]);
+    const [estimateOtherChecked, setEstimateOtherChecked] = useState(false);
+    const [estimateOtherCategory, setEstimateOtherCategory] = useState("");
+    const [estimateDetails, setEstimateDetails] = useState("");
+    const [estimateLocation, setEstimateLocation] = useState<
+        "WFM Shop" | "Mobile Service"
+    >("WFM Shop");
+    const [estimateName, setEstimateName] = useState("");
+    const [estimateEmail, setEstimateEmail] = useState("");
+    const [estimatePhone, setEstimatePhone] = useState("");
+
     const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
     const handleCopyCode = (code: string) => {
@@ -86,6 +127,191 @@ export default function RepairServicesSection() {
             isMounted = false;
         };
     }, []);
+
+    // Fetch Car List from Google Sheet for Estimate dropdowns
+    useEffect(() => {
+        let isMounted = true;
+        async function loadCarList() {
+            try {
+                setCarListLoading(true);
+                const res = await fetch(CAR_LIST_CSV_URL);
+                if (!res.ok) return;
+                const text = await res.text();
+                const parsed = parseCsv(text);
+                if (parsed.length > 1) {
+                    const headers = parsed[0].map((h) => h.toLowerCase());
+                    const nameIdx = headers.findIndex((h) =>
+                        h.includes("car name"),
+                    );
+                    const modelIdx = headers.findIndex((h) => h === "model");
+                    const yearsIdx = headers.findIndex((h) =>
+                        h.includes("year"),
+                    );
+
+                    const rows: CarListRow[] = [];
+                    for (let i = 1; i < parsed.length; i++) {
+                        const r = parsed[i];
+                        if (!r || r.length === 0) continue;
+                        const cName =
+                            nameIdx !== -1 ? r[nameIdx]?.trim() || "" : "";
+                        const cModel =
+                            modelIdx !== -1 ? r[modelIdx]?.trim() || "" : "";
+                        if (!cName && !cModel) continue;
+                        rows.push({
+                            carName: cName,
+                            model: cModel,
+                            yearsSold:
+                                yearsIdx !== -1
+                                    ? r[yearsIdx]?.trim() || ""
+                                    : "",
+                        });
+                    }
+                    if (isMounted) setCarList(rows);
+                }
+            } catch (err) {
+                console.error("Failed to load Car List:", err);
+            } finally {
+                if (isMounted) setCarListLoading(false);
+            }
+        }
+        loadCarList();
+        return () => {
+            isMounted = false;
+        };
+    }, []);
+
+    const availableMakes = useMemo(() => {
+        const set = new Set<string>();
+        carList.forEach((r) => {
+            if (r.carName) set.add(r.carName);
+        });
+        return Array.from(set).sort();
+    }, [carList]);
+
+    const availableModels = useMemo(() => {
+        const set = new Set<string>();
+        carList.forEach((r) => {
+            if ((!estimateMake || r.carName === estimateMake) && r.model) {
+                set.add(r.model);
+            }
+        });
+        return Array.from(set).sort();
+    }, [carList, estimateMake]);
+
+    const availableYears = useMemo(() => {
+        const set = new Set<string>();
+        carList.forEach((r) => {
+            if (estimateMake && r.carName !== estimateMake) return;
+            if (estimateModel && r.model !== estimateModel) return;
+            const matches = r.yearsSold.match(/\b(19|20)\d{2}\b/g);
+            if (matches) {
+                matches.forEach((y) => set.add(y));
+            }
+        });
+        return Array.from(set).sort((a, b) => Number(b) - Number(a));
+    }, [carList, estimateMake, estimateModel]);
+
+    const toggleEstimateCategory = (catName: string) => {
+        setEstimateCategories((prev) =>
+            prev.includes(catName)
+                ? prev.filter((c) => c !== catName)
+                : [...prev, catName],
+        );
+    };
+
+    const handleEstimateSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setEstimateError(null);
+
+        if (!estimateYear || !estimateMake || !estimateModel) {
+            setEstimateError(
+                "Please select Year, Make, and Model for your vehicle.",
+            );
+            return;
+        }
+
+        const selectedServices = [...estimateCategories];
+        if (estimateOtherChecked) {
+            if (!estimateOtherCategory.trim()) {
+                setEstimateError(
+                    "Please specify the service category in the Other field.",
+                );
+                return;
+            }
+            selectedServices.push(`Other: ${estimateOtherCategory.trim()}`);
+        }
+
+        if (selectedServices.length === 0) {
+            setEstimateError("Please choose at least one service needed.");
+            return;
+        }
+
+        if (
+            !estimateName.trim() ||
+            !estimateEmail.trim() ||
+            !estimatePhone.trim()
+        ) {
+            setEstimateError(
+                "Please fill in your Full Name, Email Address, and Phone Number.",
+            );
+            return;
+        }
+
+        const reqId = `EST-${Math.floor(1000 + Math.random() * 9000)}`;
+        setEstimateSubmitting(true);
+
+        try {
+            const webhookUrl =
+                localStorage.getItem("WFM_APPS_SCRIPT_URL") || "";
+            const csrfToken =
+                (
+                    document.querySelector(
+                        'meta[name="csrf-token"]',
+                    ) as HTMLMetaElement
+                )?.content || "";
+
+            const res = await fetch("/repair/estimate", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRF-TOKEN": csrfToken,
+                    Accept: "application/json",
+                },
+                body: JSON.stringify({
+                    estimateRequestId: reqId,
+                    year: estimateYear,
+                    make: estimateMake,
+                    model: estimateModel,
+                    mileage: estimateMileage.trim()
+                        ? `${estimateMileage.trim()} miles`
+                        : "",
+                    servicesNeeded: selectedServices.join(", "),
+                    additionalDetails: estimateDetails.trim(),
+                    serviceLocation: estimateLocation,
+                    fullName: estimateName.trim(),
+                    email: estimateEmail.trim(),
+                    phone: estimatePhone.trim(),
+                    scriptUrl: webhookUrl.trim(),
+                }),
+            });
+
+            const data = await res.json();
+            if (!res.ok || !data?.success) {
+                throw new Error(
+                    data?.message || `Server error (${res.status})`,
+                );
+            }
+            setEstimateRequestId(reqId);
+            setEstimateSubmitted(true);
+        } catch (err) {
+            console.error("Failed to submit estimate:", err);
+            setEstimateError(
+                "Unable to submit your estimate request right now. Please try again.",
+            );
+        } finally {
+            setEstimateSubmitting(false);
+        }
+    };
 
     // Filter only ACTIVE coupons and next-month COMING SOON (upcoming) coupons
     const visibleCoupons = useMemo(() => {
@@ -1498,130 +1724,653 @@ export default function RepairServicesSection() {
 
                 {/* TAB 3: GET AN ESTIMATE */}
                 {activeTab === "estimate" && (
-                    <div className="bg-white rounded-3xl p-6 sm:p-10 shadow-sm border border-slate-200 max-w-4xl mx-auto space-y-8 animate-fade-in">
-                        <div className="border-b border-slate-100 pb-5">
-                            <span className="text-xs font-bold uppercase tracking-wider text-vivid-red">
-                                Instant Calculator
-                            </span>
-                            <h2 className="text-2xl font-extrabold text-slate-900 mt-0.5">
-                                Accurate Repair &amp; Maintenance Estimates
-                            </h2>
-                            <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                                Get clear estimates based on your selected
-                                package and vehicle specs.
-                            </p>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-                            <div className="space-y-4">
-                                <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
-                                    Selected Services Breakdown
-                                </h3>
-                                {selectedServicesList.length === 0 ? (
-                                    <div className="p-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-center text-xs text-slate-500">
-                                        No services currently selected.{" "}
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                setActiveTab("services")
-                                            }
-                                            className="text-vivid-red font-bold hover:underline"
-                                        >
-                                            Browse services
-                                        </button>{" "}
-                                        to add to your estimate.
-                                    </div>
-                                ) : (
-                                    <div className="space-y-2">
-                                        {selectedServicesList.map((srv) => (
-                                            <div
-                                                key={srv.id}
-                                                className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs"
-                                            >
-                                                <div>
-                                                    <span className="font-bold text-slate-900 block">
-                                                        {srv.name}
-                                                    </span>
-                                                    <span className="text-[11px] text-slate-500">
-                                                        Labor:{" "}
-                                                        {srv.laborTime ||
-                                                            "Standard"}
-                                                    </span>
-                                                </div>
-                                                <span className="font-extrabold text-dark-purple">
-                                                    {typeof srv.price ===
-                                                    "number"
-                                                        ? `$${srv.price.toFixed(2)}`
-                                                        : srv.price}
-                                                </span>
-                                            </div>
-                                        ))}
-
-                                        <div className="p-4 rounded-2xl bg-dark-purple text-white flex items-center justify-between mt-4">
-                                            <span className="text-xs font-semibold">
-                                                Calculated Starting Total
-                                            </span>
-                                            <span className="text-xl font-extrabold text-vivid-red">
-                                                ${calculatedTotal.toFixed(2)}
-                                            </span>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="space-y-5 bg-slate-50/70 p-6 rounded-2xl border border-slate-200">
-                                <h3 className="text-sm font-bold text-slate-800">
-                                    Request Formal Digital Quote
-                                </h3>
-                                <p className="text-xs text-slate-500 leading-relaxed">
-                                    Provide your ZIP code and vehicle details to
-                                    receive a formal itemized quote including
-                                    parts availability, tax breakdown, and
-                                    recommended service schedules.
-                                </p>
-
-                                <div className="space-y-3">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start animate-fade-in">
+                        {/* LEFT COLUMN: 4-STEP ESTIMATE FORM */}
+                        <form
+                            onSubmit={handleEstimateSubmit}
+                            className="lg:col-span-2 space-y-5"
+                        >
+                            {/* 1. VEHICLE INFORMATION */}
+                            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                                <div className="bg-dark-purple px-5 py-3 flex items-center gap-3 text-white">
+                                    <svg
+                                        className="w-5 h-5 text-white/90 shrink-0"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"
+                                        />
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"
+                                        />
+                                    </svg>
+                                    <span className="w-6 h-6 rounded-full bg-white text-dark-purple text-xs font-extrabold flex items-center justify-center shrink-0">
+                                        1
+                                    </span>
+                                    <h3 className="text-sm sm:text-base font-bold">
+                                        Vehicle Information
+                                    </h3>
+                                </div>
+                                <div className="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                                     <div>
-                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
-                                            ZIP Code
+                                        <label className="block text-xs font-bold text-slate-800 mb-1.5">
+                                            Year{" "}
+                                            <span className="text-vivid-red">
+                                                *
+                                            </span>
+                                        </label>
+                                        <select
+                                            value={estimateYear}
+                                            onChange={(e) =>
+                                                setEstimateYear(e.target.value)
+                                            }
+                                            disabled={carListLoading}
+                                            className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-dark-purple/20 focus:border-dark-purple"
+                                        >
+                                            <option value="">
+                                                {carListLoading
+                                                    ? "Loading..."
+                                                    : "Select Year"}
+                                            </option>
+                                            {availableYears.map((yr) => (
+                                                <option key={yr} value={yr}>
+                                                    {yr}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-800 mb-1.5">
+                                            Make{" "}
+                                            <span className="text-vivid-red">
+                                                *
+                                            </span>
+                                        </label>
+                                        <select
+                                            value={estimateMake}
+                                            onChange={(e) => {
+                                                setEstimateMake(e.target.value);
+                                                setEstimateModel("");
+                                            }}
+                                            disabled={carListLoading}
+                                            className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-dark-purple/20 focus:border-dark-purple"
+                                        >
+                                            <option value="">
+                                                {carListLoading
+                                                    ? "Loading..."
+                                                    : "Select Make"}
+                                            </option>
+                                            {availableMakes.map((mk) => (
+                                                <option key={mk} value={mk}>
+                                                    {mk}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-800 mb-1.5">
+                                            Model{" "}
+                                            <span className="text-vivid-red">
+                                                *
+                                            </span>
+                                        </label>
+                                        <select
+                                            value={estimateModel}
+                                            onChange={(e) =>
+                                                setEstimateModel(e.target.value)
+                                            }
+                                            disabled={
+                                                carListLoading || !estimateMake
+                                            }
+                                            className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-dark-purple/20 focus:border-dark-purple disabled:bg-slate-50 disabled:text-slate-400"
+                                        >
+                                            <option value="">
+                                                Select Model
+                                            </option>
+                                            {availableModels.map((md) => (
+                                                <option key={md} value={md}>
+                                                    {md}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-800 mb-1.5">
+                                            Mileage (Optional)
                                         </label>
                                         <input
                                             type="text"
-                                            placeholder="e.g. 75001"
-                                            value={estimateZip}
+                                            inputMode="numeric"
+                                            placeholder="e.g., 52,000 miles"
+                                            value={estimateMileage}
                                             onChange={(e) =>
-                                                setEstimateZip(e.target.value)
+                                                setEstimateMileage(
+                                                    e.target.value,
+                                                )
                                             }
-                                            className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm bg-white"
+                                            className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-dark-purple/20 focus:border-dark-purple"
                                         />
                                     </div>
+                                </div>
+                            </div>
 
-                                    {estimateSubmitted ? (
-                                        <div className="p-3 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-semibold">
-                                            ✓ Estimate request received! A
-                                            comprehensive PDF quote has been
-                                            prepared.
-                                        </div>
-                                    ) : (
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                setEstimateSubmitted(true)
-                                            }
-                                            className="w-full py-2.5 rounded-xl bg-dark-purple hover:bg-purple text-white text-xs font-bold transition shadow-sm"
+                            {/* 2. SERVICE(S) NEEDED */}
+                            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                                <div className="bg-dark-purple px-5 py-3 flex items-center gap-3 text-white">
+                                    <svg
+                                        className="w-5 h-5 text-white/90 shrink-0"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                                        />
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                                        />
+                                    </svg>
+                                    <span className="w-6 h-6 rounded-full bg-white text-dark-purple text-xs font-extrabold flex items-center justify-center shrink-0">
+                                        2
+                                    </span>
+                                    <h3 className="text-sm sm:text-base font-bold">
+                                        Service(s) Needed{" "}
+                                        <span className="text-vivid-red">
+                                            *
+                                        </span>
+                                    </h3>
+                                </div>
+                                <div className="p-5 space-y-3">
+                                    <p className="text-xs font-bold text-slate-800">
+                                        Choose one or more services:
+                                    </p>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                        {activeCategories.map((cat) => {
+                                            const isChecked =
+                                                estimateCategories.includes(
+                                                    cat.name,
+                                                );
+                                            const presetIcon =
+                                                PRESET_CATEGORY_ICONS[cat.icon];
+                                            return (
+                                                <label
+                                                    key={cat.id}
+                                                    className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition ${
+                                                        isChecked
+                                                            ? "border-dark-purple bg-dark-purple/5"
+                                                            : "border-slate-200 hover:border-slate-300 bg-white"
+                                                    }`}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isChecked}
+                                                        onChange={() =>
+                                                            toggleEstimateCategory(
+                                                                cat.name,
+                                                            )
+                                                        }
+                                                        className="w-4 h-4 rounded border-slate-300 text-dark-purple focus:ring-dark-purple"
+                                                    />
+                                                    <span className="shrink-0">
+                                                        {renderCategoryIcon(
+                                                            cat.name,
+                                                            cat.icon,
+                                                        )}
+                                                    </span>
+                                                    <span className="text-xs font-bold text-slate-800 truncate">
+                                                        {cat.name}
+                                                    </span>
+                                                </label>
+                                            );
+                                        })}
+
+                                        {/* Other (Please specify) */}
+                                        <label
+                                            className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition ${
+                                                estimateOtherChecked
+                                                    ? "border-dark-purple bg-dark-purple/5"
+                                                    : "border-slate-200 hover:border-slate-300 bg-white"
+                                            }`}
                                         >
-                                            Generate Detailed Estimate
-                                        </button>
+                                            <input
+                                                type="checkbox"
+                                                checked={estimateOtherChecked}
+                                                onChange={(e) =>
+                                                    setEstimateOtherChecked(
+                                                        e.target.checked,
+                                                    )
+                                                }
+                                                className="w-4 h-4 rounded border-slate-300 text-dark-purple focus:ring-dark-purple"
+                                            />
+                                            <svg
+                                                className="w-5 h-5 text-dark-purple shrink-0"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z"
+                                                />
+                                            </svg>
+                                            <span className="text-xs font-bold text-slate-800">
+                                                Other (Please specify)
+                                            </span>
+                                        </label>
+                                    </div>
+
+                                    {estimateOtherChecked && (
+                                        <div className="pt-2">
+                                            <input
+                                                type="text"
+                                                placeholder="Type your service category name..."
+                                                value={estimateOtherCategory}
+                                                onChange={(e) =>
+                                                    setEstimateOtherCategory(
+                                                        e.target.value,
+                                                    )
+                                                }
+                                                className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-dark-purple/20 focus:border-dark-purple"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* 3. ADDITIONAL DETAILS (OPTIONAL) & SERVICE LOCATION */}
+                            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                                <div className="bg-dark-purple px-5 py-3 flex items-center gap-3 text-white">
+                                    <svg
+                                        className="w-5 h-5 text-white/90 shrink-0"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"
+                                        />
+                                    </svg>
+                                    <span className="w-6 h-6 rounded-full bg-white text-dark-purple text-xs font-extrabold flex items-center justify-center shrink-0">
+                                        3
+                                    </span>
+                                    <h3 className="text-sm sm:text-base font-bold">
+                                        Additional Details (Optional)
+                                    </h3>
+                                </div>
+                                <div className="p-5 space-y-4">
+                                    <textarea
+                                        rows={3}
+                                        placeholder="Describe the issue, any symptoms, or specific service you need... (e.g., noise, maintenance, warning light, etc.)"
+                                        value={estimateDetails}
+                                        onChange={(e) =>
+                                            setEstimateDetails(e.target.value)
+                                        }
+                                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-dark-purple/20 focus:border-dark-purple"
+                                    />
+
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-800 mb-2">
+                                            Service Location{" "}
+                                            <span className="text-vivid-red">
+                                                *
+                                            </span>
+                                        </label>
+                                        <div className="grid grid-cols-2 gap-3 max-w-md">
+                                            {(
+                                                [
+                                                    "WFM Shop",
+                                                    "Mobile Service",
+                                                ] as const
+                                            ).map((loc) => (
+                                                <button
+                                                    key={loc}
+                                                    type="button"
+                                                    onClick={() =>
+                                                        setEstimateLocation(loc)
+                                                    }
+                                                    className={`px-4 py-2.5 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                                                        estimateLocation === loc
+                                                            ? "bg-dark-purple text-white border-dark-purple shadow-sm"
+                                                            : "bg-white text-slate-700 border-slate-200 hover:border-slate-300"
+                                                    }`}
+                                                >
+                                                    {loc}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* 4. YOUR INFORMATION */}
+                            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                                <div className="bg-dark-purple px-5 py-3 flex items-center gap-3 text-white">
+                                    <svg
+                                        className="w-5 h-5 text-white/90 shrink-0"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                                        />
+                                    </svg>
+                                    <span className="w-6 h-6 rounded-full bg-white text-dark-purple text-xs font-extrabold flex items-center justify-center shrink-0">
+                                        4
+                                    </span>
+                                    <h3 className="text-sm sm:text-base font-bold">
+                                        Your Information
+                                    </h3>
+                                </div>
+                                <div className="p-5 space-y-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-800 mb-1.5">
+                                                Full Name{" "}
+                                                <span className="text-vivid-red">
+                                                    *
+                                                </span>
+                                            </label>
+                                            <input
+                                                type="text"
+                                                placeholder="Enter your name"
+                                                value={estimateName}
+                                                onChange={(e) =>
+                                                    setEstimateName(
+                                                        e.target.value,
+                                                    )
+                                                }
+                                                className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-dark-purple/20 focus:border-dark-purple"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-800 mb-1.5">
+                                                Email Address{" "}
+                                                <span className="text-vivid-red">
+                                                    *
+                                                </span>
+                                            </label>
+                                            <input
+                                                type="email"
+                                                placeholder="Enter your email"
+                                                value={estimateEmail}
+                                                onChange={(e) =>
+                                                    setEstimateEmail(
+                                                        e.target.value,
+                                                    )
+                                                }
+                                                className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-dark-purple/20 focus:border-dark-purple"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-800 mb-1.5">
+                                                Phone Number{" "}
+                                                <span className="text-vivid-red">
+                                                    *
+                                                </span>
+                                            </label>
+                                            <input
+                                                type="tel"
+                                                placeholder="(___) ___-____"
+                                                value={estimatePhone}
+                                                onChange={(e) =>
+                                                    setEstimatePhone(
+                                                        formatPhoneNumber(
+                                                            e.target.value,
+                                                        ),
+                                                    )
+                                                }
+                                                className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-dark-purple/20 focus:border-dark-purple"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {estimateError && (
+                                        <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs font-semibold text-vivid-red">
+                                            {estimateError}
+                                        </div>
                                     )}
 
-                                    <Link
-                                        href="/contact"
-                                        className="w-full py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 hover:text-dark-purple text-xs font-bold transition flex items-center justify-center gap-1.5"
-                                    >
-                                        <span>Or Inquire With Our Team</span>
-                                        &rarr;
-                                    </Link>
+                                    {estimateSubmitted ? (
+                                        <div className="p-4 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-xl text-xs sm:text-sm font-semibold space-y-1">
+                                            <p>
+                                                ✓ Estimate request received!
+                                                Your Estimate Request ID is{" "}
+                                                <span className="font-mono font-extrabold">
+                                                    {estimateRequestId}
+                                                </span>
+                                                .
+                                            </p>
+                                            <p className="text-xs text-emerald-700 font-normal">
+                                                We&apos;ll review your request
+                                                and send a personalized estimate
+                                                to your email.
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <div className="flex justify-center pt-1">
+                                            <button
+                                                type="submit"
+                                                disabled={estimateSubmitting}
+                                                className="w-full sm:w-auto sm:min-w-[300px] inline-flex items-center justify-center gap-2 px-8 py-3 rounded-xl bg-vivid-red hover:bg-red-700 text-white text-sm font-bold transition shadow-md cursor-pointer disabled:opacity-60"
+                                            >
+                                                <svg
+                                                    className="w-4 h-4"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                    stroke="currentColor"
+                                                >
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth={2}
+                                                        d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                                                    />
+                                                </svg>
+                                                {estimateSubmitting
+                                                    ? "Submitting..."
+                                                    : "Get My Estimate"}
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
+                            </div>
+                        </form>
+
+                        {/* RIGHT COLUMN: HOW IT WORKS, PLEASE NOTE, NEED HELP */}
+                        <div className="space-y-5">
+                            {/* How It Works */}
+                            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                                <div className="bg-dark-purple/5 border-b border-slate-200 px-5 py-3.5 flex items-center gap-3">
+                                    <svg
+                                        className="w-6 h-6 text-dark-purple shrink-0"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                        />
+                                    </svg>
+                                    <h3 className="text-lg font-extrabold text-dark-purple">
+                                        How It Works
+                                    </h3>
+                                </div>
+                                <div className="p-5 space-y-4">
+                                    <div className="flex items-start gap-3">
+                                        <span className="w-6 h-6 rounded-full bg-dark-purple text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                                            1
+                                        </span>
+                                        <p className="text-xs sm:text-sm font-semibold text-slate-800">
+                                            Tell us about your vehicle and the
+                                            service you need.
+                                        </p>
+                                    </div>
+                                    <div className="flex items-start gap-3">
+                                        <span className="w-6 h-6 rounded-full bg-dark-purple text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                                            2
+                                        </span>
+                                        <p className="text-xs sm:text-sm font-semibold text-slate-800">
+                                            We review your request.
+                                        </p>
+                                    </div>
+                                    <div className="flex items-start gap-3">
+                                        <span className="w-6 h-6 rounded-full bg-dark-purple text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                                            3
+                                        </span>
+                                        <p className="text-xs sm:text-sm font-semibold text-slate-800">
+                                            You&apos;ll receive a personalized
+                                            estimate by email (usually within 1
+                                            business day).
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Please Note */}
+                            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                                <div className="bg-dark-purple/5 border-b border-slate-200 px-5 py-3.5 flex items-center gap-3">
+                                    <svg
+                                        className="w-6 h-6 text-dark-purple shrink-0"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                                        />
+                                    </svg>
+                                    <h3 className="text-lg font-extrabold text-dark-purple">
+                                        Please Note
+                                    </h3>
+                                </div>
+                                <div className="p-5 space-y-3">
+                                    <div className="flex items-start gap-2.5">
+                                        <svg
+                                            className="w-4 h-4 text-dark-purple shrink-0 mt-0.5"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2.5}
+                                                d="M5 13l4 4L19 7"
+                                            />
+                                        </svg>
+                                        <p className="text-xs sm:text-sm font-semibold text-slate-800">
+                                            This is an estimate, not a final
+                                            repair price.
+                                        </p>
+                                    </div>
+                                    <div className="flex items-start gap-2.5">
+                                        <svg
+                                            className="w-4 h-4 text-dark-purple shrink-0 mt-0.5"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2.5}
+                                                d="M5 13l4 4L19 7"
+                                            />
+                                        </svg>
+                                        <p className="text-xs sm:text-sm font-semibold text-slate-800">
+                                            Final pricing may vary after a full
+                                            inspection of your vehicle.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Need Help? */}
+                            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4">
+                                <div className="flex items-start gap-3">
+                                    <svg
+                                        className="w-7 h-7 text-dark-purple shrink-0 mt-0.5"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+                                        />
+                                    </svg>
+                                    <div>
+                                        <h3 className="text-lg font-extrabold text-dark-purple">
+                                            Need Help?
+                                        </h3>
+                                        <p className="text-xs font-semibold text-slate-600">
+                                            Contact us at
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <a
+                                    href="tel:+19374754737"
+                                    className="block w-full text-center py-2.5 px-4 rounded-xl bg-vivid-red hover:bg-red-700 text-white text-base font-extrabold tracking-wide transition shadow-sm"
+                                >
+                                    +1937-475-4737
+                                </a>
+
+                                <a
+                                    href="mailto:contact@wrightfindermotors.com"
+                                    className="flex items-center justify-center gap-2 text-xs sm:text-sm font-bold text-slate-800 hover:text-dark-purple transition"
+                                >
+                                    <svg
+                                        className="w-4 h-4 text-dark-purple shrink-0"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                                        />
+                                    </svg>
+                                    <span>contact@wrightfindermotors.com</span>
+                                </a>
                             </div>
                         </div>
                     </div>
