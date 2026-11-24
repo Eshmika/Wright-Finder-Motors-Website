@@ -44,6 +44,7 @@ Route::get('/rent/reserve/{id}', function ($id) {
 })->name('rent.reserve');
 
 Route::post('/rent/reserve', [\App\Http\Controllers\ReservationController::class, 'store'])->name('rent.reserve.store');
+Route::post('/repair/estimate', [\App\Http\Controllers\EstimateController::class, 'store'])->name('repair.estimate.store');
 Route::post('/rent/reservations/send-approval-email', [\App\Http\Controllers\ReservationController::class, 'sendApprovalEmail'])->name('rent.reserve.sendApprovalEmail');
 Route::post('/rent/reservations/send-alternative-offer-email', [\App\Http\Controllers\ReservationController::class, 'sendAlternativeOfferEmail'])->name('rent.reserve.sendAlternativeOfferEmail');
 Route::post('/rent/reservations/send-cancellation-email', [\App\Http\Controllers\ReservationController::class, 'sendCancellationEmail'])->name('rent.reserve.sendCancellationEmail');
