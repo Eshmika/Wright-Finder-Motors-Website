@@ -102,12 +102,12 @@ export default function Footer() {
                                     </Link>
                                 </li>
                                 <li>
-                                    <a
-                                        href="#services"
+                                    <Link
+                                        href="/repair"
                                         className="hover:text-vivid-red transition"
                                     >
                                         Repair
-                                    </a>
+                                    </Link>
                                 </li>
                                 <li>
                                     <a

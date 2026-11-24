@@ -28,6 +28,13 @@ Route::get('/rent', function () {
     ]);
 })->name('rent');
 
+Route::get('/repair', function () {
+    return Inertia::render('Repair', [
+        'canLogin' => Route::has('login'),
+        'canRegister' => Route::has('register'),
+    ]);
+})->name('repair');
+
 Route::get('/rent/reserve/{id}', function ($id) {
     return Inertia::render('Rent/RentReservation', [
         'id' => $id,
