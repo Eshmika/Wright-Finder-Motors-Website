@@ -182,4 +182,265 @@ class AdminVehicleController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Save category to Google Sheet ("Category" tab)
+     */
+    public function saveCategory(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'id' => 'nullable|string',
+            'categoryId' => 'nullable|string',
+            'name' => 'nullable|string',
+            'categoryName' => 'nullable|string',
+            'category_name' => 'nullable|string',
+            'icon' => 'nullable|string',
+            'categoryIcon' => 'nullable|string',
+            'category_icon' => 'nullable|string',
+            'description' => 'nullable|string',
+            'status' => 'nullable|string',
+            'scriptUrl' => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Validation failed: ' . implode(', ', $validator->errors()->all()),
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $scriptUrl = config('services.google.apps_script_url') ?: env('GOOGLE_APPS_SCRIPT_URL') ?: $request->input('scriptUrl');
+        if (!$scriptUrl) {
+            return response()->json([
+                'status' => 'need_webhook',
+                'message' => 'Google Apps Script Webhook URL is not configured. Please add GOOGLE_APPS_SCRIPT_URL to your .env file.',
+            ], 400);
+        }
+
+        $name = $request->input('categoryName') ?: $request->input('category_name') ?: $request->input('name');
+        $icon = $request->input('categoryIcon') ?: $request->input('category_icon') ?: $request->input('icon') ?: 'Maintenance';
+        $id = $request->input('id') ?: $request->input('categoryId');
+
+        $payload = [
+            'action' => 'save_category',
+            'id' => $id,
+            'categoryId' => $id,
+            'name' => $name,
+            'categoryName' => $name,
+            'category_name' => $name,
+            'icon' => $icon,
+            'categoryIcon' => $icon,
+            'category_icon' => $icon,
+            'description' => $request->input('description', ''),
+            'status' => $request->input('status', 'Active'),
+        ];
+
+        try {
+            $response = Http::withoutVerifying()
+                ->timeout(45)
+                ->withOptions(['allow_redirects' => true])
+                ->post($scriptUrl, $payload);
+
+            if ($response->successful()) {
+                $responseData = $response->json();
+                if (is_array($responseData) && isset($responseData['status']) && $responseData['status'] === 'error') {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Google Sheet Error: ' . ($responseData['message'] ?? 'Could not write category.'),
+                        'data' => $responseData,
+                    ], 500);
+                }
+
+                return response()->json([
+                    'status' => 'success',
+                    'message' => "Category '{$name}' successfully saved to Google Sheet!",
+                    'data' => $responseData ?: ['raw' => $response->body()],
+                ]);
+            }
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Google Apps Script returned HTTP ' . $response->status() . ': ' . $response->body(),
+            ], 500);
+        } catch (\Exception $e) {
+            Log::error('Google Apps Script category exception: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to reach Google Apps Script: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete category from Google Sheet ("Category" tab)
+     */
+    public function deleteCategory(Request $request, $id = null)
+    {
+        $catId = $id ?: $request->input('id') ?: $request->input('categoryId');
+        $catName = $request->input('name') ?: $request->input('categoryName');
+
+        $scriptUrl = config('services.google.apps_script_url') ?: env('GOOGLE_APPS_SCRIPT_URL') ?: $request->input('scriptUrl');
+        if (!$scriptUrl) {
+            return response()->json([
+                'status' => 'need_webhook',
+                'message' => 'Google Apps Script Webhook URL is not configured. Please add GOOGLE_APPS_SCRIPT_URL to your .env file.',
+            ], 400);
+        }
+
+        try {
+            $payload = [
+                'action' => 'delete_category',
+                'id' => $catId,
+                'categoryId' => $catId,
+                'name' => $catName,
+                'categoryName' => $catName,
+            ];
+
+            $response = Http::withoutVerifying()
+                ->timeout(45)
+                ->withOptions(['allow_redirects' => true])
+                ->post($scriptUrl, $payload);
+
+            if ($response->successful()) {
+                $responseData = $response->json();
+                if (is_array($responseData) && isset($responseData['status']) && $responseData['status'] === 'error') {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Google Sheet Error: ' . ($responseData['message'] ?? 'Could not delete category.'),
+                        'data' => $responseData,
+                    ], 500);
+                }
+
+                return response()->json([
+                    'status' => 'success',
+                    'message' => 'Category deleted successfully from Google Sheet!',
+                    'data' => $responseData ?: ['raw' => $response->body()],
+                ]);
+            }
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Google Apps Script returned HTTP ' . $response->status() . ': ' . $response->body(),
+            ], 500);
+        } catch (\Exception $e) {
+            Log::error('Google Apps Script delete category exception: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to delete category: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Save repair service to Google Sheet ("Service" tab)
+     */
+    public function saveService(Request $request)
+    {
+        $scriptUrl = config('services.google.apps_script_url') ?: env('GOOGLE_APPS_SCRIPT_URL') ?: $request->input('scriptUrl');
+        if (!$scriptUrl) {
+            return response()->json([
+                'status' => 'need_webhook',
+                'message' => 'Google Apps Script Webhook URL is not configured. Please add GOOGLE_APPS_SCRIPT_URL to your .env file.',
+            ], 400);
+        }
+
+        try {
+            $payload = $request->except(['_token', 'scriptUrl']);
+            $payload['action'] = 'save_service';
+
+            $response = Http::withoutVerifying()
+                ->timeout(45)
+                ->withOptions(['allow_redirects' => true])
+                ->post($scriptUrl, $payload);
+
+            if ($response->successful()) {
+                $responseData = $response->json();
+                if (is_array($responseData) && isset($responseData['status']) && $responseData['status'] === 'error') {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Google Sheet Error: ' . ($responseData['message'] ?? 'Could not save service.'),
+                        'data' => $responseData,
+                    ], 500);
+                }
+
+                return response()->json([
+                    'status' => 'success',
+                    'message' => 'Service successfully saved to Google Sheet!',
+                    'data' => $responseData ?: ['raw' => $response->body()],
+                ]);
+            }
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Google Apps Script returned HTTP ' . $response->status() . ': ' . $response->body(),
+            ], 500);
+        } catch (\Exception $e) {
+            Log::error('Google Apps Script save service exception: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to reach Google Apps Script: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete repair service from Google Sheet ("Service" tab)
+     */
+    public function deleteService(Request $request, $id = null)
+    {
+        $srvId = $id ?: $request->input('id') ?: $request->input('serviceId');
+        $srvName = $request->input('name') ?: $request->input('serviceName');
+
+        $scriptUrl = config('services.google.apps_script_url') ?: env('GOOGLE_APPS_SCRIPT_URL') ?: $request->input('scriptUrl');
+        if (!$scriptUrl) {
+            return response()->json([
+                'status' => 'need_webhook',
+                'message' => 'Google Apps Script Webhook URL is not configured. Please add GOOGLE_APPS_SCRIPT_URL to your .env file.',
+            ], 400);
+        }
+
+        try {
+            $payload = [
+                'action' => 'delete_service',
+                'id' => $srvId,
+                'serviceId' => $srvId,
+                'name' => $srvName,
+                'serviceName' => $srvName,
+            ];
+
+            $response = Http::withoutVerifying()
+                ->timeout(45)
+                ->withOptions(['allow_redirects' => true])
+                ->post($scriptUrl, $payload);
+
+            if ($response->successful()) {
+                $responseData = $response->json();
+                if (is_array($responseData) && isset($responseData['status']) && $responseData['status'] === 'error') {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Google Sheet Error: ' . ($responseData['message'] ?? 'Could not delete service.'),
+                        'data' => $responseData,
+                    ], 500);
+                }
+
+                return response()->json([
+                    'status' => 'success',
+                    'message' => 'Service deleted successfully from Google Sheet!',
+                    'data' => $responseData ?: ['raw' => $response->body()],
+                ]);
+            }
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Google Apps Script returned HTTP ' . $response->status() . ': ' . $response->body(),
+            ], 500);
+        } catch (\Exception $e) {
+            Log::error('Google Apps Script delete service exception: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to delete service: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
 }

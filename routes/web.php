@@ -28,6 +28,13 @@ Route::get('/rent', function () {
     ]);
 })->name('rent');
 
+Route::get('/repair', function () {
+    return Inertia::render('Repair', [
+        'canLogin' => Route::has('login'),
+        'canRegister' => Route::has('register'),
+    ]);
+})->name('repair');
+
 Route::get('/rent/reserve/{id}', function ($id) {
     return Inertia::render('Rent/RentReservation', [
         'id' => $id,
@@ -113,6 +120,30 @@ Route::middleware('auth')->group(function () {
         ]);
     })->name('admin.reservations.show');
 
+    Route::get('/admin/services', function () {
+        return Inertia::render('Admin/Services/Index');
+    })->name('admin.services.index');
+
+    Route::get('/admin/services/create', function () {
+        return Inertia::render('Admin/Services/Create');
+    })->name('admin.services.create');
+
+    Route::get('/admin/services/{id}/edit', function ($id) {
+        return Inertia::render('Admin/Services/Edit', [
+            'id' => $id,
+        ]);
+    })->name('admin.services.edit');
+
+    Route::get('/admin/categories/create', function () {
+        return Inertia::render('Admin/Categories/Create');
+    })->name('admin.categories.create');
+
+    Route::get('/admin/categories/{id}/edit', function ($id) {
+        return Inertia::render('Admin/Categories/Edit', [
+            'id' => $id,
+        ]);
+    })->name('admin.categories.edit');
+
     Route::get('/admin/coupons', function () {
         return Inertia::render('Admin/Coupons/Index');
     })->name('admin.coupons.index');
@@ -135,6 +166,12 @@ Route::middleware('auth')->group(function () {
 
     Route::post('/admin/cars', [\App\Http\Controllers\AdminVehicleController::class, 'store'])->name('admin.cars.store');
     Route::delete('/admin/cars/{id}', [\App\Http\Controllers\AdminVehicleController::class, 'destroy'])->name('admin.cars.destroy');
+
+    Route::post('/admin/categories', [\App\Http\Controllers\AdminVehicleController::class, 'saveCategory'])->name('admin.categories.store');
+    Route::delete('/admin/categories/{id?}', [\App\Http\Controllers\AdminVehicleController::class, 'deleteCategory'])->name('admin.categories.destroy');
+
+    Route::post('/admin/services', [\App\Http\Controllers\AdminVehicleController::class, 'saveService'])->name('admin.services.store');
+    Route::delete('/admin/services/{id?}', [\App\Http\Controllers\AdminVehicleController::class, 'deleteService'])->name('admin.services.destroy');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

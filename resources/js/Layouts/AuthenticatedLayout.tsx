@@ -42,6 +42,15 @@ export default function AuthenticatedLayout({
         url === "/admin/rent-reservations" ||
         route().current("admin.reservations.index");
 
+    const isServicesIndex =
+        url.startsWith("/admin/services") ||
+        url.startsWith("/admin/categories") ||
+        route().current("admin.services.index") ||
+        route().current("admin.services.create") ||
+        route().current("admin.services.edit") ||
+        route().current("admin.categories.create") ||
+        route().current("admin.categories.edit");
+
     const isCouponsIndex =
         url === "/admin/coupons" || route().current("admin.coupons.index");
 
@@ -392,7 +401,61 @@ export default function AuthenticatedLayout({
                                 </div>
                             </div>
 
-                            {/* 4. Coupons */}
+                            {/* 4. Repair (Top of Coupons) */}
+                            <div className="pt-2">
+                                <div className="flex items-center space-x-3 px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-black">
+                                    <svg
+                                        className="w-4 h-4 text-vivid-red shrink-0"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                                        />
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                                        />
+                                    </svg>
+                                    <span>Repair</span>
+                                </div>
+
+                                {/* Repair Sub-menu */}
+                                <div className="mt-1 ml-4 pl-3 border-l-2 border-purple/40 space-y-1">
+                                    {/* Service Catalog */}
+                                    <Link
+                                        href={route("admin.services.index")}
+                                        className={`flex items-center space-x-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition ${
+                                            isServicesIndex
+                                                ? "bg-vivid-red text-white shadow-lg shadow-vivid-red/30"
+                                                : "text-black hover:text-black/60 hover:bg-white/10"
+                                        }`}
+                                    >
+                                        <svg
+                                            className={`w-4 h-4 shrink-0 ${isServicesIndex ? "text-white" : "text-purple"}`}
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                                            />
+                                        </svg>
+                                        <span>Service Catalog</span>
+                                    </Link>
+                                </div>
+                            </div>
+
+                            {/* 5. Coupons */}
                             <div className="pt-2">
                                 <div className="flex items-center space-x-3 px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-black">
                                     <svg
