@@ -100,12 +100,27 @@ export default function Index() {
         setSearchQuery("");
     };
 
-    // Helper to render category icon
+    // Helper to render category icon strictly from Google Sheet category definition
     const renderCategoryIcon = (categoryName: string, iconRaw?: string) => {
-        const preset =
-            PRESET_CATEGORY_ICONS[categoryName] ||
-            PRESET_CATEGORY_ICONS[iconRaw || ""];
-        if (preset) {
+        const trimmedName = (categoryName || "").trim();
+        const trimmedIcon = (iconRaw || "").trim();
+
+        // Retrieve the category icon strictly from the Google Sheet category definition
+        let categoryIconData = trimmedIcon;
+        if (!categoryIconData && trimmedName && categories.length > 0) {
+            const matchedCategory = categories.find(
+                (c) =>
+                    c.name.trim().toLowerCase() === trimmedName.toLowerCase() ||
+                    c.id.trim().toLowerCase() === trimmedName.toLowerCase(),
+            );
+            if (matchedCategory) {
+                categoryIconData = (matchedCategory.icon || "").trim();
+            }
+        }
+
+        // If the category icon in Google Sheet matches a preset key exactly
+        if (categoryIconData && PRESET_CATEGORY_ICONS[categoryIconData]) {
+            const preset = PRESET_CATEGORY_ICONS[categoryIconData];
             return (
                 <div
                     className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 ${preset.color}`}
@@ -113,29 +128,36 @@ export default function Index() {
                 />
             );
         }
+
+        // If the category icon in Google Sheet contains SVG markup
         if (
-            iconRaw &&
-            (iconRaw.startsWith("<svg") || iconRaw.includes("<svg"))
+            categoryIconData &&
+            (categoryIconData.startsWith("<svg") ||
+                categoryIconData.includes("<svg"))
         ) {
             return (
                 <div
-                    className="w-6 h-6 flex items-center justify-center shrink-0 text-slate-700"
-                    dangerouslySetInnerHTML={{ __html: iconRaw }}
+                    className="w-6 h-6 flex items-center justify-center shrink-0 text-slate-700 [&>svg]:w-5 [&>svg]:h-5"
+                    dangerouslySetInnerHTML={{ __html: categoryIconData }}
                 />
             );
         }
+
+        // If the category icon in Google Sheet is an image URL (e.g. Google Drive, direct link)
         if (
-            iconRaw &&
-            (iconRaw.startsWith("http://") || iconRaw.startsWith("https://"))
+            categoryIconData &&
+            (categoryIconData.startsWith("http://") ||
+                categoryIconData.startsWith("https://"))
         ) {
             return (
                 <img
-                    src={iconRaw}
+                    src={formatDriveImageUrl(categoryIconData)}
                     alt={categoryName}
                     className="w-5 h-5 object-contain shrink-0"
                 />
             );
         }
+
         return (
             <svg
                 className="w-5 h-5 text-slate-500 shrink-0"
