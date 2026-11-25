@@ -525,7 +525,11 @@ export default function Index() {
                                                 {est.servicesNeeded}
                                             </td>
                                             <td className="py-3.5 px-4 text-slate-600 font-medium whitespace-nowrap">
-                                                {est.timestamp}
+                                                {est.timestamp
+                                                    ? est.timestamp.split(
+                                                          " ",
+                                                      )[0]
+                                                    : ""}
                                             </td>
                                             <td className="py-3.5 px-3 text-center">
                                                 <span
