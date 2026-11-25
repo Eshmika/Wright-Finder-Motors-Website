@@ -7,6 +7,7 @@ import {
     ServiceCategory,
     fetchAllCategories,
     fetchAllEstimates,
+    expandYearsSold,
 } from "@/Services/repairService";
 
 const CAR_LIST_CSV_URL =
@@ -149,10 +150,7 @@ export default function Create() {
         carList.forEach((r) => {
             if (estimateMake && r.carName !== estimateMake) return;
             if (estimateModel && r.model !== estimateModel) return;
-            const matches = r.yearsSold.match(/\b(19|20)\d{2}\b/g);
-            if (matches) {
-                matches.forEach((y) => set.add(y));
-            }
+            expandYearsSold(r.yearsSold).forEach((y) => set.add(y));
         });
         return Array.from(set).sort((a, b) => Number(b) - Number(a));
     }, [carList, estimateMake, estimateModel]);

@@ -247,6 +247,37 @@ export async function fetchAllServices(): Promise<RepairService[]> {
     }
 }
 
+export function expandYearsSold(yearsSold: string): string[] {
+    if (!yearsSold) return [];
+    const set = new Set<string>();
+    const currentYear = new Date().getFullYear();
+
+    // Match ranges like 2017-2026, 2017–2026, 2017—2026, 2017 to 2026, 2017-Present
+    const rangeRegex =
+        /\b((?:19|20)\d{2})\s*(?:-|–|—|to)\s*((?:19|20)\d{2}|present)\b/gi;
+    let match: RegExpExecArray | null;
+    while ((match = rangeRegex.exec(yearsSold)) !== null) {
+        const start = Number(match[1]);
+        const end =
+            match[2].toLowerCase() === "present"
+                ? currentYear
+                : Number(match[2]);
+        const min = Math.min(start, end);
+        const max = Math.max(start, end);
+        for (let y = min; y <= max; y++) {
+            set.add(String(y));
+        }
+    }
+
+    // Also include any standalone 4-digit years
+    const singleMatches = yearsSold.match(/\b(19|20)\d{2}\b/g);
+    if (singleMatches) {
+        singleMatches.forEach((y) => set.add(y));
+    }
+
+    return Array.from(set);
+}
+
 export async function fetchAllEstimates(): Promise<EstimateRequest[]> {
     try {
         const res = await fetch(ESTIMATE_SHEET_CSV_URL);
@@ -285,7 +316,8 @@ export async function fetchAllEstimates(): Promise<EstimateRequest[]> {
         for (let i = 1; i < rows.length; i++) {
             const row = rows[i];
             if (!row || row.length === 0) continue;
-            const id = idIdx !== -1 ? row[idIdx]?.trim() || "" : row[0]?.trim() || "";
+            const id =
+                idIdx !== -1 ? row[idIdx]?.trim() || "" : row[0]?.trim() || "";
             const fullName = nameIdx !== -1 ? row[nameIdx]?.trim() || "" : "";
             if (!id && !fullName) continue;
 
@@ -295,9 +327,12 @@ export async function fetchAllEstimates(): Promise<EstimateRequest[]> {
                 make: makeIdx !== -1 ? row[makeIdx]?.trim() || "" : "",
                 model: modelIdx !== -1 ? row[modelIdx]?.trim() || "" : "",
                 mileage: mileageIdx !== -1 ? row[mileageIdx]?.trim() || "" : "",
-                servicesNeeded: servicesIdx !== -1 ? row[servicesIdx]?.trim() || "" : "",
-                additionalDetails: detailsIdx !== -1 ? row[detailsIdx]?.trim() || "" : "",
-                serviceLocation: locationIdx !== -1 ? row[locationIdx]?.trim() || "" : "",
+                servicesNeeded:
+                    servicesIdx !== -1 ? row[servicesIdx]?.trim() || "" : "",
+                additionalDetails:
+                    detailsIdx !== -1 ? row[detailsIdx]?.trim() || "" : "",
+                serviceLocation:
+                    locationIdx !== -1 ? row[locationIdx]?.trim() || "" : "",
                 fullName,
                 email: emailIdx !== -1 ? row[emailIdx]?.trim() || "" : "",
                 phone: phoneIdx !== -1 ? row[phoneIdx]?.trim() || "" : "",
