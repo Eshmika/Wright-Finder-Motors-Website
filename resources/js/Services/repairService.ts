@@ -27,6 +27,25 @@ export const CATEGORY_SHEET_CSV_URL =
 export const SERVICE_SHEET_CSV_URL =
     "https://docs.google.com/spreadsheets/d/16dhtw1POBIeifrAEk0ZqmH3jV8s20quo9Si3GfebifE/gviz/tq?tqx=out:csv&sheet=Service";
 
+export const ESTIMATE_SHEET_CSV_URL =
+    "https://docs.google.com/spreadsheets/d/16dhtw1POBIeifrAEk0ZqmH3jV8s20quo9Si3GfebifE/gviz/tq?tqx=out:csv&sheet=Estimate";
+
+export interface EstimateRequest {
+    id: string;
+    year: string;
+    make: string;
+    model: string;
+    mileage: string;
+    servicesNeeded: string;
+    additionalDetails: string;
+    serviceLocation: string;
+    fullName: string;
+    email: string;
+    phone: string;
+    status: string;
+    timestamp: string;
+}
+
 // Standard preset icons available for quick selection or preview
 export const PRESET_CATEGORY_ICONS: {
     [key: string]: { label: string; svg: string; color: string; bg: string };
@@ -223,6 +242,73 @@ export async function fetchAllServices(): Promise<RepairService[]> {
             });
         }
         return list;
+    } catch {
+        return [];
+    }
+}
+
+export async function fetchAllEstimates(): Promise<EstimateRequest[]> {
+    try {
+        const res = await fetch(ESTIMATE_SHEET_CSV_URL);
+        if (!res.ok) return [];
+        const text = await res.text();
+        if (
+            text.includes("<!DOCTYPE html") ||
+            text.includes("<html") ||
+            text.trim().length === 0
+        ) {
+            return [];
+        }
+        const rows = parseCsv(text);
+        if (rows.length < 2) return [];
+
+        const headers = rows[0].map((h) => h.trim().toLowerCase());
+        const getIdx = (name: string) =>
+            headers.findIndex((h) => h.includes(name));
+
+        const idIdx = getIdx("id");
+        const yearIdx = getIdx("year");
+        const makeIdx = getIdx("make");
+        const modelIdx = getIdx("model");
+        const mileageIdx = getIdx("mileage");
+        const servicesIdx = getIdx("service");
+        const detailsIdx = getIdx("detail");
+        const locationIdx = getIdx("location");
+        const nameIdx = getIdx("name");
+        const emailIdx = getIdx("email");
+        const phoneIdx = getIdx("phone");
+        const statusIdx = getIdx("status");
+        const timestampIdx = getIdx("timestamp");
+        const dateIdx = timestampIdx !== -1 ? timestampIdx : getIdx("date");
+
+        const list: EstimateRequest[] = [];
+        for (let i = 1; i < rows.length; i++) {
+            const row = rows[i];
+            if (!row || row.length === 0) continue;
+            const id = idIdx !== -1 ? row[idIdx]?.trim() || "" : row[0]?.trim() || "";
+            const fullName = nameIdx !== -1 ? row[nameIdx]?.trim() || "" : "";
+            if (!id && !fullName) continue;
+
+            list.push({
+                id: id || `EST-${i}`,
+                year: yearIdx !== -1 ? row[yearIdx]?.trim() || "" : "",
+                make: makeIdx !== -1 ? row[makeIdx]?.trim() || "" : "",
+                model: modelIdx !== -1 ? row[modelIdx]?.trim() || "" : "",
+                mileage: mileageIdx !== -1 ? row[mileageIdx]?.trim() || "" : "",
+                servicesNeeded: servicesIdx !== -1 ? row[servicesIdx]?.trim() || "" : "",
+                additionalDetails: detailsIdx !== -1 ? row[detailsIdx]?.trim() || "" : "",
+                serviceLocation: locationIdx !== -1 ? row[locationIdx]?.trim() || "" : "",
+                fullName,
+                email: emailIdx !== -1 ? row[emailIdx]?.trim() || "" : "",
+                phone: phoneIdx !== -1 ? row[phoneIdx]?.trim() || "" : "",
+                status:
+                    statusIdx !== -1 && row[statusIdx]?.trim()
+                        ? row[statusIdx].trim()
+                        : "New",
+                timestamp: dateIdx !== -1 ? row[dateIdx]?.trim() || "" : "",
+            });
+        }
+        return list.reverse();
     } catch {
         return [];
     }

@@ -50,6 +50,7 @@ class EstimateController extends Controller
             'fullName' => $request->input('fullName'),
             'email' => $request->input('email'),
             'phone' => $request->input('phone'),
+            'status' => $request->input('status', 'New'),
             'timestamp' => date('Y-m-d H:i:s') . ' EST',
         ];
 

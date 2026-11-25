@@ -185,6 +185,7 @@ function doPost(e) {
                 "Full Name",
                 "Email",
                 "Phone",
+                "Status",
             ];
 
             if (estSheet.getLastRow() === 0) {
@@ -204,6 +205,7 @@ function doPost(e) {
                 data.fullName || "",
                 data.email || "",
                 data.phone || "",
+                data.status || "New",
             ]);
 
             return ContentService.createTextOutput(
