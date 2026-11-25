@@ -200,7 +200,7 @@ export default function Create() {
         }
 
         setIsSubmitting(true);
-        const estimateRequestId = `EST-${1001 + existingCount}`;
+        const estimateRequestId = `EST-${Math.floor(1000 + Math.random() * 9000)}`;
 
         try {
             const res = await axios.post(route("repair.estimate.store"), {
