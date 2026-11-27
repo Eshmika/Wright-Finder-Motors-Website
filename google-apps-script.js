@@ -185,6 +185,7 @@ function doPost(e) {
                 "Full Name",
                 "Email",
                 "Phone",
+                "Status",
             ];
 
             if (estSheet.getLastRow() === 0) {
@@ -204,6 +205,7 @@ function doPost(e) {
                 data.fullName || "",
                 data.email || "",
                 data.phone || "",
+                data.status || "New",
             ]);
 
             return ContentService.createTextOutput(
@@ -1567,7 +1569,19 @@ function doPost(e) {
 
         var updatedRowNumber;
         if (targetRowIndex > 0) {
-            // Update existing row preserving timestamp if not provided
+            // Update existing row while preserving any columns not provided in newRow
+            var existingRow = sheet
+                .getRange(targetRowIndex, 1, 1, newRow.length)
+                .getValues()[0];
+            for (var col = 0; col < newRow.length; col++) {
+                if (
+                    newRow[col] === "" ||
+                    newRow[col] === undefined ||
+                    newRow[col] === null
+                ) {
+                    newRow[col] = existingRow[col];
+                }
+            }
             sheet
                 .getRange(targetRowIndex, 1, 1, newRow.length)
                 .setValues([newRow]);

@@ -125,6 +125,14 @@ Route::middleware('auth')->group(function () {
         return Inertia::render('Admin/Services/Index');
     })->name('admin.services.index');
 
+    Route::get('/admin/estimates', function () {
+        return Inertia::render('Admin/Estimates/Index');
+    })->name('admin.estimates.index');
+
+    Route::get('/admin/estimates/create', function () {
+        return Inertia::render('Admin/Estimates/Create');
+    })->name('admin.estimates.create');
+
     Route::get('/admin/services/create', function () {
         return Inertia::render('Admin/Services/Create');
     })->name('admin.services.create');

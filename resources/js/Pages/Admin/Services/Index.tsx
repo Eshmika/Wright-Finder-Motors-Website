@@ -19,6 +19,8 @@ export default function Index() {
     const [selectedCategoryFilter, setSelectedCategoryFilter] = useState("all");
     const [selectedStatusFilter, setSelectedStatusFilter] = useState("all");
     const [searchQuery, setSearchQuery] = useState("");
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 5;
 
     // Modal state for view & delete confirmation
     const [viewService, setViewService] = useState<RepairService | null>(null);
@@ -98,7 +100,18 @@ export default function Index() {
         setSelectedCategoryFilter("all");
         setSelectedStatusFilter("all");
         setSearchQuery("");
+        setCurrentPage(1);
     };
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [selectedCategoryFilter, selectedStatusFilter, searchQuery]);
+
+    const totalPages = Math.ceil(filteredServices.length / itemsPerPage);
+    const paginatedServices = useMemo(() => {
+        const start = (currentPage - 1) * itemsPerPage;
+        return filteredServices.slice(start, start + itemsPerPage);
+    }, [filteredServices, currentPage]);
 
     // Helper to render category icon strictly from Google Sheet category definition
     const renderCategoryIcon = (categoryName: string, iconRaw?: string) => {
@@ -623,7 +636,7 @@ export default function Index() {
                                         </td>
                                     </tr>
                                 ) : (
-                                    filteredServices.map((srv, idx) => {
+                                    paginatedServices.map((srv, idx) => {
                                         const isActive =
                                             (srv.status || "").toLowerCase() ===
                                             "active";
@@ -638,7 +651,10 @@ export default function Index() {
                                             >
                                                 {/* NO */}
                                                 <td className="py-3 px-3 text-center font-bold text-slate-800">
-                                                    {idx + 1}
+                                                    {(currentPage - 1) *
+                                                        itemsPerPage +
+                                                        idx +
+                                                        1}
                                                 </td>
 
                                                 {/* IMAGE */}
@@ -849,6 +865,76 @@ export default function Index() {
                                 )}
                             </tbody>
                         </table>
+                    </div>
+
+                    {/* Pagination Footer */}
+                    <div className="px-5 py-3.5 bg-slate-50/70 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">
+                        <div>
+                            Showing{" "}
+                            <span className="font-semibold text-slate-900">
+                                {filteredServices.length === 0
+                                    ? 0
+                                    : (currentPage - 1) * itemsPerPage + 1}
+                            </span>{" "}
+                            to{" "}
+                            <span className="font-semibold text-slate-900">
+                                {Math.min(
+                                    currentPage * itemsPerPage,
+                                    filteredServices.length,
+                                )}
+                            </span>{" "}
+                            of{" "}
+                            <span className="font-semibold text-slate-900">
+                                {filteredServices.length}
+                            </span>{" "}
+                            services
+                        </div>
+
+                        {totalPages > 1 && (
+                            <div className="flex items-center gap-1.5">
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setCurrentPage((p) =>
+                                            Math.max(p - 1, 1),
+                                        )
+                                    }
+                                    disabled={currentPage === 1}
+                                    className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-white text-slate-700 font-semibold transition cursor-pointer"
+                                >
+                                    Previous
+                                </button>
+                                {Array.from(
+                                    { length: totalPages },
+                                    (_, i) => i + 1,
+                                ).map((pg) => (
+                                    <button
+                                        key={pg}
+                                        type="button"
+                                        onClick={() => setCurrentPage(pg)}
+                                        className={`w-8 h-8 rounded-lg font-semibold transition cursor-pointer ${
+                                            currentPage === pg
+                                                ? "bg-dark-purple text-white shadow-sm"
+                                                : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-100"
+                                        }`}
+                                    >
+                                        {pg}
+                                    </button>
+                                ))}
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setCurrentPage((p) =>
+                                            Math.min(p + 1, totalPages),
+                                        )
+                                    }
+                                    disabled={currentPage === totalPages}
+                                    className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-white text-slate-700 font-semibold transition cursor-pointer"
+                                >
+                                    Next
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
 
